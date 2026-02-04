@@ -308,7 +308,7 @@ const Assets: React.FC = () => {
                         value={formData.appearance}
                         onValueChange={(val) => setFormData({ ...formData, appearance: val })}
                         classNames={{
-                          input: "bg-transparent text-white",
+                          input: "bg-transparent text-white placeholder-white/50",
                           label: "text-white/60",
                           inputWrapper: "bg-white/5 border-white/10"
                         }}
@@ -319,7 +319,7 @@ const Assets: React.FC = () => {
                         value={formData.personality}
                         onValueChange={(val) => setFormData({ ...formData, personality: val })}
                         classNames={{
-                          input: "bg-transparent text-white",
+                          input: "bg-transparent text-white placeholder-white/50",
                           label: "text-white/60",
                           inputWrapper: "bg-white/5 border-white/10"
                         }}
@@ -333,7 +333,7 @@ const Assets: React.FC = () => {
                         value={formData.environment}
                         onValueChange={(val) => setFormData({ ...formData, environment: val })}
                         classNames={{
-                          input: "bg-transparent text-white",
+                          input: "bg-transparent text-white placeholder-white/50",
                           label: "text-white/60",
                           inputWrapper: "bg-white/5 border-white/10"
                         }}
@@ -344,7 +344,7 @@ const Assets: React.FC = () => {
                         value={formData.lighting}
                         onValueChange={(val) => setFormData({ ...formData, lighting: val })}
                         classNames={{
-                          input: "bg-transparent text-white",
+                          input: "bg-transparent text-white placeholder-white/50",
                           label: "text-white/60",
                           inputWrapper: "bg-white/5 border-white/10"
                         }}
@@ -355,7 +355,7 @@ const Assets: React.FC = () => {
                         value={formData.mood}
                         onValueChange={(val) => setFormData({ ...formData, mood: val })}
                         classNames={{
-                          input: "bg-transparent text-white",
+                          input: "bg-transparent text-white placeholder-white/50",
                           label: "text-white/60",
                           inputWrapper: "bg-white/5 border-white/10"
                         }}
@@ -369,7 +369,7 @@ const Assets: React.FC = () => {
                     value={formData.image_url}
                     onValueChange={(val) => setFormData({ ...formData, image_url: val })}
                     classNames={{
-                      input: "bg-transparent text-white",
+                      input: "bg-transparent text-white placeholder-white/50",
                       label: "text-white/60",
                       inputWrapper: "bg-white/5 border-white/10"
                     }}
@@ -381,7 +381,7 @@ const Assets: React.FC = () => {
                     value={formData.tags}
                     onValueChange={(val) => setFormData({ ...formData, tags: val })}
                     classNames={{
-                      input: "bg-transparent text-white",
+                      input: "bg-transparent text-white placeholder-white/50",
                       label: "text-white/60",
                       inputWrapper: "bg-white/5 border-white/10"
                     }}
