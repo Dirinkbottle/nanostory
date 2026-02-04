@@ -168,11 +168,11 @@ const ScriptStudio: React.FC = () => {
           <div className="p-8 space-y-6 overflow-auto">
             {/* 余额显示 */}
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white" style={{ WebkitTextStroke: '1px white' }}>创作工作台</h1>
+              <h1 className="text-2xl font-bold text-white">创作工作台</h1>
               <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg border border-white/10">
                 <Wallet className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm text-transparent bg-clip-text bg-gradient-to-r from-white/60 to-white/60" style={{ WebkitTextStroke: '0.5px rgba(255,255,255,0.6)' }}>余额</span>
-                <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-white" style={{ WebkitTextStroke: '1px white' }}>¥{balance.toFixed(2)}</span>
+                <span className="text-sm text-white/60">余额</span>
+                <span className="text-lg font-bold text-white">¥{balance.toFixed(2)}</span>
               </div>
             </div>
 
@@ -189,9 +189,6 @@ const ScriptStudio: React.FC = () => {
                     label: "text-white/60 font-medium",
                     inputWrapper: "bg-white/5 border-white/10"
                   }}
-                  style={{ 
-                    WebkitTextStroke: '0.5px white'
-                  }}
                 />
 
                 <Textarea
@@ -204,9 +201,6 @@ const ScriptStudio: React.FC = () => {
                     input: "bg-transparent text-white font-medium",
                     label: "text-white/60 font-medium",
                     inputWrapper: "bg-white/5 border-white/10"
-                  }}
-                  style={{ 
-                    WebkitTextStroke: '0.5px white'
                   }}
                 />
 
@@ -249,9 +243,6 @@ const ScriptStudio: React.FC = () => {
                   startContent={<Sparkles className="w-5 h-5" />}
                   isLoading={loading}
                   onPress={handleGenerate}
-                  style={{ 
-                    WebkitTextStroke: '0.5px black'
-                  }}
                 >
                   {loading ? '生成中...' : '生成剧本'}
                 </Button>
@@ -265,13 +256,12 @@ const ScriptStudio: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Video className="w-5 h-5 text-purple-400" />
-                      <span className="text-white/80 font-medium" style={{ WebkitTextStroke: '0.5px rgba(255,255,255,0.8)' }}>剧本已生成，可以开始制作视频</span>
+                      <span className="text-white/80 font-medium">剧本已生成，可以开始制作视频</span>
                     </div>
                     <Button
                       size="sm"
                       className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold"
                       onPress={handleGenerateVideo}
-                      style={{ WebkitTextStroke: '0.5px white' }}
                     >
                       选择模型
                     </Button>
@@ -287,7 +277,7 @@ const ScriptStudio: React.FC = () => {
           <div className="p-8 overflow-auto">
             {content ? (
               <div className="prose prose-invert max-w-none">
-                <pre className="whitespace-pre-wrap text-white/90 font-medium leading-relaxed text-base" style={{ WebkitTextStroke: '0.3px rgba(255,255,255,0.9)' }}>
+                <pre className="whitespace-pre-wrap text-white/90 font-medium leading-relaxed text-base">
                   {content}
                 </pre>
               </div>
@@ -297,8 +287,8 @@ const ScriptStudio: React.FC = () => {
                   <div className="w-24 h-24 mx-auto bg-white/5 rounded-full flex items-center justify-center">
                     <Sparkles className="w-12 h-12 text-white/20" />
                   </div>
-                  <p className="text-white/50 text-lg font-semibold" style={{ WebkitTextStroke: '0.5px rgba(255,255,255,0.5)' }}>开始创作你的视频剧本</p>
-                  <p className="text-white/30 text-sm font-medium" style={{ WebkitTextStroke: '0.3px rgba(255,255,255,0.3)' }}>输入创意 → 生成剧本 → 选择模型 → 生成视频</p>
+                  <p className="text-white/50 text-lg font-semibold">开始创作你的视频剧本</p>
+                  <p className="text-white/30 text-sm font-medium">输入创意 → 生成剧本 → 选择模型 → 生成视频</p>
                 </div>
               </div>
             )}
@@ -321,7 +311,7 @@ const ScriptStudio: React.FC = () => {
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="text-white font-bold" style={{ WebkitTextStroke: '0.5px white' }}>选择视频生成模型</ModalHeader>
+              <ModalHeader className="text-white font-bold">选择视频生成模型</ModalHeader>
               <ModalBody>
                 <div className="grid grid-cols-2 gap-4">
                   {videoModels.map((model) => (
@@ -340,14 +330,14 @@ const ScriptStudio: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             {getTierIcon(model.tier)}
-                            <span className="font-bold text-white" style={{ WebkitTextStroke: '0.5px white' }}>{model.tier}</span>
+                            <span className="font-bold text-white">{model.tier}</span>
                           </div>
                           <Chip size="sm" variant="flat" className="bg-white/20 text-white font-semibold">
                             {model.displayName}
                           </Chip>
                         </div>
                         
-                        <p className="text-sm text-white/80 font-medium" style={{ WebkitTextStroke: '0.3px rgba(255,255,255,0.8)' }}>{model.description}</p>
+                        <p className="text-sm text-white/80 font-medium">{model.description}</p>
                         
                         <div className="flex flex-wrap gap-2">
                           {model.features.map((feature, idx) => (
@@ -358,8 +348,8 @@ const ScriptStudio: React.FC = () => {
                         </div>
                         
                         <div className="pt-2 border-t border-white/10">
-                          <div className="text-xs text-white/60 font-medium" style={{ WebkitTextStroke: '0.3px rgba(255,255,255,0.6)' }}>预计费用 (10秒)</div>
-                          <div className="text-lg font-bold text-white" style={{ WebkitTextStroke: '0.5px white' }}>
+                          <div className="text-xs text-white/60 font-medium">预计费用 (10秒)</div>
+                          <div className="text-lg font-bold text-white">
                             ¥{(10 * model.pricing.perSecond).toFixed(2)}
                           </div>
                         </div>
@@ -369,13 +359,12 @@ const ScriptStudio: React.FC = () => {
                 </div>
               </ModalBody>
               <ModalFooter>
-                <Button variant="light" onPress={onClose} className="text-white/70 font-semibold" style={{ WebkitTextStroke: '0.3px rgba(255,255,255,0.7)' }}>
+                <Button variant="light" onPress={onClose} className="text-white/70 font-semibold">
                   取消
                 </Button>
                 <Button 
                   className="bg-white text-black font-bold"
                   onPress={confirmGenerateVideo}
-                  style={{ WebkitTextStroke: '0.5px black' }}
                 >
                   确认生成
                 </Button>
