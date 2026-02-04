@@ -185,7 +185,7 @@ const ScriptStudio: React.FC = () => {
                   value={title}
                   onValueChange={setTitle}
                   classNames={{
-                    input: "bg-transparent text-white font-semibold",
+                    input: "bg-transparent text-white font-semibold placeholder-white/50",
                     label: "text-white/60 font-medium",
                     inputWrapper: "bg-white/5 border-white/10"
                   }}
@@ -198,7 +198,7 @@ const ScriptStudio: React.FC = () => {
                   onValueChange={setDescription}
                   minRows={4}
                   classNames={{
-                    input: "bg-transparent text-white font-medium",
+                    input: "bg-transparent text-white font-medium placeholder-white/50",
                     label: "text-white/60 font-medium",
                     inputWrapper: "bg-white/5 border-white/10"
                   }}
@@ -210,9 +210,10 @@ const ScriptStudio: React.FC = () => {
                     selectedKeys={[style]}
                     onChange={(e) => setStyle(e.target.value)}
                     classNames={{
-                      trigger: "bg-white/5 border-white/10",
+                      trigger: "bg-white/5 border-white/10 text-white",
                       label: "text-white/60",
-                      value: "text-white"
+                      value: "text-white",
+                      selectorIcon: "text-white"
                     }}
                   >
                     <SelectItem key="电影感" value="电影感">电影感</SelectItem>
@@ -226,9 +227,10 @@ const ScriptStudio: React.FC = () => {
                     selectedKeys={[length]}
                     onChange={(e) => setLength(e.target.value)}
                     classNames={{
-                      trigger: "bg-white/5 border-white/10",
+                      trigger: "bg-white/5 border-white/10 text-white",
                       label: "text-white/60",
-                      value: "text-white"
+                      value: "text-white",
+                      selectorIcon: "text-white"
                     }}
                   >
                     <SelectItem key="短篇" value="短篇">短篇 (1-3分钟)</SelectItem>
