@@ -210,9 +210,9 @@ const ScriptStudio: React.FC = () => {
                     selectedKeys={[style]}
                     onChange={(e) => setStyle(e.target.value)}
                     classNames={{
-                      trigger: "bg-white/5 border-white/10 text-white font-medium",
+                      trigger: "bg-white/10 border-white/20 text-white font-bold",
                       label: "text-white/80",
-                      value: "text-white font-medium",
+                      value: "text-white font-bold text-lg",
                       selectorIcon: "text-white"
                     }}
                   >
@@ -251,9 +251,9 @@ const ScriptStudio: React.FC = () => {
                     selectedKeys={[length]}
                     onChange={(e) => setLength(e.target.value)}
                     classNames={{
-                      trigger: "bg-white/5 border-white/10 text-white font-medium",
+                      trigger: "bg-white/10 border-white/20 text-white font-bold",
                       label: "text-white/80",
-                      value: "text-white font-medium",
+                      value: "text-white font-bold text-lg",
                       selectorIcon: "text-white"
                     }}
                   >
