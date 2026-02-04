@@ -185,8 +185,8 @@ const ScriptStudio: React.FC = () => {
                   value={title}
                   onValueChange={setTitle}
                   classNames={{
-                    input: "bg-transparent text-white font-semibold placeholder-white/50",
-                    label: "text-white/60 font-medium",
+                    input: "bg-transparent text-white font-semibold placeholder-white/70",
+                    label: "text-white/80 font-medium",
                     inputWrapper: "bg-white/5 border-white/10"
                   }}
                 />
@@ -198,8 +198,8 @@ const ScriptStudio: React.FC = () => {
                   onValueChange={setDescription}
                   minRows={4}
                   classNames={{
-                    input: "bg-transparent text-white font-medium placeholder-white/50",
-                    label: "text-white/60 font-medium",
+                    input: "bg-transparent text-white font-medium placeholder-white/70",
+                    label: "text-white/80 font-medium",
                     inputWrapper: "bg-white/5 border-white/10"
                   }}
                 />
@@ -211,7 +211,7 @@ const ScriptStudio: React.FC = () => {
                     onChange={(e) => setStyle(e.target.value)}
                     classNames={{
                       trigger: "bg-white/5 border-white/10 text-white",
-                      label: "text-white/60",
+                      label: "text-white/80",
                       value: "text-white",
                       selectorIcon: "text-white"
                     }}
@@ -228,7 +228,7 @@ const ScriptStudio: React.FC = () => {
                     onChange={(e) => setLength(e.target.value)}
                     classNames={{
                       trigger: "bg-white/5 border-white/10 text-white",
-                      label: "text-white/60",
+                      label: "text-white/80",
                       value: "text-white",
                       selectorIcon: "text-white"
                     }}
