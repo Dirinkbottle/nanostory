@@ -95,23 +95,23 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="h-full overflow-y-auto p-6 md:p-10 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200">
+    <div className="h-full overflow-y-auto p-6 md:p-10 bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900">
       <div className="flex justify-between items-center mb-10 max-w-[1600px] mx-auto">
         <div>
-          <h1 className="text-4xl font-black mb-2 uppercase tracking-tighter bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            {t.dashboard.title}
+          <h1 className="text-4xl font-black mb-2 uppercase tracking-tighter bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+            工作区
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium">{t.dashboard.subtitle}</p>
+          <p className="text-slate-400 font-medium">管理您的视频创作项目</p>
         </div>
         <Button
           color="primary"
           size="lg"
-          radius="full"
+          radius="lg"
           startContent={<Plus className="w-5 h-5" />}
           onPress={onCreateOpen}
-          className="font-black uppercase tracking-widest text-xs shadow-2xl shadow-primary/40 active:scale-95 hover:scale-110 hover:shadow-primary/60 transition-all duration-300 ease-out transform-gpu"
+          className="font-black uppercase tracking-widest text-xs bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700"
         >
-          {t.dashboard.newProject}
+          新建项目
         </Button>
       </div>
 
@@ -123,40 +123,39 @@ const Dashboard: React.FC = () => {
             className="cursor-pointer"
           >
           <Card 
-            className="border-none bg-white dark:bg-slate-900/100 backdrop-blur-sm shadow-sm hover:scale-[1.02] transition-all duration-300 group h-full"
+            className="border border-cyan-500/20 bg-slate-900/60 backdrop-blur-xl hover:scale-[1.02] hover:border-cyan-500/50 transition-all duration-300 group h-full"
           >
-            <CardBody className="p-8">
-              <div className="flex justify-between items-start mb-6">
-                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl text-indigo-600 dark:text-indigo-400 transition-colors group-hover:bg-indigo-600 group-hover:text-white">
-                  <Folder className="w-8 h-8" />
+            <CardBody className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-3 bg-cyan-500/10 rounded-xl text-cyan-400 transition-colors group-hover:bg-cyan-500/20">
+                  <Folder className="w-7 h-7" />
                 </div>
-                <Tooltip content={t.settings.remove} color="danger">
-                  <Button
-                    isIconOnly
-                    variant="light"
-                    color="danger"
-                    radius="full"
-                    onClick={(e) => onRequestDelete(e, project.id)}
-                    className="text-slate-400 hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </Button>
-                </Tooltip>
+                <Button
+                  isIconOnly
+                  variant="flat"
+                  color="danger"
+                  size="sm"
+                  radius="lg"
+                  onClick={(e) => onRequestDelete(e, project.id)}
+                  className="bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
               
-              <h2 className="text-2xl font-black text-slate-800 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-3">
+              <h2 className="text-xl font-black text-slate-100 group-hover:text-cyan-400 transition-colors mb-2">
                 {project.name}
               </h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm line-clamp-2 min-h-[2.5rem] font-medium leading-relaxed">
-                {project.description || t.dashboard.noDesc}
+              <p className="text-slate-400 text-sm line-clamp-2 min-h-[2.5rem] leading-relaxed">
+                {project.description || '暂无描述'}
               </p>
             </CardBody>
-            <Divider className="opacity-50" />
-            <CardFooter className="px-8 py-4 flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-600">
-                {t.dashboard.updated} {new Date(project.updatedAt).toLocaleDateString()}
+            <Divider className="bg-blue-900/30" />
+            <CardFooter className="px-6 py-3 flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                更新于 {new Date(project.updatedAt).toLocaleDateString()}
               </span>
-              <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+              <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transition-colors" />
             </CardFooter>
           </Card>
           </div>
@@ -172,24 +171,24 @@ const Dashboard: React.FC = () => {
         size="md"
         radius="lg"
         classNames={{
-          base: "dark:bg-slate-900 border border-slate-200 dark:border-slate-800",
-          header: "border-b-[1px] border-slate-100 dark:border-slate-800 p-6",
+          base: "bg-slate-900/95 border border-cyan-500/30 backdrop-blur-xl",
+          header: "border-b border-blue-900/30 p-6",
           body: "p-8",
-          footer: "border-t-[1px] border-slate-100 dark:border-slate-800 p-6",
+          footer: "border-t border-blue-900/30 p-6",
         }}
       >
         <ModalContent>
           {(onClose) => (
             <>
               <ModalHeader className="flex flex-col gap-1">
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                  {t.dashboard.createTitle}
+                <h2 className="text-2xl font-black bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent uppercase tracking-tight">
+                  新建项目
                 </h2>
               </ModalHeader>
               <ModalBody>
                 <div className="space-y-6">
                   <Input
-                    label={t.dashboard.nameLabel}
+                    label="项目名称"
                     placeholder=" "
                     labelPlacement="outside"
                     variant="bordered"
@@ -199,13 +198,13 @@ const Dashboard: React.FC = () => {
                     value={newProjectName}
                     onValueChange={setNewProjectName}
                     classNames={{
-                      label: "font-black text-[15px] uppercase tracking-widest text-slate-400 mb-2",
-                      input: "text-[16px]",
-                      inputWrapper: "border-2 group-data-[focus=true]:border-indigo-500"
+                      label: "font-bold text-sm uppercase tracking-widest text-cyan-400 mb-2",
+                      input: "text-base bg-slate-900/50",
+                      inputWrapper: "border-blue-800/50 group-data-[focus=true]:border-cyan-500"
                     }}
                   />
                   <Textarea
-                    label={t.dashboard.descLabel}
+                    label="项目描述"
                     placeholder=" "
                     labelPlacement="outside"
                     variant="bordered"
@@ -215,24 +214,24 @@ const Dashboard: React.FC = () => {
                     value={newProjectDesc}
                     onValueChange={setNewProjectDesc}
                     classNames={{
-                      label: "font-black text-[15px] uppercase tracking-widest text-slate-400 mb-2",
-                      input: "font-medium text-base",
-                      inputWrapper: "border-2 group-data-[focus=true]:border-indigo-500"
+                      label: "font-bold text-sm uppercase tracking-widest text-cyan-400 mb-2",
+                      input: "font-medium text-base bg-slate-900/50",
+                      inputWrapper: "border-blue-800/50 group-data-[focus=true]:border-cyan-500"
                     }}
                   />
                 </div>
               </ModalBody>
               <ModalFooter>
-                <Button variant="light" onPress={onClose} className="font-bold text-slate-500">
-                  {t.dashboard.cancel}
+                <Button variant="light" onPress={onClose} className="font-bold text-slate-400">
+                  取消
                 </Button>
                 <Button 
                   color="primary" 
                   onPress={handleCreate}
-                  className="font-black uppercase tracking-widest text-xs px-8"
+                  className="font-black uppercase tracking-widest text-xs px-8 bg-gradient-to-r from-cyan-500 to-blue-600"
                   radius="lg"
                 >
-                  {t.dashboard.create}
+                  创建
                 </Button>
               </ModalFooter>
             </>
@@ -249,26 +248,26 @@ const Dashboard: React.FC = () => {
         size="xs"
         radius="lg"
         classNames={{
-          base: "dark:bg-slate-900 border border-slate-200 dark:border-slate-800",
+          base: "bg-slate-900/95 border border-cyan-500/30 backdrop-blur-xl",
           body: "p-8",
         }}
       >
         <ModalContent>
           {(onClose) => (
             <ModalBody className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-danger-50 dark:bg-danger-900/20 text-danger rounded-full flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mb-4 border border-red-500/30">
                 <AlertTriangle className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Delete Project?</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-sm mb-8 leading-relaxed">
-                {t.dashboard.confirmDelete}
+              <h3 className="text-xl font-black text-slate-100 mb-2">删除项目？</h3>
+              <p className="text-slate-400 text-sm mb-8 leading-relaxed">
+                此操作无法撤销，项目中的所有数据将被永久删除。
               </p>
               <div className="flex gap-3 w-full">
-                <Button fullWidth variant="light" onPress={onClose} className="font-bold text-slate-500">
-                  Cancel
+                <Button fullWidth variant="light" onPress={onClose} className="font-bold text-slate-400">
+                  取消
                 </Button>
-                <Button fullWidth color="danger" onPress={confirmDelete} className="font-bold shadow-lg shadow-danger-500/20">
-                  Delete
+                <Button fullWidth color="danger" onPress={confirmDelete} className="font-bold bg-red-500 hover:bg-red-600">
+                  删除
                 </Button>
               </div>
             </ModalBody>

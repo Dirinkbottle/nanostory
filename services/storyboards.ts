@@ -13,6 +13,7 @@ export interface StoryboardTemplate {
   id: string;
   name: string;
   prompt_template: string;
+  category: string;
 }
 
 function authHeaders() {
