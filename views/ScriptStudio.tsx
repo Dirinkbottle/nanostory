@@ -187,7 +187,7 @@ const ScriptStudio: React.FC = () => {
                   classNames={{
                     input: "bg-transparent text-white font-semibold placeholder-white/70",
                     label: "text-white/80 font-medium",
-                    inputWrapper: "bg-white/5 border-white/10"
+                    inputWrapper: "bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-cyan-500/30 hover:from-cyan-500/20 hover:to-blue-500/20"
                   }}
                 />
 
@@ -200,7 +200,7 @@ const ScriptStudio: React.FC = () => {
                   classNames={{
                     input: "bg-transparent text-white font-medium placeholder-white/70",
                     label: "text-white/80 font-medium",
-                    inputWrapper: "bg-white/5 border-white/10"
+                    inputWrapper: "bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-cyan-500/30 hover:from-cyan-500/20 hover:to-blue-500/20"
                   }}
                 />
 
@@ -210,7 +210,7 @@ const ScriptStudio: React.FC = () => {
                     selectedKeys={[style]}
                     onChange={(e) => setStyle(e.target.value)}
                     classNames={{
-                      trigger: "bg-white/10 border-white/20 text-black font-bold",
+                      trigger: "bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-cyan-500/30 text-black font-bold hover:from-cyan-500/20 hover:to-blue-500/20",
                       label: "text-white/80",
                       value: "text-black font-bold text-lg",
                       selectorIcon: "text-black",
@@ -253,7 +253,7 @@ const ScriptStudio: React.FC = () => {
                     selectedKeys={[length]}
                     onChange={(e) => setLength(e.target.value)}
                     classNames={{
-                      trigger: "bg-white/10 border-white/20 text-black font-bold",
+                      trigger: "bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-cyan-500/30 text-black font-bold hover:from-cyan-500/20 hover:to-blue-500/20",
                       label: "text-white/80",
                       value: "text-black font-bold text-lg",
                       selectorIcon: "text-black",
