@@ -213,13 +213,39 @@ const ScriptStudio: React.FC = () => {
                       trigger: "bg-white/5 border-white/10 text-white",
                       label: "text-white/80",
                       value: "text-white",
-                      selectorIcon: "text-white"
+                      selectorIcon: "text-white",
+                      listbox: "bg-slate-900 border-white/10",
+                      popoverContent: "bg-slate-900 border-white/10"
                     }}
                   >
-                    <SelectItem key="电影感" value="电影感">电影感</SelectItem>
-                    <SelectItem key="科幻" value="科幻">科幻</SelectItem>
-                    <SelectItem key="悬疑" value="悬疑">悬疑</SelectItem>
-                    <SelectItem key="治愈" value="治愈">治愈</SelectItem>
+                    <SelectItem 
+                      key="电影感" 
+                      value="电影感"
+                      className="text-white hover:bg-white/10"
+                    >
+                      电影感
+                    </SelectItem>
+                    <SelectItem 
+                      key="科幻" 
+                      value="科幻"
+                      className="text-white hover:bg-white/10"
+                    >
+                      科幻
+                    </SelectItem>
+                    <SelectItem 
+                      key="悬疑" 
+                      value="悬疑"
+                      className="text-white hover:bg-white/10"
+                    >
+                      悬疑
+                    </SelectItem>
+                    <SelectItem 
+                      key="治愈" 
+                      value="治愈"
+                      className="text-white hover:bg-white/10"
+                    >
+                      治愈
+                    </SelectItem>
                   </Select>
 
                   <Select
@@ -230,12 +256,32 @@ const ScriptStudio: React.FC = () => {
                       trigger: "bg-white/5 border-white/10 text-white",
                       label: "text-white/80",
                       value: "text-white",
-                      selectorIcon: "text-white"
+                      selectorIcon: "text-white",
+                      listbox: "bg-slate-900 border-white/10",
+                      popoverContent: "bg-slate-900 border-white/10"
                     }}
                   >
-                    <SelectItem key="短篇" value="短篇">短篇 (1-3分钟)</SelectItem>
-                    <SelectItem key="中篇" value="中篇">中篇 (3-5分钟)</SelectItem>
-                    <SelectItem key="长篇" value="长篇">长篇 (5-10分钟)</SelectItem>
+                    <SelectItem 
+                      key="短篇" 
+                      value="短篇"
+                      className="text-white hover:bg-white/10"
+                    >
+                      短篇 (1-3分钟)
+                    </SelectItem>
+                    <SelectItem 
+                      key="中篇" 
+                      value="中篇"
+                      className="text-white hover:bg-white/10"
+                    >
+                      中篇 (3-5分钟)
+                    </SelectItem>
+                    <SelectItem 
+                      key="长篇" 
+                      value="长篇"
+                      className="text-white hover:bg-white/10"
+                    >
+                      长篇 (5-10分钟)
+                    </SelectItem>
                   </Select>
                 </div>
 
