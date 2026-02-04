@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film, User, Package, LogOut } from 'lucide-react';
+import { Film, User, Package, LogOut, FolderOpen } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem, Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
 import { getAuthToken, logout } from '../services/auth';
@@ -24,25 +24,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleLogout = () => {
     logout();
     navigate('/auth');
-    window.location.reload(); // 刷新页面清除状态
+    window.location.reload();
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 text-slate-50">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-50 text-slate-800">
       {!isAuth && (
         <Navbar 
           maxWidth="full" 
           height="4rem"
-          className="border-b border-cyan-500/20 bg-slate-900/80 backdrop-blur-md"
+          className="border-b border-slate-200 bg-white shadow-sm"
         >
           <NavbarContent justify="start" className="gap-4">
             <NavbarBrand>
               <Link to="/" className="flex items-center gap-3 group">
-                <div className="p-2 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl">
+                <div className="p-2 bg-blue-600 rounded-xl shadow-md">
                   <Film className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-lg font-black tracking-wider uppercase bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                  <span className="text-lg font-black tracking-wider uppercase text-blue-600">
                     Animata
                   </span>
                   <span className="text-[10px] text-slate-400 font-medium tracking-widest">AI Video Studio</span>
@@ -60,8 +60,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 variant="light"
                 className={`font-bold text-xs uppercase tracking-widest ${
                   location.pathname === '/' 
-                    ? 'text-cyan-400' 
-                    : 'text-slate-400 hover:text-cyan-400'
+                    ? 'text-blue-600' 
+                    : 'text-slate-500 hover:text-blue-600'
                 }`}
               >
                 <Film className="w-4 h-4 mr-2" />
@@ -77,12 +77,29 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 variant="light"
                 className={`font-bold text-xs uppercase tracking-widest ${
                   location.pathname === '/assets' 
-                    ? 'text-cyan-400' 
-                    : 'text-slate-400 hover:text-cyan-400'
+                    ? 'text-blue-600' 
+                    : 'text-slate-500 hover:text-blue-600'
                 }`}
               >
                 <Package className="w-4 h-4 mr-2" />
                 资源管理
+              </Button>
+            </NavbarItem>
+
+            <NavbarItem>
+              <Button
+                as={Link}
+                to="/projects"
+                size="sm"
+                variant="light"
+                className={`font-bold text-xs uppercase tracking-widest ${
+                  location.pathname === '/projects' 
+                    ? 'text-purple-600' 
+                    : 'text-slate-500 hover:text-purple-600'
+                }`}
+              >
+                <FolderOpen className="w-4 h-4 mr-2" />
+                我的工程
               </Button>
             </NavbarItem>
           </NavbarContent>
@@ -96,7 +113,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       size="sm"
                       radius="lg"
                       variant="flat"
-                      className="font-bold text-xs uppercase tracking-widest bg-slate-800/60 text-slate-300 border border-blue-800/60 hover:border-cyan-500/50"
+                      className="font-bold text-xs uppercase tracking-widest bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 hover:border-slate-300"
                     >
                       <User className="w-4 h-4 mr-2" />
                       我的账户
@@ -105,22 +122,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <DropdownMenu 
                     aria-label="用户菜单"
                     classNames={{
-                      base: "bg-slate-900 border border-white/10",
-                      list: "bg-slate-900"
+                      base: "bg-white border border-slate-200 shadow-lg",
+                      list: "bg-white"
                     }}
                   >
                     <DropdownItem
                       key="profile"
-                      as={Link}
-                      href="/user-center"
-                      className="text-white hover:bg-white/10"
+                      className="text-slate-700 hover:bg-slate-100"
                       startContent={<User className="w-4 h-4" />}
+                      onPress={() => navigate('/user-center')}
                     >
                       个人中心
                     </DropdownItem>
                     <DropdownItem
                       key="logout"
-                      className="text-red-400 hover:bg-red-500/10"
+                      className="text-red-500 hover:bg-red-50"
                       color="danger"
                       startContent={<LogOut className="w-4 h-4" />}
                       onPress={handleLogout}
@@ -134,8 +150,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   onClick={handleAccountClick}
                   size="sm"
                   radius="lg"
-                  variant="flat"
-                  className="font-bold text-xs uppercase tracking-widest bg-slate-800/60 text-slate-300 border border-blue-800/60 hover:border-cyan-500/50"
+                  className="font-bold text-xs uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700"
                 >
                   <User className="w-4 h-4 mr-2" />
                   登录

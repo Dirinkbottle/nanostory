@@ -11,6 +11,8 @@ const videoRoutes = require('./videos');
 const userRoutes = require('./users');
 const characterRoutes = require('./characters');
 const sceneRoutes = require('./scenes');
+const scriptAssetRoutes = require('./scriptAssets');
+const projectRoutes = require('./projects');
 
 const app = express();
 
@@ -48,6 +50,8 @@ app.use('/api/videos', videoRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/scenes', sceneRoutes);
+app.use('/api/script-assets', scriptAssetRoutes);
+app.use('/api/projects', projectRoutes);
 
 // Serve static files for production if needed
 const clientBuildPath = path.join(__dirname, '..', '..', 'dist');

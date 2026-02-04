@@ -5,6 +5,7 @@ import Auth from './views/Auth';
 import ScriptStudio from './views/ScriptStudio';
 import UserCenter from './views/UserCenter';
 import Assets from './views/Assets';
+import Projects from './views/Projects';
 import { ToastProvider } from './contexts/ToastContext';
 import { PreviewProvider } from './components/PreviewProvider';
 
@@ -17,6 +18,7 @@ const App: React.FC = () => {
             <Route path="/" element={<ScriptStudio />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/assets" element={<Assets />} />
+            <Route path="/projects" element={<Projects />} />
             <Route path="/user-center" element={<UserCenter />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

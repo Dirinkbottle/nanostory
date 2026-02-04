@@ -123,6 +123,39 @@ async function initializeDatabase() {
     );
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS script_assets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      content TEXT,
+      genre TEXT,
+      duration TEXT,
+      image_url TEXT,
+      tags TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      cover_url TEXT,
+      type TEXT DEFAULT 'comic',
+      status TEXT DEFAULT 'draft',
+      settings_json TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+  `);
+
   console.log('[DB] Database initialized successfully');
   return db;
 }

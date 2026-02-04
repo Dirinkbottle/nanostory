@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Input, Textarea, Tabs, Tab, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip } from '@heroui/react';
-import { Users, MapPin, Plus, Edit, Trash2, Search } from 'lucide-react';
-import { Character, Scene, fetchCharacters, fetchScenes, createCharacter, createScene, updateCharacter, updateScene, deleteCharacter, deleteScene } from '../services/assets';
+import { Users, MapPin, FileText, Plus, Edit, Trash2, Search } from 'lucide-react';
+import { 
+  Character, Scene, ScriptAsset,
+  fetchCharacters, fetchScenes, fetchScriptAssets,
+  createCharacter, createScene, createScriptAsset,
+  updateCharacter, updateScene, updateScriptAsset,
+  deleteCharacter, deleteScene, deleteScriptAsset
+} from '../services/assets';
+
+type TabType = 'characters' | 'scenes' | 'scripts';
 
 const Assets: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'characters' | 'scenes'>('characters');
+  const [activeTab, setActiveTab] = useState<TabType>('characters');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [scenes, setScenes] = useState<Scene[]>([]);
+  const [scripts, setScripts] = useState<ScriptAsset[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -14,7 +23,6 @@ const Assets: React.FC = () => {
   const [editMode, setEditMode] = useState(false);
   const [currentId, setCurrentId] = useState<number | null>(null);
   
-  // 表单状态
   const [formData, setFormData] = useState<any>({
     name: '',
     description: '',
@@ -23,6 +31,9 @@ const Assets: React.FC = () => {
     environment: '',
     lighting: '',
     mood: '',
+    content: '',
+    genre: '',
+    duration: '',
     image_url: '',
     tags: ''
   });
@@ -37,14 +48,25 @@ const Assets: React.FC = () => {
       if (activeTab === 'characters') {
         const data = await fetchCharacters();
         setCharacters(data);
-      } else {
+      } else if (activeTab === 'scenes') {
         const data = await fetchScenes();
         setScenes(data);
+      } else {
+        const data = await fetchScriptAssets();
+        setScripts(data);
       }
     } catch (error) {
       console.error('加载数据失败:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getTabLabel = () => {
+    switch (activeTab) {
+      case 'characters': return '角色';
+      case 'scenes': return '场景';
+      case 'scripts': return '剧本';
     }
   };
 
@@ -59,13 +81,16 @@ const Assets: React.FC = () => {
       environment: '',
       lighting: '',
       mood: '',
+      content: '',
+      genre: '',
+      duration: '',
       image_url: '',
       tags: ''
     });
     onOpen();
   };
 
-  const handleEdit = (item: Character | Scene) => {
+  const handleEdit = (item: Character | Scene | ScriptAsset) => {
     setEditMode(true);
     setCurrentId(item.id);
     setFormData(item);
@@ -80,11 +105,17 @@ const Assets: React.FC = () => {
         } else {
           await createCharacter(formData);
         }
-      } else {
+      } else if (activeTab === 'scenes') {
         if (editMode && currentId) {
           await updateScene(currentId, formData);
         } else {
           await createScene(formData);
+        }
+      } else {
+        if (editMode && currentId) {
+          await updateScriptAsset(currentId, formData);
+        } else {
+          await createScriptAsset(formData);
         }
       }
       await loadData();
@@ -100,8 +131,10 @@ const Assets: React.FC = () => {
     try {
       if (activeTab === 'characters') {
         await deleteCharacter(id);
-      } else {
+      } else if (activeTab === 'scenes') {
         await deleteScene(id);
+      } else {
+        await deleteScriptAsset(id);
       }
       await loadData();
     } catch (error: any) {
@@ -119,18 +152,23 @@ const Assets: React.FC = () => {
     s.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredScripts = scripts.filter(s => 
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="h-full bg-black overflow-hidden p-6">
+    <div className="h-full bg-slate-50 overflow-hidden p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 头部 */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-light text-white">资源管理</h1>
+          <h1 className="text-2xl font-bold text-slate-800">资源管理</h1>
           <Button
-            className="bg-white text-black hover:bg-white/90"
+            className="bg-blue-600 text-white hover:bg-blue-700 font-semibold"
             startContent={<Plus className="w-4 h-4" />}
             onPress={handleAdd}
           >
-            新建{activeTab === 'characters' ? '角色' : '场景'}
+            新建{getTabLabel()}
           </Button>
         </div>
 
@@ -139,21 +177,21 @@ const Assets: React.FC = () => {
           placeholder="搜索资源..."
           value={searchQuery}
           onValueChange={setSearchQuery}
-          startContent={<Search className="w-4 h-4 text-white/40" />}
+          startContent={<Search className="w-4 h-4 text-slate-400" />}
           classNames={{
-            input: "bg-transparent text-white",
-            inputWrapper: "bg-white/5 border-white/10"
+            input: "bg-white text-slate-800 placeholder:text-slate-400",
+            inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
           }}
         />
 
         {/* 标签页 */}
         <Tabs
           selectedKey={activeTab}
-          onSelectionChange={(key) => setActiveTab(key as 'characters' | 'scenes')}
+          onSelectionChange={(key) => setActiveTab(key as TabType)}
           classNames={{
-            tabList: "bg-white/5 border-white/10",
-            tab: "text-white/60 data-[selected=true]:text-white",
-            cursor: "bg-white/20"
+            tabList: "bg-white border border-slate-200 shadow-sm",
+            tab: "text-slate-600 data-[selected=true]:text-blue-600 font-medium",
+            cursor: "bg-blue-100"
           }}
         >
           <Tab
@@ -167,36 +205,24 @@ const Assets: React.FC = () => {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
               {filteredCharacters.map((character) => (
-                <Card key={character.id} className="bg-white/5 border-white/10">
+                <Card key={character.id} className="bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                   <CardBody className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
-                      <h3 className="text-lg font-semibold text-white">{character.name}</h3>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          isIconOnly
-                          variant="light"
-                          onPress={() => handleEdit(character)}
-                        >
-                          <Edit className="w-4 h-4 text-blue-400" />
+                      <h3 className="text-lg font-semibold text-slate-800">{character.name}</h3>
+                      <div className="flex gap-1">
+                        <Button size="sm" isIconOnly variant="light" onPress={() => handleEdit(character)} className="hover:bg-blue-50">
+                          <Edit className="w-4 h-4 text-blue-600" />
                         </Button>
-                        <Button
-                          size="sm"
-                          isIconOnly
-                          variant="light"
-                          onPress={() => handleDelete(character.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-400" />
+                        <Button size="sm" isIconOnly variant="light" onPress={() => handleDelete(character.id)} className="hover:bg-red-50">
+                          <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>
                       </div>
                     </div>
-                    <p className="text-sm text-white/60 line-clamp-2">{character.description}</p>
+                    <p className="text-sm text-slate-500 line-clamp-2">{character.description}</p>
                     {character.tags && (
                       <div className="flex flex-wrap gap-2">
                         {character.tags.split(',').map((tag, idx) => (
-                          <Chip key={idx} size="sm" variant="flat" className="bg-white/10 text-white/70">
-                            {tag.trim()}
-                          </Chip>
+                          <Chip key={idx} size="sm" variant="flat" className="bg-blue-50 text-blue-600 font-medium">{tag.trim()}</Chip>
                         ))}
                       </div>
                     )}
@@ -217,36 +243,66 @@ const Assets: React.FC = () => {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
               {filteredScenes.map((scene) => (
-                <Card key={scene.id} className="bg-white/5 border-white/10">
+                <Card key={scene.id} className="bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                   <CardBody className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
-                      <h3 className="text-lg font-semibold text-white">{scene.name}</h3>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          isIconOnly
-                          variant="light"
-                          onPress={() => handleEdit(scene)}
-                        >
-                          <Edit className="w-4 h-4 text-blue-400" />
+                      <h3 className="text-lg font-semibold text-slate-800">{scene.name}</h3>
+                      <div className="flex gap-1">
+                        <Button size="sm" isIconOnly variant="light" onPress={() => handleEdit(scene)} className="hover:bg-blue-50">
+                          <Edit className="w-4 h-4 text-blue-600" />
                         </Button>
-                        <Button
-                          size="sm"
-                          isIconOnly
-                          variant="light"
-                          onPress={() => handleDelete(scene.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-400" />
+                        <Button size="sm" isIconOnly variant="light" onPress={() => handleDelete(scene.id)} className="hover:bg-red-50">
+                          <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>
                       </div>
                     </div>
-                    <p className="text-sm text-white/60 line-clamp-2">{scene.description}</p>
+                    <p className="text-sm text-slate-500 line-clamp-2">{scene.description}</p>
                     {scene.tags && (
                       <div className="flex flex-wrap gap-2">
                         {scene.tags.split(',').map((tag, idx) => (
-                          <Chip key={idx} size="sm" variant="flat" className="bg-white/10 text-white/70">
-                            {tag.trim()}
-                          </Chip>
+                          <Chip key={idx} size="sm" variant="flat" className="bg-sky-50 text-sky-600 font-medium">{tag.trim()}</Chip>
+                        ))}
+                      </div>
+                    )}
+                  </CardBody>
+                </Card>
+              ))}
+            </div>
+          </Tab>
+
+          <Tab
+            key="scripts"
+            title={
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span>剧本 ({scripts.length})</span>
+              </div>
+            }
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+              {filteredScripts.map((script) => (
+                <Card key={script.id} className="bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                  <CardBody className="p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <h3 className="text-lg font-semibold text-slate-800">{script.name}</h3>
+                      <div className="flex gap-1">
+                        <Button size="sm" isIconOnly variant="light" onPress={() => handleEdit(script)} className="hover:bg-blue-50">
+                          <Edit className="w-4 h-4 text-blue-600" />
+                        </Button>
+                        <Button size="sm" isIconOnly variant="light" onPress={() => handleDelete(script.id)} className="hover:bg-red-50">
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-500 line-clamp-2">{script.description}</p>
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      {script.genre && <span className="px-2 py-0.5 bg-purple-50 text-purple-600 rounded">{script.genre}</span>}
+                      {script.duration && <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded">{script.duration}</span>}
+                    </div>
+                    {script.tags && (
+                      <div className="flex flex-wrap gap-2">
+                        {script.tags.split(',').map((tag, idx) => (
+                          <Chip key={idx} size="sm" variant="flat" className="bg-purple-50 text-purple-600 font-medium">{tag.trim()}</Chip>
                         ))}
                       </div>
                     )}
@@ -262,28 +318,29 @@ const Assets: React.FC = () => {
           isOpen={isOpen}
           onOpenChange={onOpenChange}
           size="2xl"
+          scrollBehavior="inside"
           classNames={{
-            base: "bg-slate-900 border border-white/10",
-            header: "border-b border-white/10",
+            base: "bg-white border border-slate-200 shadow-xl",
+            header: "border-b border-slate-200",
             body: "py-6"
           }}
         >
           <ModalContent>
             {(onClose) => (
               <>
-                <ModalHeader className="text-white">
-                  {editMode ? '编辑' : '新建'}{activeTab === 'characters' ? '角色' : '场景'}
+                <ModalHeader className="text-slate-800 font-bold">
+                  {editMode ? '编辑' : '新建'}{getTabLabel()}
                 </ModalHeader>
                 <ModalBody className="space-y-4">
                   <Input
                     label="名称"
-                    placeholder={`输入${activeTab === 'characters' ? '角色' : '场景'}名称`}
+                    placeholder={`输入${getTabLabel()}名称`}
                     value={formData.name}
                     onValueChange={(val) => setFormData({ ...formData, name: val })}
                     classNames={{
-                      input: "bg-transparent text-white",
-                      label: "text-white/60",
-                      inputWrapper: "bg-white/5 border-white/10"
+                      input: "bg-white text-slate-800 placeholder:text-slate-400",
+                      label: "text-slate-600 font-medium",
+                      inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
                     }}
                   />
                   
@@ -294,13 +351,13 @@ const Assets: React.FC = () => {
                     onValueChange={(val) => setFormData({ ...formData, description: val })}
                     minRows={3}
                     classNames={{
-                      input: "bg-transparent text-white",
-                      label: "text-white/60",
-                      inputWrapper: "bg-white/5 border-white/10"
+                      input: "bg-white text-slate-800 placeholder:text-slate-400",
+                      label: "text-slate-600 font-medium",
+                      inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
                     }}
                   />
 
-                  {activeTab === 'characters' ? (
+                  {activeTab === 'characters' && (
                     <>
                       <Input
                         label="外貌"
@@ -308,9 +365,9 @@ const Assets: React.FC = () => {
                         value={formData.appearance}
                         onValueChange={(val) => setFormData({ ...formData, appearance: val })}
                         classNames={{
-                          input: "bg-transparent text-white placeholder-white/50",
-                          label: "text-white/60",
-                          inputWrapper: "bg-white/5 border-white/10"
+                          input: "bg-white text-slate-800 placeholder:text-slate-400",
+                          label: "text-slate-600 font-medium",
+                          inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
                         }}
                       />
                       <Input
@@ -319,13 +376,15 @@ const Assets: React.FC = () => {
                         value={formData.personality}
                         onValueChange={(val) => setFormData({ ...formData, personality: val })}
                         classNames={{
-                          input: "bg-transparent text-white placeholder-white/50",
-                          label: "text-white/60",
-                          inputWrapper: "bg-white/5 border-white/10"
+                          input: "bg-white text-slate-800 placeholder:text-slate-400",
+                          label: "text-slate-600 font-medium",
+                          inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
                         }}
                       />
                     </>
-                  ) : (
+                  )}
+
+                  {activeTab === 'scenes' && (
                     <>
                       <Input
                         label="环境"
@@ -333,9 +392,9 @@ const Assets: React.FC = () => {
                         value={formData.environment}
                         onValueChange={(val) => setFormData({ ...formData, environment: val })}
                         classNames={{
-                          input: "bg-transparent text-white placeholder-white/50",
-                          label: "text-white/60",
-                          inputWrapper: "bg-white/5 border-white/10"
+                          input: "bg-white text-slate-800 placeholder:text-slate-400",
+                          label: "text-slate-600 font-medium",
+                          inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
                         }}
                       />
                       <Input
@@ -344,9 +403,9 @@ const Assets: React.FC = () => {
                         value={formData.lighting}
                         onValueChange={(val) => setFormData({ ...formData, lighting: val })}
                         classNames={{
-                          input: "bg-transparent text-white placeholder-white/50",
-                          label: "text-white/60",
-                          inputWrapper: "bg-white/5 border-white/10"
+                          input: "bg-white text-slate-800 placeholder:text-slate-400",
+                          label: "text-slate-600 font-medium",
+                          inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
                         }}
                       />
                       <Input
@@ -355,11 +414,52 @@ const Assets: React.FC = () => {
                         value={formData.mood}
                         onValueChange={(val) => setFormData({ ...formData, mood: val })}
                         classNames={{
-                          input: "bg-transparent text-white placeholder-white/50",
-                          label: "text-white/60",
-                          inputWrapper: "bg-white/5 border-white/10"
+                          input: "bg-white text-slate-800 placeholder:text-slate-400",
+                          label: "text-slate-600 font-medium",
+                          inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
                         }}
                       />
+                    </>
+                  )}
+
+                  {activeTab === 'scripts' && (
+                    <>
+                      <Textarea
+                        label="剧本内容"
+                        placeholder="输入剧本正文内容..."
+                        value={formData.content}
+                        onValueChange={(val) => setFormData({ ...formData, content: val })}
+                        minRows={6}
+                        classNames={{
+                          input: "bg-white text-slate-800 placeholder:text-slate-400",
+                          label: "text-slate-600 font-medium",
+                          inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                        }}
+                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input
+                          label="类型/风格"
+                          placeholder="如：悬疑、爱情、科幻"
+                          value={formData.genre}
+                          onValueChange={(val) => setFormData({ ...formData, genre: val })}
+                          classNames={{
+                            input: "bg-white text-slate-800 placeholder:text-slate-400",
+                            label: "text-slate-600 font-medium",
+                            inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                          }}
+                        />
+                        <Input
+                          label="预计时长"
+                          placeholder="如：3分钟、5-10分钟"
+                          value={formData.duration}
+                          onValueChange={(val) => setFormData({ ...formData, duration: val })}
+                          classNames={{
+                            input: "bg-white text-slate-800 placeholder:text-slate-400",
+                            label: "text-slate-600 font-medium",
+                            inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                          }}
+                        />
+                      </div>
                     </>
                   )}
 
@@ -369,9 +469,9 @@ const Assets: React.FC = () => {
                     value={formData.image_url}
                     onValueChange={(val) => setFormData({ ...formData, image_url: val })}
                     classNames={{
-                      input: "bg-transparent text-white placeholder-white/50",
-                      label: "text-white/60",
-                      inputWrapper: "bg-white/5 border-white/10"
+                      input: "bg-white text-slate-800 placeholder:text-slate-400",
+                      label: "text-slate-600 font-medium",
+                      inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
                     }}
                   />
 
@@ -381,17 +481,17 @@ const Assets: React.FC = () => {
                     value={formData.tags}
                     onValueChange={(val) => setFormData({ ...formData, tags: val })}
                     classNames={{
-                      input: "bg-transparent text-white placeholder-white/50",
-                      label: "text-white/60",
-                      inputWrapper: "bg-white/5 border-white/10"
+                      input: "bg-white text-slate-800 placeholder:text-slate-400",
+                      label: "text-slate-600 font-medium",
+                      inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
                     }}
                   />
                 </ModalBody>
-                <ModalFooter className="border-t border-white/10">
-                  <Button variant="light" onPress={onClose} className="text-white/60">
+                <ModalFooter className="border-t border-slate-200">
+                  <Button variant="light" onPress={onClose} className="text-slate-600 font-semibold hover:bg-slate-100">
                     取消
                   </Button>
-                  <Button className="bg-white text-black" onPress={handleSave}>
+                  <Button className="bg-blue-600 text-white font-bold hover:bg-blue-700" onPress={handleSave}>
                     保存
                   </Button>
                 </ModalFooter>
