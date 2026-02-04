@@ -5,7 +5,8 @@
 
 @layer base {
   body {
-    @apply transition-colors duration-300;
+    @apply transition-colors duration-300 bg-slate-950 text-slate-50;
+    background: radial-gradient(circle at top, #1f2937 0, #020617 55%);
   }
 }
 

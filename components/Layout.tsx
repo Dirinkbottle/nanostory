@@ -173,6 +173,37 @@ const Layout: React.FC<LayoutProps> = ({ children, isConnected, onConnect, activ
             </NavbarItem>
           )}
 
+          {isConnected && (
+            <>
+              <NavbarItem className="hidden sm:flex">
+                <Button
+                  as={Link}
+                  to="/studio/scripts"
+                  size="sm"
+                  radius="lg"
+                  variant="flat"
+                  className="font-black text-[11px] uppercase tracking-widest bg-slate-900 text-yellow-400 border border-yellow-500/40"
+                >
+                  <Clapperboard className="w-4 h-4 mr-2" />
+                  Script Studio
+                </Button>
+              </NavbarItem>
+              <NavbarItem className="hidden sm:flex">
+                <Button
+                  as={Link}
+                  to="/auth"
+                  size="sm"
+                  radius="lg"
+                  variant="flat"
+                  className="font-bold text-[11px] uppercase tracking-widest bg-slate-800 text-slate-100 border border-slate-600/60"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Account
+                </Button>
+              </NavbarItem>
+            </>
+          )}
+
           {!isConnected && !isSettings && (
             <NavbarItem>
               <Button

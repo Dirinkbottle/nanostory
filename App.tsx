@@ -8,6 +8,8 @@ import JobMonitor from './components/JobMonitor';
 import WelcomeView from './components/WelcomeView';
 import LoadingView from './components/LoadingView';
 import Tasks from './views/Tasks';
+import Auth from './views/Auth';
+import ScriptStudio from './views/ScriptStudio';
 import { storageService } from './services/storage';
 import { jobQueue } from './services/queue';
 import { useApp } from './contexts/context';
@@ -70,18 +72,17 @@ const App: React.FC = () => {
         >
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route 
-              path="/project/:id" 
-              element={
-                <ProjectDetail 
-                  activeTab={activeTab}
-                  setActiveTab={setActiveTab}
-                  onProjectLoaded={setCurrentProject}
-                />
-              } 
-            />
+            <Route path="/project/:id" element={
+              <ProjectDetail
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                onProjectLoaded={setCurrentProject}
+              />
+            } />
             <Route path="/settings" element={<Settings />} />
             <Route path="/tasks" element={<Tasks />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/studio/scripts" element={<ScriptStudio />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <JobMonitor />
