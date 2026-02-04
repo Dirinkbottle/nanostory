@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film, User, DollarSign } from 'lucide-react';
+import { Film, User } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem, Button } from "@heroui/react";
 import { getAuthToken } from '../services/auth';
@@ -60,23 +60,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               >
                 <Film className="w-4 h-4 mr-2" />
                 创作工作台
-              </Button>
-            </NavbarItem>
-            
-            <NavbarItem>
-              <Button
-                as={Link}
-                to="/billing"
-                size="sm"
-                variant="light"
-                className={`font-bold text-xs uppercase tracking-widest ${
-                  location.pathname === '/billing' 
-                    ? 'text-cyan-400' 
-                    : 'text-slate-400 hover:text-cyan-400'
-                }`}
-              >
-                <DollarSign className="w-4 h-4 mr-2" />
-                计费明细
               </Button>
             </NavbarItem>
           </NavbarContent>
