@@ -9,6 +9,8 @@ const storyboardRoutes = require('./storyboards');
 const billingRoutes = require('./billing');
 const videoRoutes = require('./videos');
 const userRoutes = require('./users');
+const characterRoutes = require('./characters');
+const sceneRoutes = require('./scenes');
 
 const app = express();
 
@@ -44,6 +46,8 @@ app.use('/api/storyboards', storyboardRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/characters', characterRoutes);
+app.use('/api/scenes', sceneRoutes);
 
 // Serve static files for production if needed
 const clientBuildPath = path.join(__dirname, '..', '..', 'dist');

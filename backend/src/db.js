@@ -90,6 +90,39 @@ async function initializeDatabase() {
     );
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS characters (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      appearance TEXT,
+      personality TEXT,
+      image_url TEXT,
+      tags TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS scenes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      environment TEXT,
+      lighting TEXT,
+      mood TEXT,
+      image_url TEXT,
+      tags TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+  `);
+
   console.log('[DB] Database initialized successfully');
   return db;
 }

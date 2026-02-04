@@ -1,8 +1,8 @@
 import React from 'react';
-import { Film, User } from 'lucide-react';
+import { Film, User, Package, LogOut } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Navbar, NavbarBrand, NavbarContent, NavbarItem, Button } from "@heroui/react";
-import { getAuthToken } from '../services/auth';
+import { Navbar, NavbarBrand, NavbarContent, NavbarItem, Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
+import { getAuthToken, logout } from '../services/auth';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,6 +19,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       e.preventDefault();
       navigate('/auth');
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/auth');
+    window.location.reload(); // 刷新页面清除状态
   };
 
   return (
@@ -62,22 +68,79 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 创作工作台
               </Button>
             </NavbarItem>
+            
+            <NavbarItem>
+              <Button
+                as={Link}
+                to="/assets"
+                size="sm"
+                variant="light"
+                className={`font-bold text-xs uppercase tracking-widest ${
+                  location.pathname === '/assets' 
+                    ? 'text-cyan-400' 
+                    : 'text-slate-400 hover:text-cyan-400'
+                }`}
+              >
+                <Package className="w-4 h-4 mr-2" />
+                资源管理
+              </Button>
+            </NavbarItem>
           </NavbarContent>
 
           <NavbarContent justify="end">
             <NavbarItem>
-              <Button
-                as={isLoggedIn ? Link : undefined}
-                to={isLoggedIn ? "/user-center" : undefined}
-                onClick={handleAccountClick}
-                size="sm"
-                radius="lg"
-                variant="flat"
-                className="font-bold text-xs uppercase tracking-widest bg-slate-800/60 text-slate-300 border border-blue-800/60 hover:border-cyan-500/50"
-              >
-                <User className="w-4 h-4 mr-2" />
-                {isLoggedIn ? '我的账户' : '登录'}
-              </Button>
+              {isLoggedIn ? (
+                <Dropdown>
+                  <DropdownTrigger>
+                    <Button
+                      size="sm"
+                      radius="lg"
+                      variant="flat"
+                      className="font-bold text-xs uppercase tracking-widest bg-slate-800/60 text-slate-300 border border-blue-800/60 hover:border-cyan-500/50"
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      我的账户
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu 
+                    aria-label="用户菜单"
+                    classNames={{
+                      base: "bg-slate-900 border border-white/10",
+                      list: "bg-slate-900"
+                    }}
+                  >
+                    <DropdownItem
+                      key="profile"
+                      as={Link}
+                      href="/user-center"
+                      className="text-white hover:bg-white/10"
+                      startContent={<User className="w-4 h-4" />}
+                    >
+                      个人中心
+                    </DropdownItem>
+                    <DropdownItem
+                      key="logout"
+                      className="text-red-400 hover:bg-red-500/10"
+                      color="danger"
+                      startContent={<LogOut className="w-4 h-4" />}
+                      onPress={handleLogout}
+                    >
+                      退出登录
+                    </DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
+              ) : (
+                <Button
+                  onClick={handleAccountClick}
+                  size="sm"
+                  radius="lg"
+                  variant="flat"
+                  className="font-bold text-xs uppercase tracking-widest bg-slate-800/60 text-slate-300 border border-blue-800/60 hover:border-cyan-500/50"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  登录
+                </Button>
+              )}
             </NavbarItem>
           </NavbarContent>
         </Navbar>
