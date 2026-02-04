@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import { HeroUIProvider } from "@heroui/react";
 import './index.css';
 import App from './App';
-import { AppProvider } from './contexts/AppContext';
 import { ToastProvider } from './contexts/ToastContext';
 
 const rootElement = document.getElementById('root');
@@ -15,11 +14,9 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <HeroUIProvider>
-      <AppProvider>
-        <ToastProvider>
-          <App />
-        </ToastProvider>
-      </AppProvider>
+      <ToastProvider>
+        <App />
+      </ToastProvider>
     </HeroUIProvider>
   </React.StrictMode>
 );
