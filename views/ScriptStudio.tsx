@@ -167,18 +167,26 @@ const ScriptStudio: React.FC = () => {
         <div className="w-1/2 border-r border-white/10 flex flex-col">
           <div className="p-8 space-y-6 overflow-auto">
             {/* 余额显示 */}
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold text-white">创作工作台</h1>
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg border border-white/10">
-                <Wallet className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm text-white/60">余额</span>
-                <span className="text-lg font-bold text-white">¥{balance.toFixed(2)}</span>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-3xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+                创作工作台
+              </h1>
+              <div className="flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-slate-800/50 to-slate-900/50 rounded-xl border border-cyan-500/20 backdrop-blur-sm shadow-lg">
+                <Wallet className="w-5 h-5 text-cyan-400" />
+                <div className="flex flex-col">
+                  <span className="text-xs text-cyan-300 font-medium uppercase tracking-wider">余额</span>
+                  <span className="text-xl font-bold text-white">¥{balance.toFixed(2)}</span>
+                </div>
               </div>
             </div>
 
             {/* 输入表单 */}
-            <Card className="bg-white/5 border-white/10 shadow-none">
-              <CardBody className="p-6 space-y-4">
+            <Card className="bg-gradient-to-br from-slate-800/30 to-slate-900/30 border-cyan-500/20 shadow-xl backdrop-blur-sm">
+              <CardBody className="p-6 space-y-5">
+                <div className="mb-1">
+                  <h2 className="text-lg font-bold text-white/90 mb-1">创作你的故事</h2>
+                  <div className="w-12 h-1 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full"></div>
+                </div>
                 <Input
                   label="剧本标题"
                   placeholder="输入你的创意标题"
@@ -204,18 +212,16 @@ const ScriptStudio: React.FC = () => {
                   }}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-5 pt-2">
                   <Select
                     label="风格"
                     selectedKeys={[style]}
                     onChange={(e) => setStyle(e.target.value)}
                     classNames={{
-                      trigger: "bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-cyan-500/30 text-black font-bold hover:from-cyan-500/20 hover:to-blue-500/20",
-                      label: "text-white/80",
+                      trigger: "bg-gradient-to-r from-cyan-500/15 to-blue-500/15 border-cyan-500/40 text-black font-bold hover:from-cyan-500/25 hover:to-blue-500/25 shadow-md",
+                      label: "text-white/90 font-medium",
                       value: "text-black font-bold text-lg",
-                      selectorIcon: "text-black",
-                      listbox: "bg-white border-black/10",
-                      popoverContent: "bg-white border-black/10"
+                      selectorIcon: "text-black"
                     }}
                   >
                     <SelectItem 
@@ -253,12 +259,10 @@ const ScriptStudio: React.FC = () => {
                     selectedKeys={[length]}
                     onChange={(e) => setLength(e.target.value)}
                     classNames={{
-                      trigger: "bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-cyan-500/30 text-black font-bold hover:from-cyan-500/20 hover:to-blue-500/20",
-                      label: "text-white/80",
+                      trigger: "bg-gradient-to-r from-cyan-500/15 to-blue-500/15 border-cyan-500/40 text-black font-bold hover:from-cyan-500/25 hover:to-blue-500/25 shadow-md",
+                      label: "text-white/90 font-medium",
                       value: "text-black font-bold text-lg",
-                      selectorIcon: "text-black",
-                      listbox: "bg-white border-black/10",
-                      popoverContent: "bg-white border-black/10"
+                      selectorIcon: "text-black"
                     }}
                   >
                     <SelectItem 
@@ -286,7 +290,7 @@ const ScriptStudio: React.FC = () => {
                 </div>
 
                 <Button
-                  className="w-full bg-white text-black hover:bg-white/90 font-bold"
+                  className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
                   size="lg"
                   startContent={<Sparkles className="w-5 h-5" />}
                   isLoading={loading}
