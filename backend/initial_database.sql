@@ -26,32 +26,139 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 项目表（提前创建，因为其他表需要引用）
+CREATE TABLE IF NOT EXISTS projects (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  cover_url TEXT,
+  type VARCHAR(50) DEFAULT 'video' COMMENT '项目类型：video=视频, comic=漫画',
+  status VARCHAR(50) DEFAULT 'draft' COMMENT '状态：draft=草稿, in_progress=进行中, completed=已完成',
+  settings_json TEXT COMMENT '项目配置（JSON格式）',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_id (user_id),
+  INDEX idx_type (type),
+  INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 剧本表
 CREATE TABLE IF NOT EXISTS scripts (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
+  project_id INT NOT NULL COMMENT '所属项目ID',
   title VARCHAR(255),
   content TEXT NOT NULL,
   model_provider VARCHAR(100),
   token_used INT DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  UNIQUE KEY uk_project_script (project_id) COMMENT '每个项目只能有一个剧本',
   INDEX idx_user_id (user_id),
+  INDEX idx_project_id (project_id),
   INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 分镜表
 CREATE TABLE IF NOT EXISTS storyboards (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  project_id INT NOT NULL COMMENT '所属项目ID',
   script_id INT NOT NULL,
-  idx INT NOT NULL,
-  prompt_template TEXT,
-  variables_json TEXT,
-  image_ref TEXT,
+  idx INT NOT NULL COMMENT '分镜序号',
+  prompt_template TEXT COMMENT '提示词模板',
+  variables_json TEXT COMMENT '变量（JSON格式）',
+  image_ref TEXT COMMENT '参考图片URL',
+  video_url TEXT COMMENT '生成的视频URL',
+  generation_status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT NULL COMMENT '生成状态',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
+  INDEX idx_project_id (project_id),
   INDEX idx_script_id (script_id),
-  INDEX idx_idx (idx)
+  INDEX idx_idx (idx),
+  INDEX idx_generation_status (generation_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 角色表
+CREATE TABLE IF NOT EXISTS characters (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  project_id INT NOT NULL COMMENT '所属项目ID',
+  script_id INT DEFAULT NULL COMMENT '来源剧本ID（如果是从剧本提取）',
+  name VARCHAR(255) NOT NULL,
+  description TEXT COMMENT '角色描述',
+  appearance TEXT COMMENT '外貌特征',
+  personality TEXT COMMENT '性格特点',
+  image_url TEXT COMMENT '角色图片URL',
+  tags TEXT COMMENT '标签（逗号分隔）',
+  source VARCHAR(50) DEFAULT 'manual' COMMENT '来源：manual=手动创建, ai_extracted=AI从剧本提取, ai_generated=AI生成',
+  generation_prompt TEXT COMMENT '图片生成提示词',
+  generation_params JSON COMMENT '图片生成参数（模型、尺寸、风格等）',
+  generation_status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT NULL COMMENT '图片生成状态',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE SET NULL,
+  INDEX idx_user_id (user_id),
+  INDEX idx_project_id (project_id),
+  INDEX idx_script_id (script_id),
+  INDEX idx_name (name),
+  INDEX idx_source (source),
+  INDEX idx_generation_status (generation_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 场景表
+CREATE TABLE IF NOT EXISTS scenes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  project_id INT NOT NULL COMMENT '所属项目ID',
+  script_id INT DEFAULT NULL COMMENT '来源剧本ID（如果是从剧本提取）',
+  name VARCHAR(255) NOT NULL,
+  description TEXT COMMENT '场景描述',
+  environment TEXT COMMENT '环境描述',
+  lighting TEXT COMMENT '光照描述',
+  mood TEXT COMMENT '氛围描述',
+  image_url TEXT COMMENT '场景图片URL',
+  tags TEXT COMMENT '标签（逗号分隔）',
+  source VARCHAR(50) DEFAULT 'manual' COMMENT '来源：manual=手动创建, ai_extracted=AI从剧本提取, ai_generated=AI生成',
+  generation_prompt TEXT COMMENT '图片生成提示词',
+  generation_params JSON COMMENT '图片生成参数',
+  generation_status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT NULL COMMENT '图片生成状态',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE SET NULL,
+  INDEX idx_user_id (user_id),
+  INDEX idx_project_id (project_id),
+  INDEX idx_script_id (script_id),
+  INDEX idx_name (name),
+  INDEX idx_source (source),
+  INDEX idx_generation_status (generation_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 道具表
+CREATE TABLE IF NOT EXISTS props (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  project_id INT NOT NULL COMMENT '所属项目ID',
+  name VARCHAR(255) NOT NULL COMMENT '道具名称',
+  description TEXT COMMENT '道具描述',
+  category VARCHAR(100) COMMENT '道具分类，如：武器、工具、装饰品等',
+  image_url TEXT COMMENT '道具图片URL',
+  tags TEXT COMMENT '标签，逗号分隔',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  INDEX idx_user_id (user_id),
+  INDEX idx_project_id (project_id),
+  INDEX idx_name (name),
+  INDEX idx_category (category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 计费记录表
@@ -139,77 +246,64 @@ CREATE TABLE IF NOT EXISTS system_configs (
   INDEX idx_config_key (config_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统配置表';
 
--- 角色表
-CREATE TABLE IF NOT EXISTS characters (
+-- 工作流任务表（父任务，追踪整个链条）
+CREATE TABLE IF NOT EXISTS workflow_jobs (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  appearance TEXT,
-  personality TEXT,
-  image_url TEXT,
-  tags TEXT,
+  project_id INT DEFAULT NULL COMMENT '所属项目ID（管理后台操作可为空）',
+  workflow_type VARCHAR(50) NOT NULL COMMENT '工作流类型：comic_generation, video_generation, script_only 等',
+  status ENUM('pending', 'running', 'completed', 'failed', 'cancelled') DEFAULT 'pending' COMMENT '工作流状态',
+  current_step_index INT DEFAULT 0 COMMENT '当前执行到第几步（0-based）',
+  total_steps INT DEFAULT 0 COMMENT '总步骤数',
+  input_params JSON COMMENT '工作流初始输入参数',
+  error_message TEXT COMMENT '错误信息',
+  is_consumed TINYINT(1) DEFAULT 0 COMMENT '前端是否已消费结果：0=未消费 1=已消费',
+  started_at DATETIME DEFAULT NULL COMMENT '开始时间',
+  completed_at DATETIME DEFAULT NULL COMMENT '完成时间',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   INDEX idx_user_id (user_id),
-  INDEX idx_name (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  INDEX idx_project_id (project_id),
+  INDEX idx_workflow_type (workflow_type),
+  INDEX idx_status (status),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工作流任务表';
 
--- 场景表
-CREATE TABLE IF NOT EXISTS scenes (
+-- 生成任务表（子任务，追踪单个AI生成步骤）
+CREATE TABLE IF NOT EXISTS generation_tasks (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  job_id INT DEFAULT NULL COMMENT '所属工作流ID（可为空，支持独立任务）',
+  step_index INT DEFAULT 0 COMMENT '在工作流中的步骤序号（0-based）',
   user_id INT NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  environment TEXT,
-  lighting TEXT,
-  mood TEXT,
-  image_url TEXT,
-  tags TEXT,
+  project_id INT DEFAULT NULL COMMENT '所属项目ID（管理后台操作可为空）',
+  task_type VARCHAR(50) NOT NULL COMMENT '任务类型：script, character_extract, character_image, scene_image, storyboard, video',
+  target_type VARCHAR(50) NOT NULL COMMENT '目标资源类型：script, character, scene, storyboard',
+  target_id INT DEFAULT NULL COMMENT '目标资源ID',
+  model_name VARCHAR(255) COMMENT 'AI模型名称',
+  input_params JSON COMMENT '输入参数',
+  status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT 'pending' COMMENT '任务状态',
+  progress INT DEFAULT 0 COMMENT '进度百分比（0-100）',
+  result_data JSON COMMENT '结果数据',
+  error_message TEXT COMMENT '错误信息',
+  external_task_id VARCHAR(255) COMMENT '外部任务ID（如API返回的task_id）',
+  started_at DATETIME DEFAULT NULL COMMENT '开始时间',
+  completed_at DATETIME DEFAULT NULL COMMENT '完成时间',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (job_id) REFERENCES workflow_jobs(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  INDEX idx_job_id (job_id),
+  INDEX idx_step_index (step_index),
   INDEX idx_user_id (user_id),
-  INDEX idx_name (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 剧本素材表
-CREATE TABLE IF NOT EXISTS script_assets (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  content TEXT,
-  genre VARCHAR(100),
-  duration VARCHAR(100),
-  image_url TEXT,
-  tags TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  INDEX idx_user_id (user_id),
-  INDEX idx_name (name),
-  INDEX idx_genre (genre)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 项目表
-CREATE TABLE IF NOT EXISTS projects (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  cover_url TEXT,
-  type VARCHAR(50) DEFAULT 'comic',
-  status VARCHAR(50) DEFAULT 'draft',
-  settings_json TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  INDEX idx_user_id (user_id),
-  INDEX idx_type (type),
-  INDEX idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  INDEX idx_project_id (project_id),
+  INDEX idx_task_type (task_type),
+  INDEX idx_status (status),
+  INDEX idx_external_task_id (external_task_id),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI生成任务追踪表';
 
 -- 初始化默认管理员账户
 -- 账号: admin, 密码: 123 (使用 bcrypt 加密，cost=10)

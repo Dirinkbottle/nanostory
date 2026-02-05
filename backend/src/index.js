@@ -12,8 +12,9 @@ const videoRoutes = require('./videos');
 const userRoutes = require('./users');
 const characterRoutes = require('./characters');
 const sceneRoutes = require('./scenes');
-const scriptAssetRoutes = require('./scriptAssets');
+const propsRoutes = require('./props');
 const projectRoutes = require('./projects');
+const workflowRoutes = require('./nosyntask/routes');
 const adminRoutes = require('./adminRoutes');
 
 const app = express();
@@ -52,8 +53,9 @@ app.use('/api/videos', videoRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/scenes', sceneRoutes);
-app.use('/api/script-assets', scriptAssetRoutes);
+app.use('/api/props', propsRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/workflows', workflowRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Serve static files for production if needed

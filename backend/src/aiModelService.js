@@ -141,17 +141,109 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
 }
 
 /**
+ * 统一的 AI 模型查询接口（用于异步任务轮询）
+ * 使用模型配置中的 query_* 字段构建请求
+ * @param {string} modelName - 模型名称
+ * @param {object} params - 查询参数（提交接口映射结果的字段，会替换查询模板中的占位符）
+ * @param {string} apiKey - API 密钥（可选）
+ * @returns {Promise<object>} - 返回映射后的查询响应
+ */
+async function queryAIModel(modelName, params = {}, apiKey = null) {
+  try {
+    const model = await queryOne(
+      'SELECT * FROM ai_model_configs WHERE name = ? AND is_active = 1',
+      [modelName]
+    );
+
+    if (!model) {
+      throw new Error(`模型 "${modelName}" 不存在或未启用`);
+    }
+
+    if (!model.query_url_template) {
+      throw new Error(`模型 "${modelName}" 未配置查询接口`);
+    }
+
+    // API Key
+    if (!apiKey) {
+      if (model.api_key) {
+        apiKey = model.api_key;
+      } else {
+        const envKey = `${model.provider.toUpperCase()}_API_KEY`;
+        apiKey = process.env[envKey];
+      }
+    }
+
+    const mergedParams = { ...params, apiKey };
+
+    // 渲染查询 URL
+    const url = renderTemplate(model.query_url_template, mergedParams);
+
+    // 渲染查询 Headers
+    const queryHeadersTemplate = model.query_headers_template
+      ? (typeof model.query_headers_template === 'string' ? JSON.parse(model.query_headers_template) : model.query_headers_template)
+      : {};
+    const headers = renderJsonTemplate(queryHeadersTemplate, mergedParams);
+
+    // 构建请求
+    const queryMethod = model.query_method || 'GET';
+    const requestOptions = { method: queryMethod, headers };
+
+    // 渲染查询 Body（根据 Content-Type 选择编码方式）
+    const queryBodyTemplate = model.query_body_template
+      ? (typeof model.query_body_template === 'string' ? JSON.parse(model.query_body_template) : model.query_body_template)
+      : null;
+
+    if (queryBodyTemplate && queryMethod !== 'GET') {
+      const renderedBody = renderJsonTemplate(queryBodyTemplate, mergedParams);
+      const contentType = headers['Content-Type'] || headers['content-type'] || '';
+
+      if (contentType.includes('application/x-www-form-urlencoded')) {
+        const urlParams = new URLSearchParams();
+        for (const [key, value] of Object.entries(renderedBody)) {
+          urlParams.append(key, String(value));
+        }
+        requestOptions.body = urlParams.toString();
+      } else {
+        requestOptions.body = JSON.stringify(renderedBody);
+      }
+    }
+
+    console.log(`[AI Model Query] Querying ${modelName}:`, url);
+    const response = await fetch(url, requestOptions);
+    const data = await response.json();
+    console.log('[AI Model Query] Response:', JSON.stringify(data, null, 2));
+
+    // 使用查询响应映射
+    const queryResponseMapping = model.query_response_mapping
+      ? (typeof model.query_response_mapping === 'string' ? JSON.parse(model.query_response_mapping) : model.query_response_mapping)
+      : null;
+
+    let result = data;
+    if (queryResponseMapping) {
+      result = mapResponse(data, queryResponseMapping);
+      result._raw = data;
+    }
+
+    return result;
+  } catch (error) {
+    console.error(`[AI Model Query] Error querying ${modelName}:`, error);
+    throw error;
+  }
+}
+
+/**
  * 获取所有启用的文本模型列表
  */
 async function getTextModels() {
   const { queryAll } = require('./dbHelper');
   const models = await queryAll(
-    "SELECT id, name, provider, description FROM ai_model_configs WHERE category = 'TEXT' AND is_active = 1 ORDER BY id ASC"
+    "SELECT id, name, provider, category, description FROM ai_model_configs WHERE category = 'TEXT' AND is_active = 1 ORDER BY id ASC"
   );
   return models;
 }
 
 module.exports = {
   callAIModel,
+  queryAIModel,
   getTextModels
 };
