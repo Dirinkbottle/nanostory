@@ -5,15 +5,15 @@ const { authMiddleware } = require('./middleware');
 const router = express.Router();
 
 // 获取所有工程
-router.get('/', authMiddleware, (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  
+
   try {
-    const projects = queryAll(
+    const projects = await queryAll(
       'SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC',
       [userId]
     );
-    
+
     res.json({ projects });
   } catch (error) {
     console.error('[Projects List]', error);
@@ -22,20 +22,20 @@ router.get('/', authMiddleware, (req, res) => {
 });
 
 // 获取单个工程
-router.get('/:id', authMiddleware, (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
-  
+
   try {
-    const project = queryOne(
+    const project = await queryOne(
       'SELECT * FROM projects WHERE id = ? AND user_id = ?',
       [id, userId]
     );
-    
+
     if (!project) {
       return res.status(404).json({ message: '工程不存在' });
     }
-    
+
     res.json(project);
   } catch (error) {
     console.error('[Project Detail]', error);
@@ -44,24 +44,24 @@ router.get('/:id', authMiddleware, (req, res) => {
 });
 
 // 创建工程
-router.post('/', authMiddleware, (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { name, description, cover_url, type, status, settings_json } = req.body;
-  
+
   if (!name) {
     return res.status(400).json({ message: '工程名称不能为空' });
   }
-  
+
   try {
-    execute(
+    await execute(
       `INSERT INTO projects (user_id, name, description, cover_url, type, status, settings_json) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [userId, name, description || '', cover_url || '', type || 'comic', status || 'draft', settings_json || '{}']
     );
-    
-    const id = getLastInsertId();
-    const project = queryOne('SELECT * FROM projects WHERE id = ?', [id]);
-    
+
+    const id = await getLastInsertId();
+    const project = await queryOne('SELECT * FROM projects WHERE id = ?', [id]);
+
     res.json({ message: '工程创建成功', project });
   } catch (error) {
     console.error('[Project Create]', error);
@@ -70,28 +70,28 @@ router.post('/', authMiddleware, (req, res) => {
 });
 
 // 更新工程
-router.put('/:id', authMiddleware, (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
   const { name, description, cover_url, type, status, settings_json } = req.body;
-  
+
   try {
-    const existing = queryOne(
+    const existing = await queryOne(
       'SELECT * FROM projects WHERE id = ? AND user_id = ?',
       [id, userId]
     );
-    
+
     if (!existing) {
       return res.status(404).json({ message: '工程不存在' });
     }
-    
-    execute(
+
+    await execute(
       `UPDATE projects 
        SET name = ?, description = ?, cover_url = ?, type = ?, status = ?, settings_json = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ? AND user_id = ?`,
       [
-        name || existing.name, 
-        description !== undefined ? description : existing.description, 
+        name || existing.name,
+        description !== undefined ? description : existing.description,
         cover_url !== undefined ? cover_url : existing.cover_url,
         type || existing.type,
         status || existing.status,
@@ -99,9 +99,9 @@ router.put('/:id', authMiddleware, (req, res) => {
         id, userId
       ]
     );
-    
-    const project = queryOne('SELECT * FROM projects WHERE id = ?', [id]);
-    
+
+    const project = await queryOne('SELECT * FROM projects WHERE id = ?', [id]);
+
     res.json({ message: '工程更新成功', project });
   } catch (error) {
     console.error('[Project Update]', error);
@@ -110,22 +110,22 @@ router.put('/:id', authMiddleware, (req, res) => {
 });
 
 // 删除工程
-router.delete('/:id', authMiddleware, (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
-  
+
   try {
-    const existing = queryOne(
+    const existing = await queryOne(
       'SELECT * FROM projects WHERE id = ? AND user_id = ?',
       [id, userId]
     );
-    
+
     if (!existing) {
       return res.status(404).json({ message: '工程不存在' });
     }
-    
-    execute('DELETE FROM projects WHERE id = ? AND user_id = ?', [id, userId]);
-    
+
+    await execute('DELETE FROM projects WHERE id = ? AND user_id = ?', [id, userId]);
+
     res.json({ message: '工程删除成功' });
   } catch (error) {
     console.error('[Project Delete]', error);

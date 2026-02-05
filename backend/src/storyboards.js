@@ -71,7 +71,7 @@ router.get('/templates', authMiddleware, (_req, res) => {
   res.json(DEFAULT_TEMPLATES);
 });
 
-router.get('/:scriptId', authMiddleware, (req, res) => {
+router.get('/:scriptId', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const scriptId = Number(req.params.scriptId);
 
@@ -80,13 +80,13 @@ router.get('/:scriptId', authMiddleware, (req, res) => {
   }
 
   try {
-    const script = queryOne('SELECT id FROM scripts WHERE id = ? AND user_id = ? LIMIT 1', [scriptId, userId]);
+    const script = await queryOne('SELECT id FROM scripts WHERE id = ? AND user_id = ? LIMIT 1', [scriptId, userId]);
 
     if (!script) {
       return res.status(404).json({ message: 'Script not found' });
     }
 
-    const rows = queryAll('SELECT id, idx, prompt_template, variables_json, image_ref, created_at FROM storyboards WHERE script_id = ? ORDER BY idx ASC', [scriptId]);
+    const rows = await queryAll('SELECT id, idx, prompt_template, variables_json, image_ref, created_at FROM storyboards WHERE script_id = ? ORDER BY idx ASC', [scriptId]);
 
     const result = rows.map((row) => ({
       id: row.id,
@@ -104,7 +104,7 @@ router.get('/:scriptId', authMiddleware, (req, res) => {
   }
 });
 
-router.post('/:scriptId', authMiddleware, (req, res) => {
+router.post('/:scriptId', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const scriptId = Number(req.params.scriptId);
   const { items } = req.body || {};
@@ -114,22 +114,23 @@ router.post('/:scriptId', authMiddleware, (req, res) => {
   }
 
   try {
-    const script = queryOne('SELECT id FROM scripts WHERE id = ? AND user_id = ? LIMIT 1', [scriptId, userId]);
+    const script = await queryOne('SELECT id FROM scripts WHERE id = ? AND user_id = ? LIMIT 1', [scriptId, userId]);
 
     if (!script) {
       return res.status(404).json({ message: 'Script not found' });
     }
 
-    execute('DELETE FROM storyboards WHERE script_id = ?', [scriptId]);
+    await execute('DELETE FROM storyboards WHERE script_id = ?', [scriptId]);
 
-    items.forEach((item, idx) => {
+    for (let idx = 0; idx < items.length; idx++) {
+      const item = items[idx];
       const index = typeof item.index === 'number' ? item.index : idx + 1;
       const promptTemplate = item.prompt_template || '';
       const variablesJson = JSON.stringify(item.variables || {});
       const imageRef = item.image_ref || null;
 
-      execute('INSERT INTO storyboards (script_id, idx, prompt_template, variables_json, image_ref) VALUES (?, ?, ?, ?, ?)', [scriptId, index, promptTemplate, variablesJson, imageRef]);
-    });
+      await execute('INSERT INTO storyboards (script_id, idx, prompt_template, variables_json, image_ref) VALUES (?, ?, ?, ?, ?)', [scriptId, index, promptTemplate, variablesJson, imageRef]);
+    }
 
     return res.json({ message: 'Storyboards saved' });
   } catch (err) {

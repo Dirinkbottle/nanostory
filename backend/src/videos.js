@@ -11,7 +11,7 @@ router.get('/models', (req, res) => {
     id: key,
     ...config
   }));
-  
+
   res.json({ models });
 });
 
@@ -32,9 +32,9 @@ router.post('/generate', authMiddleware, async (req, res) => {
     const amount = videoDuration * model.pricing.perSecond;
 
     // 检查用户余额
-    const user = queryOne('SELECT balance FROM users WHERE id = ?', [userId]);
+    const user = await queryOne('SELECT balance FROM users WHERE id = ?', [userId]);
     if (!user || user.balance < amount) {
-      return res.status(402).json({ 
+      return res.status(402).json({
         message: '余额不足，请充值',
         required: amount,
         current: user?.balance || 0
@@ -42,10 +42,10 @@ router.post('/generate', authMiddleware, async (req, res) => {
     }
 
     // 扣除余额
-    execute('UPDATE users SET balance = balance - ? WHERE id = ?', [amount, userId]);
+    await execute('UPDATE users SET balance = balance - ? WHERE id = ?', [amount, userId]);
 
     // 记录计费
-    execute(
+    await execute(
       'INSERT INTO billing_records (user_id, script_id, operation, model_provider, model_tier, tokens, unit_price, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [userId, scriptId || null, '视频生成', model.provider, modelTier, videoDuration, model.pricing.perSecond, amount]
     );

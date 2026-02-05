@@ -5,19 +5,19 @@ const { authMiddleware } = require('./middleware');
 const router = express.Router();
 
 // 获取用户信息（包括余额）
-router.get('/profile', authMiddleware, (req, res) => {
+router.get('/profile', authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  
+
   try {
-    const user = queryOne(
+    const user = await queryOne(
       'SELECT id, email, balance, created_at FROM users WHERE id = ?',
       [userId]
     );
-    
+
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
     }
-    
+
     res.json(user);
   } catch (error) {
     console.error('[User Profile]', error);
@@ -26,12 +26,12 @@ router.get('/profile', authMiddleware, (req, res) => {
 });
 
 // 获取消费记录
-router.get('/billing', authMiddleware, (req, res) => {
+router.get('/billing', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { limit = 50, offset = 0 } = req.query;
-  
+
   try {
-    const records = queryAll(
+    const records = await queryAll(
       `SELECT 
         id,
         script_id,
@@ -48,12 +48,12 @@ router.get('/billing', authMiddleware, (req, res) => {
       LIMIT ? OFFSET ?`,
       [userId, parseInt(limit), parseInt(offset)]
     );
-    
-    const total = queryOne(
+
+    const total = await queryOne(
       'SELECT COUNT(*) as count FROM billing_records WHERE user_id = ?',
       [userId]
     );
-    
+
     res.json({
       records,
       total: total.count,
@@ -67,26 +67,26 @@ router.get('/billing', authMiddleware, (req, res) => {
 });
 
 // 获取消费统计
-router.get('/stats', authMiddleware, (req, res) => {
+router.get('/stats', authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  
+
   try {
-    const totalSpent = queryOne(
+    const totalSpent = await queryOne(
       'SELECT COALESCE(SUM(amount), 0) as total FROM billing_records WHERE user_id = ?',
       [userId]
     );
-    
-    const scriptCount = queryOne(
+
+    const scriptCount = await queryOne(
       'SELECT COUNT(*) as count FROM scripts WHERE user_id = ?',
       [userId]
     );
-    
-    const videoCount = queryOne(
+
+    const videoCount = await queryOne(
       `SELECT COUNT(*) as count FROM billing_records 
        WHERE user_id = ? AND operation = '视频生成'`,
       [userId]
     );
-    
+
     res.json({
       totalSpent: totalSpent.total,
       scriptCount: scriptCount.count,

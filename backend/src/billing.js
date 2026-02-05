@@ -4,11 +4,11 @@ const { authMiddleware } = require('./middleware');
 
 const router = express.Router();
 
-router.get('/summary', authMiddleware, (req, res) => {
+router.get('/summary', authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const row = queryOne('SELECT COALESCE(SUM(tokens), 0) as total_tokens, COALESCE(SUM(amount), 0) as total_amount FROM billing_records WHERE user_id = ?', [userId]);
+    const row = await queryOne('SELECT COALESCE(SUM(tokens), 0) as total_tokens, COALESCE(SUM(amount), 0) as total_amount FROM billing_records WHERE user_id = ?', [userId]);
 
     return res.json({
       total_tokens: row ? row.total_tokens : 0,
@@ -20,11 +20,11 @@ router.get('/summary', authMiddleware, (req, res) => {
   }
 });
 
-router.get('/history', authMiddleware, (req, res) => {
+router.get('/history', authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    const rows = queryAll('SELECT id, script_id, operation, model_provider, tokens, unit_price, amount, created_at FROM billing_records WHERE user_id = ? ORDER BY created_at DESC LIMIT 100', [userId]);
+    const rows = await queryAll('SELECT id, script_id, operation, model_provider, tokens, unit_price, amount, created_at FROM billing_records WHERE user_id = ? ORDER BY created_at DESC LIMIT 100', [userId]);
 
     return res.json(rows);
   } catch (err) {

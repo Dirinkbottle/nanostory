@@ -109,7 +109,7 @@ router.post('/generate', authMiddleware, async (req, res) => {
     const amount = tokens * unitPrice;
 
     // 检查用户余额
-    const user = queryOne('SELECT balance FROM users WHERE id = ?', [userId]);
+    const user = await queryOne('SELECT balance FROM users WHERE id = ?', [userId]);
     if (!user || user.balance < amount) {
       return res.status(402).json({ 
         message: '余额不足，请充值',
@@ -119,15 +119,15 @@ router.post('/generate', authMiddleware, async (req, res) => {
     }
 
     // 扣除余额
-    execute('UPDATE users SET balance = balance - ? WHERE id = ?', [amount, userId]);
+    await execute('UPDATE users SET balance = balance - ? WHERE id = ?', [amount, userId]);
 
     // 保存剧本
-    execute('INSERT INTO scripts (user_id, title, content, model_provider, token_used) VALUES (?, ?, ?, ?, ?)', 
+    await execute('INSERT INTO scripts (user_id, title, content, model_provider, token_used) VALUES (?, ?, ?, ?, ?)', 
       [userId, title || null, content, provider, tokens]);
-    const scriptId = getLastInsertId();
+    const scriptId = await getLastInsertId();
 
     // 记录计费
-    execute('INSERT INTO billing_records (user_id, script_id, operation, model_provider, model_tier, tokens, unit_price, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
+    await execute('INSERT INTO billing_records (user_id, script_id, operation, model_provider, model_tier, tokens, unit_price, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
       [userId, scriptId, '剧本生成', provider, 'standard', tokens, unitPrice, amount]);
 
     const newBalance = user.balance - amount;
@@ -152,10 +152,10 @@ router.post('/generate', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/', authMiddleware, (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   try {
-    const rows = queryAll('SELECT id, title, content, model_provider, token_used, created_at FROM scripts WHERE user_id = ? ORDER BY created_at DESC', [userId]);
+    const rows = await queryAll('SELECT id, title, content, model_provider, token_used, created_at FROM scripts WHERE user_id = ? ORDER BY created_at DESC', [userId]);
     return res.json(rows);
   } catch (err) {
     console.error('DB error fetching scripts:', err);

@@ -39,7 +39,7 @@ function validateUsername(username) {
   return { valid: true };
 }
 
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -62,7 +62,7 @@ router.post('/register', (req, res) => {
   }
 
   try {
-    const existing = queryOne('SELECT id FROM users WHERE email = ?', [username]);
+    const existing = await queryOne('SELECT id FROM users WHERE email = ?', [username]);
 
     if (existing) {
       return res.status(409).json({ message: '用户名已被注册' });
@@ -70,8 +70,8 @@ router.post('/register', (req, res) => {
 
     const passwordHash = bcrypt.hashSync(password, 10);
 
-    execute('INSERT INTO users (email, password_hash) VALUES (?, ?)', [username, passwordHash]);
-    const userId = getLastInsertId();
+    await execute('INSERT INTO users (email, password_hash) VALUES (?, ?)', [username, passwordHash]);
+    const userId = await getLastInsertId();
 
     const token = jwt.sign({ userId, email: username }, JWT_SECRET, { expiresIn: '7d' });
     return res.json({
@@ -84,7 +84,7 @@ router.post('/register', (req, res) => {
   }
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -95,7 +95,7 @@ router.post('/login', (req, res) => {
   const username = String(email).trim();
 
   try {
-    const row = queryOne('SELECT id, password_hash FROM users WHERE email = ?', [username]);
+    const row = await queryOne('SELECT id, password_hash FROM users WHERE email = ?', [username]);
 
     if (!row) {
       return res.status(401).json({ message: '用户名或密码错误' });

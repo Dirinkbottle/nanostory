@@ -1,190 +1,47 @@
-const path = require('path');
-const fs = require('fs');
-const initSqlJs = require('sql.js');
+const mysql = require('mysql2/promise');
 
-const dbPath = path.join(__dirname, '..', 'data', 'app.db');
+let pool = null;
 
-// Ensure data directory exists
-const dataDir = path.dirname(dbPath);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+function getPool() {
+  if (!pool) throw new Error('Database not initialized');
+  return pool;
 }
-
-let db = null;
 
 async function initializeDatabase() {
-  const SQL = await initSqlJs();
-  
-  // Load existing database or create new one
-  if (fs.existsSync(dbPath)) {
-    const buffer = fs.readFileSync(dbPath);
-    db = new SQL.Database(buffer);
-  } else {
-    db = new SQL.Database();
-  }
+  const host = process.env.MYSQL_HOST || '127.0.0.1';
+  const port = Number(process.env.MYSQL_PORT || 3306);
+  const user = process.env.MYSQL_USER || 'root';
+  const password = process.env.MYSQL_PASSWORD || '';
+  const database = process.env.MYSQL_DATABASE || 'nanostory';
 
-  // Create tables
-  db.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      balance REAL DEFAULT 100.0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
+  pool = mysql.createPool({
+    host,
+    port,
+    user,
+    password,
+    database,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    namedPlaceholders: false,
+    timezone: 'Z'
+  });
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS scripts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      title TEXT,
-      content TEXT NOT NULL,
-      model_provider TEXT,
-      token_used INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(user_id) REFERENCES users(id)
-    );
-  `);
+  await pool.query('SELECT 1');
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS storyboards (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      script_id INTEGER NOT NULL,
-      idx INTEGER NOT NULL,
-      prompt_template TEXT,
-      variables_json TEXT,
-      image_ref TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(script_id) REFERENCES scripts(id)
-    );
-  `);
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS billing_records (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      script_id INTEGER,
-      operation TEXT NOT NULL,
-      model_provider TEXT,
-      model_tier TEXT,
-      tokens INTEGER NOT NULL,
-      unit_price REAL NOT NULL,
-      amount REAL NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(user_id) REFERENCES users(id),
-      FOREIGN KEY(script_id) REFERENCES scripts(id)
-    );
-  `);
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS api_keys (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      provider TEXT NOT NULL,
-      api_key TEXT NOT NULL,
-      api_secret TEXT,
-      endpoint TEXT,
-      is_active INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS characters (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT,
-      appearance TEXT,
-      personality TEXT,
-      image_url TEXT,
-      tags TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(user_id) REFERENCES users(id)
-    );
-  `);
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS scenes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT,
-      environment TEXT,
-      lighting TEXT,
-      mood TEXT,
-      image_url TEXT,
-      tags TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(user_id) REFERENCES users(id)
-    );
-  `);
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS script_assets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT,
-      content TEXT,
-      genre TEXT,
-      duration TEXT,
-      image_url TEXT,
-      tags TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(user_id) REFERENCES users(id)
-    );
-  `);
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS projects (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      name TEXT NOT NULL,
-      description TEXT,
-      cover_url TEXT,
-      type TEXT DEFAULT 'comic',
-      status TEXT DEFAULT 'draft',
-      settings_json TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY(user_id) REFERENCES users(id)
-    );
-  `);
-
-  console.log('[DB] Database initialized successfully');
-  return db;
+  console.log('[DB] MySQL pool initialized successfully');
+  return pool;
 }
 
-function saveDatabase() {
-  if (db) {
-    const data = db.export();
-    const buffer = Buffer.from(data);
-    fs.writeFileSync(dbPath, buffer);
+async function closeDatabase() {
+  if (pool) {
+    await pool.end();
+    pool = null;
   }
 }
-
-// Auto-save every 5 seconds
-setInterval(() => {
-  saveDatabase();
-}, 5000);
-
-// Save on exit
-process.on('exit', () => {
-  saveDatabase();
-});
-
-process.on('SIGINT', () => {
-  saveDatabase();
-  process.exit();
-});
 
 module.exports = {
   initializeDatabase,
-  getDb: () => db,
-  saveDatabase
+  getPool,
+  closeDatabase
 };
