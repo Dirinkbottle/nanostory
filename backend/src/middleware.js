@@ -27,7 +27,12 @@ function authMiddleware(req, res, next) {
 
   try {
     const payload = jwt.verify(token, ACTUAL_SECRET);
-    req.user = { id: payload.userId, email: payload.email };
+    req.user = { 
+      userId: payload.userId, 
+      id: payload.userId,
+      email: payload.email,
+      role: payload.role || 'user'
+    };
     next();
   } catch (e) {
     return res.status(401).json({ message: 'Invalid or expired token' });

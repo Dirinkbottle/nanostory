@@ -71,8 +71,20 @@ const UserCenter: React.FC = () => {
     return new Date(dateString).toLocaleString('zh-CN');
   };
 
-  const formatAmount = (amount: number) => {
-    return `¥${amount.toFixed(4)}`;
+  const formatAmount = (amount: number | string | null | undefined) => {
+    const numericValue = typeof amount === 'number' ? amount : Number(amount);
+    if (Number.isNaN(numericValue)) {
+      return '¥0.0000';
+    }
+    return `¥${numericValue.toFixed(4)}`;
+  };
+
+  const formatCurrency = (value: number | string | null | undefined, digits = 2) => {
+    const numericValue = typeof value === 'number' ? value : Number(value);
+    if (Number.isNaN(numericValue)) {
+      return '0.00';
+    }
+    return numericValue.toFixed(digits);
   };
 
   if (loading) {
@@ -116,7 +128,7 @@ const UserCenter: React.FC = () => {
                 <div className="text-sm text-slate-600 font-medium">账户余额</div>
               </div>
               <div className="text-3xl font-bold text-slate-800 mb-3">
-                ¥{profile?.balance.toFixed(2) || '0.00'}
+                ¥{formatCurrency(profile?.balance, 2)}
               </div>
               <Button 
                 size="sm" 
@@ -137,10 +149,15 @@ const UserCenter: React.FC = () => {
                 <div className="text-sm text-slate-600 font-medium">累计消费</div>
               </div>
               <div className="text-3xl font-bold text-slate-800 mb-1">
-                ¥{stats?.totalSpent.toFixed(2) || '0.00'}
+                ¥{formatCurrency(stats?.totalSpent, 2)}
               </div>
               <div className="text-xs text-slate-500">
-                剩余可用 {profile && stats ? ((profile.balance / (profile.balance + stats.totalSpent)) * 100).toFixed(1) : 0}%
+                剩余可用 {profile && stats ? (() => {
+                  const balance = Number(profile.balance) || 0;
+                  const spent = Number(stats.totalSpent) || 0;
+                  const total = balance + spent;
+                  return total > 0 ? ((balance / total) * 100).toFixed(1) : '0.0';
+                })() : '0.0'}%
               </div>
             </CardBody>
           </Card>

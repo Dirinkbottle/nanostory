@@ -1,0 +1,298 @@
+import React, { useEffect, useState } from 'react';
+import { Card, CardBody, Button, Input, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from '@heroui/react';
+import { Plus, Search, Edit, Trash2, User } from 'lucide-react';
+import { getAuthToken } from '../../services/auth';
+
+interface UserData {
+  id: number;
+  email: string;
+  role: 'user' | 'admin';
+  balance: number;
+  created_at: string;
+  updated_at: string;
+}
+
+const UserManagement: React.FC = () => {
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  const [formData, setFormData] = useState({
+    email: '',
+    role: 'user' as 'user' | 'admin',
+    balance: 100
+  });
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch('/api/admin/users', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error('获取用户列表失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (user: UserData) => {
+    setEditingUser(user);
+    setFormData({
+      email: user.email,
+      role: user.role,
+      balance: user.balance
+    });
+    onOpen();
+  };
+
+  const handleSave = async () => {
+    try {
+      const token = getAuthToken();
+      const url = editingUser 
+        ? `/api/admin/users/${editingUser.id}`
+        : '/api/admin/users';
+      
+      const response = await fetch(url, {
+        method: editingUser ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        fetchUsers();
+        onClose();
+        setEditingUser(null);
+        setFormData({ email: '', role: 'user', balance: 100 });
+      }
+    } catch (error) {
+      console.error('保存用户失败:', error);
+    }
+  };
+
+  const handleDelete = async (userId: number) => {
+    if (!confirm('确定要删除此用户吗？')) return;
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error('删除用户失败:', error);
+    }
+  };
+
+  const filteredUsers = users.filter(user =>
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('zh-CN');
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800">用户管理</h1>
+          <p className="text-slate-500 mt-1">管理系统所有用户账户</p>
+        </div>
+        <Button
+          className="bg-blue-600 text-white font-semibold shadow-lg hover:bg-blue-700"
+          startContent={<Plus className="w-4 h-4" />}
+          onPress={() => {
+            setEditingUser(null);
+            setFormData({ email: '', role: 'user', balance: 100 });
+            onOpen();
+          }}
+        >
+          添加用户
+        </Button>
+      </div>
+
+      <Card className="bg-white border border-slate-200 shadow-sm">
+        <CardBody className="p-6">
+          <div className="mb-6">
+            <Input
+              placeholder="搜索用户邮箱..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              startContent={<Search className="w-4 h-4 text-slate-400" />}
+              classNames={{
+                inputWrapper: "bg-slate-50 border border-slate-200"
+              }}
+            />
+          </div>
+
+          <Table
+            aria-label="用户列表"
+            classNames={{
+              wrapper: "bg-transparent shadow-none",
+              th: "bg-slate-100 text-slate-600 font-semibold",
+              td: "text-slate-700"
+            }}
+          >
+            <TableHeader>
+              <TableColumn>ID</TableColumn>
+              <TableColumn>邮箱</TableColumn>
+              <TableColumn>角色</TableColumn>
+              <TableColumn>余额</TableColumn>
+              <TableColumn>创建时间</TableColumn>
+              <TableColumn>操作</TableColumn>
+            </TableHeader>
+            <TableBody emptyContent={loading ? "加载中..." : "暂无用户"}>
+              {filteredUsers.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.id}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <span className="font-medium">{user.email}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      size="sm"
+                      className={user.role === 'admin' 
+                        ? 'bg-purple-100 text-purple-700 font-medium'
+                        : 'bg-slate-100 text-slate-700 font-medium'
+                      }
+                    >
+                      {user.role === 'admin' ? '管理员' : '普通用户'}
+                    </Chip>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-mono font-semibold text-emerald-600">
+                      ¥{typeof user.balance === 'number' ? user.balance.toFixed(2) : Number(user.balance || 0).toFixed(2)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-slate-500 text-sm">
+                    {formatDate(user.created_at)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="flat"
+                        className="bg-blue-100 text-blue-700 hover:bg-blue-200 min-w-0 px-3"
+                        onPress={() => handleEdit(user)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="flat"
+                        className="bg-red-100 text-red-700 hover:bg-red-200 min-w-0 px-3"
+                        onPress={() => handleDelete(user.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardBody>
+      </Card>
+
+      <Modal isOpen={isOpen} onClose={onClose} size="lg">
+        <ModalContent>
+          <ModalHeader className="text-xl font-bold text-slate-800">
+            {editingUser ? '编辑用户' : '添加用户'}
+          </ModalHeader>
+          <ModalBody className="space-y-4">
+            <Input
+              label="邮箱"
+              placeholder="请输入邮箱"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              classNames={{
+                inputWrapper: "bg-slate-50 border border-slate-200"
+              }}
+            />
+            
+            <div>
+              <label className="text-sm font-medium text-slate-700 mb-2 block">角色</label>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setFormData({ ...formData, role: 'user' })}
+                  className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
+                    formData.role === 'user'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  <p className="font-semibold">普通用户</p>
+                  <p className="text-xs mt-1">标准权限</p>
+                </button>
+                <button
+                  onClick={() => setFormData({ ...formData, role: 'admin' })}
+                  className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
+                    formData.role === 'admin'
+                      ? 'border-purple-600 bg-purple-50 text-purple-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  <p className="font-semibold">管理员</p>
+                  <p className="text-xs mt-1">完整权限</p>
+                </button>
+              </div>
+            </div>
+
+            <Input
+              type="number"
+              label="余额"
+              placeholder="请输入余额"
+              value={String(formData.balance)}
+              onChange={(e) => setFormData({ ...formData, balance: parseFloat(e.target.value) || 0 })}
+              startContent={<span className="text-slate-500">¥</span>}
+              classNames={{
+                inputWrapper: "bg-slate-50 border border-slate-200"
+              }}
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="flat"
+              className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+              onPress={onClose}
+            >
+              取消
+            </Button>
+            <Button
+              className="bg-blue-600 text-white hover:bg-blue-700"
+              onPress={handleSave}
+            >
+              保存
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </div>
+  );
+};
+
+export default UserManagement;

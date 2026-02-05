@@ -70,13 +70,13 @@ router.post('/register', async (req, res) => {
 
     const passwordHash = bcrypt.hashSync(password, 10);
 
-    await execute('INSERT INTO users (email, password_hash) VALUES (?, ?)', [username, passwordHash]);
+    await execute('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)', [username, passwordHash, 'user']);
     const userId = await getLastInsertId();
 
-    const token = jwt.sign({ userId, email: username }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId, email: username, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
     return res.json({
       token,
-      user: { id: userId, email: username }
+      user: { id: userId, email: username, role: 'user' }
     });
   } catch (err) {
     console.error('DB error in register:', err);
@@ -95,7 +95,7 @@ router.post('/login', async (req, res) => {
   const username = String(email).trim();
 
   try {
-    const row = await queryOne('SELECT id, password_hash FROM users WHERE email = ?', [username]);
+    const row = await queryOne('SELECT id, password_hash, role FROM users WHERE email = ?', [username]);
 
     if (!row) {
       return res.status(401).json({ message: '用户名或密码错误' });
@@ -106,10 +106,10 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: '用户名或密码错误' });
     }
 
-    const token = jwt.sign({ userId: row.id, email: username }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: row.id, email: username, role: row.role }, JWT_SECRET, { expiresIn: '7d' });
     return res.json({
       token,
-      user: { id: row.id, email: username }
+      user: { id: row.id, email: username, role: row.role }
     });
   } catch (err) {
     console.error('DB error in login:', err);

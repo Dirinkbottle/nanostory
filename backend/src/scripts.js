@@ -1,13 +1,12 @@
 const express = require('express');
 const { queryOne, queryAll, execute, getLastInsertId } = require('./dbHelper');
 const { authMiddleware } = require('./middleware');
-const { TEXT_MODELS } = require('./models');
+const { callAIModel } = require('./aiModelService');
 
 const router = express.Router();
 
-// DeepSeek API 调用
+// 使用统一 AI 模型服务调用 DeepSeek
 async function callDeepSeek({ title, description, style, length }) {
-  // 暂时使用占位实现，等待真实 API key
   const apiKey = process.env.DEEPSEEK_API_KEY;
   
   if (!apiKey) {
@@ -16,43 +15,29 @@ async function callDeepSeek({ title, description, style, length }) {
   }
 
   try {
-    const prompt = `请根据以下信息创作一个${length}视频剧本：
+    const prompt = `请根据以下信息创作一个${length}的${style}风格视频剧本：
 标题：${title}
-故事概述：${description}
-风格：${style}
+描述：${description}
 
 要求：
-1. 分成多个场景
+1. 分成多个场景，每个场景独立完整
 2. 每个场景包含画面描述和对白
 3. 适合视频化呈现`;
 
-    const response = await fetch(TEXT_MODELS.deepseek.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: TEXT_MODELS.deepseek.model,
-        messages: [
-          { role: 'system', content: '你是一个专业的视频剧本创作助手' },
-          { role: 'user', content: prompt }
-        ],
-        max_tokens: 2000,
-        temperature: 0.7
-      })
-    });
+    const result = await callAIModel('DeepSeek Chat', {
+      messages: [
+        { role: 'system', content: '你是一个专业的视频剧本创作助手' },
+        { role: 'user', content: prompt }
+      ],
+      maxTokens: 4000,
+      temperature: 0.7
+    }, apiKey);
 
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'DeepSeek API调用失败');
-    }
-
-    const content = data.choices[0].message.content;
-    const tokens = data.usage.total_tokens;
-    
-    return { content, tokens, provider: 'deepseek' };
+    return {
+      content: result.content,
+      tokens: result.tokens,
+      provider: result._model.provider
+    };
   } catch (error) {
     console.error('[DeepSeek] API Error:', error);
     return generatePlaceholderScript({ title, description, style, length });
@@ -104,8 +89,8 @@ router.post('/generate', authMiddleware, async (req, res) => {
     // 调用 DeepSeek 生成剧本
     const { content, tokens, provider } = await callDeepSeek({ title, description, style, length });
     
-    // 计算费用
-    const unitPrice = TEXT_MODELS.deepseek.pricing.perToken;
+    // 计算费用（价格从模型配置中获取）
+    const unitPrice = 0.0000014; // DeepSeek 价格
     const amount = tokens * unitPrice;
 
     // 检查用户余额
