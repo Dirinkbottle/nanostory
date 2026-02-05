@@ -1,3 +1,5 @@
+import { getAuthToken } from './auth';
+
 export interface Character {
   id: number;
   user_id: number;
@@ -25,14 +27,13 @@ export interface Scene {
   updated_at: string;
 }
 
-export interface ScriptAsset {
+export interface Prop {
   id: number;
   user_id: number;
+  project_id: number;
   name: string;
   description: string;
-  content: string;
-  genre: string;
-  duration: string;
+  category: string;
   image_url: string;
   tags: string;
   created_at: string;
@@ -41,7 +42,12 @@ export interface ScriptAsset {
 
 // 角色API
 export async function fetchCharacters(): Promise<Character[]> {
-  const response = await fetch('/api/characters');
+  const token = getAuthToken();
+  const response = await fetch('/api/characters', {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
   if (!response.ok) {
     throw new Error('获取角色列表失败');
   }
@@ -50,9 +56,13 @@ export async function fetchCharacters(): Promise<Character[]> {
 }
 
 export async function createCharacter(character: Partial<Character>): Promise<Character> {
+  const token = getAuthToken();
   const response = await fetch('/api/characters', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
     body: JSON.stringify(character)
   });
   if (!response.ok) {
@@ -64,9 +74,13 @@ export async function createCharacter(character: Partial<Character>): Promise<Ch
 }
 
 export async function updateCharacter(id: number, character: Partial<Character>): Promise<Character> {
+  const token = getAuthToken();
   const response = await fetch(`/api/characters/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
     body: JSON.stringify(character)
   });
   if (!response.ok) {
@@ -78,8 +92,12 @@ export async function updateCharacter(id: number, character: Partial<Character>)
 }
 
 export async function deleteCharacter(id: number): Promise<void> {
+  const token = getAuthToken();
   const response = await fetch(`/api/characters/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
   });
   if (!response.ok) {
     const data = await response.json();
@@ -89,7 +107,12 @@ export async function deleteCharacter(id: number): Promise<void> {
 
 // 场景API
 export async function fetchScenes(): Promise<Scene[]> {
-  const response = await fetch('/api/scenes');
+  const token = getAuthToken();
+  const response = await fetch('/api/scenes', {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
   if (!response.ok) {
     throw new Error('获取场景列表失败');
   }
@@ -98,9 +121,13 @@ export async function fetchScenes(): Promise<Scene[]> {
 }
 
 export async function createScene(scene: Partial<Scene>): Promise<Scene> {
+  const token = getAuthToken();
   const response = await fetch('/api/scenes', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
     body: JSON.stringify(scene)
   });
   if (!response.ok) {
@@ -112,9 +139,13 @@ export async function createScene(scene: Partial<Scene>): Promise<Scene> {
 }
 
 export async function updateScene(id: number, scene: Partial<Scene>): Promise<Scene> {
+  const token = getAuthToken();
   const response = await fetch(`/api/scenes/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
     body: JSON.stringify(scene)
   });
   if (!response.ok) {
@@ -126,8 +157,12 @@ export async function updateScene(id: number, scene: Partial<Scene>): Promise<Sc
 }
 
 export async function deleteScene(id: number): Promise<void> {
+  const token = getAuthToken();
   const response = await fetch(`/api/scenes/${id}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
   });
   if (!response.ok) {
     const data = await response.json();
@@ -135,50 +170,67 @@ export async function deleteScene(id: number): Promise<void> {
   }
 }
 
-// 剧本资产API
-export async function fetchScriptAssets(): Promise<ScriptAsset[]> {
-  const response = await fetch('/api/script-assets');
+// 道具API
+export async function fetchProps(): Promise<Prop[]> {
+  const token = getAuthToken();
+  const response = await fetch('/api/props', {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
   if (!response.ok) {
-    throw new Error('获取剧本列表失败');
+    throw new Error('获取道具列表失败');
   }
   const data = await response.json();
-  return data.scriptAssets || [];
+  return data.props || [];
 }
 
-export async function createScriptAsset(scriptAsset: Partial<ScriptAsset>): Promise<ScriptAsset> {
-  const response = await fetch('/api/script-assets', {
+export async function createProp(prop: Partial<Prop>): Promise<Prop> {
+  const token = getAuthToken();
+  const response = await fetch('/api/props', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(scriptAsset)
+    headers: { 
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(prop)
   });
   if (!response.ok) {
     const data = await response.json();
-    throw new Error(data.message || '创建剧本失败');
+    throw new Error(data.message || '创建道具失败');
   }
   const data = await response.json();
-  return data.scriptAsset;
+  return data.prop;
 }
 
-export async function updateScriptAsset(id: number, scriptAsset: Partial<ScriptAsset>): Promise<ScriptAsset> {
-  const response = await fetch(`/api/script-assets/${id}`, {
+export async function updateProp(id: number, prop: Partial<Prop>): Promise<Prop> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/props/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(scriptAsset)
+    headers: { 
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(prop)
   });
   if (!response.ok) {
     const data = await response.json();
-    throw new Error(data.message || '更新剧本失败');
+    throw new Error(data.message || '更新道具失败');
   }
   const data = await response.json();
-  return data.scriptAsset;
+  return data.prop;
 }
 
-export async function deleteScriptAsset(id: number): Promise<void> {
-  const response = await fetch(`/api/script-assets/${id}`, {
-    method: 'DELETE'
+export async function deleteProp(id: number): Promise<void> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/props/${id}`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
   });
   if (!response.ok) {
     const data = await response.json();
-    throw new Error(data.message || '删除剧本失败');
+    throw new Error(data.message || '删除道具失败');
   }
 }

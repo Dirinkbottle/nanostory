@@ -146,7 +146,7 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
 async function getTextModels() {
   const { queryAll } = require('./dbHelper');
   const models = await queryAll(
-    "SELECT id, name, provider, description FROM ai_model_configs WHERE category = 'TEXT' AND is_active = 1 ORDER BY id ASC"
+    "SELECT id, name, provider, category, description FROM ai_model_configs WHERE category = 'TEXT' AND is_active = 1 ORDER BY id ASC"
   );
   return models;
 }

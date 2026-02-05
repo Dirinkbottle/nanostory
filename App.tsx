@@ -2,9 +2,9 @@ import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Auth from './views/Auth';
-import ScriptStudio from './views/ScriptStudio';
+import ScriptStudio from './views/ScriptStudio/index';
 import UserCenter from './views/UserCenter';
-import Assets from './views/Assets';
+import AssetsManager from './views/AssetsManager';
 import Projects from './views/Projects';
 import AdminLogin from './views/AdminLogin';
 import AdminLayout from './views/admin/AdminLayout';
@@ -33,7 +33,7 @@ const App: React.FC = () => {
               <Routes>
                 <Route path="/" element={<ScriptStudio />} />
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/assets" element={<Assets />} />
+                <Route path="/assets" element={<AssetsManager />} />
                 <Route path="/projects" element={<Projects />} />
                 <Route path="/user-center" element={<UserCenter />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardBody, Button, Chip, Input, Textarea, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Spinner } from '@heroui/react';
 import { Plus, Cpu, Edit, Trash2, Search, Sparkles } from 'lucide-react';
 import { getAuthToken } from '../../services/auth';
+import AIModelSelector from '../../components/AIModelSelector';
 
 interface PriceConfig {
   unit: string;
@@ -556,41 +557,15 @@ const AIModels: React.FC = () => {
               <>
                 <div>
                   <label className="text-sm font-medium text-slate-700 mb-2 block">选择解析模型</label>
-                  <Select
-                label=""
-                placeholder="选择一个文本模型"
-                selectedKeys={selectedTextModel ? [selectedTextModel] : []}
-                onSelectionChange={(keys) => {
-                  const selected = Array.from(keys)[0] as string;
-                  setSelectedTextModel(selected);
-                }}
-                classNames={{
-                  trigger: "bg-white border-2 border-slate-200 hover:border-blue-400"
-                }}
-                renderValue={(items) => {
-                  return items.map((item) => {
-                    const model = textModels.find(m => m.name === item.key);
-                    return (
-                      <div key={item.key} className="flex items-center gap-2">
-                        <Cpu className="w-4 h-4 text-purple-600" />
-                        <span className="font-medium">{model?.name}</span>
-                        <span className="text-xs text-slate-500">({model?.provider})</span>
-                      </div>
-                    );
-                  });
-                }}
-              >
-                {textModels.map((model) => (
-                  <SelectItem key={model.name} value={model.name}>
-                    <div className="flex items-center gap-2">
-                      <Cpu className="w-4 h-4 text-purple-600" />
-                      <span className="font-medium">{model.name}</span>
-                      <span className="text-xs text-slate-500">({model.provider})</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </Select>
-            </div>
+                  <AIModelSelector
+                    models={textModels.map(m => ({ ...m, type: 'TEXT' }))}
+                    selectedModel={selectedTextModel}
+                    onModelChange={setSelectedTextModel}
+                    filterType="TEXT"
+                    placeholder="选择一个文本模型"
+                    className="border-2 border-slate-200 hover:border-blue-400"
+                  />
+                </div>
 
             <Textarea
               label="API 文档"
