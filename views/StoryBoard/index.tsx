@@ -247,10 +247,10 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     setScenes(scenes.map(s => s.id === id ? { ...s, description } : s));
   };
 
-  const handleGenerateImage = async (id: number, prompt: string) => {
+  const handleGenerateImage = async (id: number, prompt: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const token = getAuthToken();
-      const res = await fetch('/api/images/generate', {
+      const res = await fetch('/api/images/generate-frames', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -265,14 +265,14 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
 
       const data = await res.json();
       
-      if (!res.ok) {
+      if (!res.ok || !data.success) {
         throw new Error(data.message || '图片生成失败');
       }
       
-      // 更新本地状态（使用函数式更新避免闭包问题）
-      setScenes(prev => prev.map(s => 
+      // 更新本地状态（首尾帧两张图）
+      setScenes((prev: StoryboardScene[]) => prev.map(s => 
         s.id === id 
-          ? { ...s, imageUrl: data.imageUrl } 
+          ? { ...s, startFrame: data.startFrame, endFrame: data.endFrame, imageUrl: data.startFrame } 
           : s
       ));
       
@@ -283,14 +283,21 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ imageUrl: data.imageUrl })
+        body: JSON.stringify({ 
+          imageUrl: data.startFrame,
+          startFrame: data.startFrame,
+          endFrame: data.endFrame
+        })
       });
       
       if (data.message) {
         alert(data.message);
       }
+      
+      return { success: true };
     } catch (error: any) {
-      alert(error.message || '图片生成失败');
+      console.error('图片生成失败:', error);
+      return { success: false, error: error.message || '图片生成失败' };
     }
   };
 
@@ -299,7 +306,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     const token = getAuthToken();
     
     // 更新本地状态（使用函数式更新）
-    setScenes(prev => prev.map(s => 
+    setScenes((prev: StoryboardScene[]) => prev.map(s => 
       s.id === id 
         ? { ...s, videoUrl } 
         : s

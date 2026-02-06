@@ -34,7 +34,7 @@ interface SceneCardProps {
   onMoveDown: (id: number) => void;
   onDelete: (id: number) => void;
   onUpdateDescription: (id: number, description: string) => void;
-  onGenerateImage: (id: number, prompt: string) => void;
+  onGenerateImage: (id: number, prompt: string) => Promise<{ success: boolean; error?: string }>;
   onUpdateVideo: (id: number, videoUrl: string) => void;
 }
 
@@ -195,7 +195,8 @@ const SceneCard: React.FC<SceneCardProps> = ({
           ) : (
             <SceneImageGenerator
               sceneId={scene.id}
-              imageUrl={scene.imageUrl}
+              startFrame={scene.startFrame}
+              endFrame={scene.endFrame}
               sceneDescription={scene.description}
               onGenerate={(prompt) => onGenerateImage(scene.id, prompt)}
             />

@@ -273,7 +273,7 @@ router.post('/:scriptId', authMiddleware, async (req, res) => {
 router.patch('/:storyboardId/media', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const storyboardId = Number(req.params.storyboardId);
-  const { imageUrl, videoUrl } = req.body;
+  const { imageUrl, videoUrl, startFrame, endFrame } = req.body;
 
   if (!storyboardId) {
     return res.status(400).json({ message: '无效的分镜ID' });
@@ -291,18 +291,26 @@ router.patch('/:storyboardId/media', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: '分镜不存在' });
     }
 
-    // 更新图片或视频路径
+    // 更新图片路径（首帧作为主图）
     if (imageUrl !== undefined) {
       await execute('UPDATE storyboards SET image_ref = ? WHERE id = ?', [imageUrl, storyboardId]);
     }
     
+    // 更新 variables_json 中的其他字段
+    const row = await queryOne('SELECT variables_json FROM storyboards WHERE id = ?', [storyboardId]);
+    const variables = row?.variables_json ? JSON.parse(row.variables_json) : {};
+    
     if (videoUrl !== undefined) {
-      // 将视频URL存到 variables_json 中
-      const row = await queryOne('SELECT variables_json FROM storyboards WHERE id = ?', [storyboardId]);
-      const variables = row?.variables_json ? JSON.parse(row.variables_json) : {};
       variables.videoUrl = videoUrl;
-      await execute('UPDATE storyboards SET variables_json = ? WHERE id = ?', [JSON.stringify(variables), storyboardId]);
     }
+    if (startFrame !== undefined) {
+      variables.startFrame = startFrame;
+    }
+    if (endFrame !== undefined) {
+      variables.endFrame = endFrame;
+    }
+    
+    await execute('UPDATE storyboards SET variables_json = ? WHERE id = ?', [JSON.stringify(variables), storyboardId]);
 
     res.json({ success: true, message: '保存成功' });
   } catch (error) {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, Tab } from '@heroui/react';
 import { getAuthToken } from '../../services/auth';
-import { Project, fetchProject, createProject } from '../../services/projects';
+import { Project, fetchProject, fetchProjects, createProject } from '../../services/projects';
 import ProjectInfo from './ProjectInfo';
 import ScriptActions from './ScriptActions';
 import ScriptGeneratorForm from './ScriptGeneratorForm';
@@ -75,7 +75,7 @@ const ScriptStudio: React.FC = () => {
     localStorage.setItem(LAST_TAB_KEY, key);
   };
 
-  // 初始化：检查是否有上次选择的工程
+  // 初始化：检查是否有上次选择的工程，或自动加载最近工程
   useEffect(() => {
     initializeProject();
   }, []);
@@ -83,15 +83,32 @@ const ScriptStudio: React.FC = () => {
   const initializeProject = async () => {
     try {
       const lastProjectId = localStorage.getItem(LAST_PROJECT_KEY);
+      
       if (lastProjectId) {
+        // 尝试加载上次的工程
         const project = await fetchProject(parseInt(lastProjectId));
         if (project) {
           setSelectedProject(project);
           await loadProjectScript(project.id);
+          setShowProjectSelector(false);
+          setInitLoading(false);
+          return;
         }
       }
+      
+      // 没有上次工程记录，或上次工程已不存在，尝试加载最近的工程
+      const projects = await fetchProjects();
+      if (projects && projects.length > 0) {
+        // 按更新时间排序，选择最近的工程
+        const recentProject = projects.sort((a: Project, b: Project) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        )[0];
+        setSelectedProject(recentProject);
+        localStorage.setItem(LAST_PROJECT_KEY, recentProject.id.toString());
+        await loadProjectScript(recentProject.id);
+      }
     } catch (error) {
-      console.error('加载上次工程失败:', error);
+      console.error('加载工程失败:', error);
       localStorage.removeItem(LAST_PROJECT_KEY);
     }
     // 无论有没有工程，直接进入工作台
