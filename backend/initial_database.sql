@@ -226,7 +226,11 @@ CREATE TABLE IF NOT EXISTS ai_model_configs (
   query_method ENUM('GET', 'POST') DEFAULT 'GET' COMMENT '查询请求方法',
   query_headers_template JSON COMMENT '查询请求的 Headers 模板',
   query_body_template JSON COMMENT '查询请求的 Body 模板',
-  query_response_mapping JSON COMMENT '查询响应的字段映射',
+  query_response_mapping JSON COMMENT '查询响应的基础字段映射，提取 status 等原始值。示例: {"status": "data.task_status"}',
+  query_success_condition VARCHAR(500) COMMENT '成功判断表达式(JS)。示例: status == "succeed" || status == "completed"',
+  query_fail_condition VARCHAR(500) COMMENT '失败判断表达式(JS)。示例: status == "failed" || status == "error"',
+  query_success_mapping JSON COMMENT '成功时的结果字段映射。示例: {"image_url": "data.task_result.images.0.url", "video_url": "data.remote_url"}',
+  query_fail_mapping JSON COMMENT '失败时的错误字段映射。示例: {"error": "data.fail_reason", "message": "data.error.message"}',
   
   -- 时间戳
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -239,25 +243,41 @@ CREATE TABLE IF NOT EXISTS ai_model_configs (
   INDEX idx_category_active (category, is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI 模型配置表';
 
--- 系统配置表 (存储全局 API Key 等敏感信息)
-CREATE TABLE IF NOT EXISTS system_configs (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  config_key VARCHAR(100) NOT NULL UNIQUE COMMENT '配置键，如 openai_api_key, kling_api_key',
-  config_value TEXT NOT NULL COMMENT '配置值',
-  description VARCHAR(500) COMMENT '配置描述',
-  is_encrypted TINYINT(1) DEFAULT 0 COMMENT '是否加密存储',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_config_key (config_key)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统配置表';
 
--- 生成任务表（用于追踪异步AI生成任务）
-CREATE TABLE IF NOT EXISTS generation_tasks (
+-- 工作流任务表（管理多步骤异步工作流）
+CREATE TABLE IF NOT EXISTS workflow_jobs (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
-  project_id INT NOT NULL COMMENT '所属项目ID',
-  task_type ENUM('script', 'character_extract', 'character_image', 'scene_image', 'storyboard', 'video') NOT NULL COMMENT '任务类型',
-  target_type VARCHAR(50) NOT NULL COMMENT '目标资源类型：script, character, scene, storyboard',
+  project_id INT DEFAULT NULL COMMENT '所属项目ID（管理后台任务可为NULL）',
+  workflow_type VARCHAR(50) NOT NULL COMMENT '工作流类型，如 script_only, comic_generation, smart_parse',
+  status ENUM('pending', 'running', 'completed', 'failed', 'cancelled') DEFAULT 'pending' COMMENT '工作流状态',
+  current_step_index INT DEFAULT 0 COMMENT '当前执行到的步骤索引',
+  total_steps INT NOT NULL COMMENT '总步骤数',
+  input_params JSON COMMENT '工作流输入参数',
+  error_message TEXT COMMENT '错误信息',
+  is_consumed TINYINT(1) DEFAULT 0 COMMENT '前端是否已消费结果（防止重复处理）',
+  started_at DATETIME DEFAULT NULL COMMENT '开始执行时间',
+  completed_at DATETIME DEFAULT NULL COMMENT '完成时间',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user_id (user_id),
+  INDEX idx_project_id (project_id),
+  INDEX idx_workflow_type (workflow_type),
+  INDEX idx_status (status),
+  INDEX idx_is_consumed (is_consumed),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='工作流任务表';
+
+-- 生成任务表（工作流中的单个步骤，用于追踪异步AI生成任务）
+CREATE TABLE IF NOT EXISTS generation_tasks (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  job_id INT DEFAULT NULL COMMENT '所属工作流ID（独立任务可为NULL）',
+  step_index INT DEFAULT 0 COMMENT '在工作流中的步骤索引',
+  user_id INT NOT NULL,
+  project_id INT DEFAULT NULL COMMENT '所属项目ID（管理后台任务可为NULL）',
+  task_type VARCHAR(50) NOT NULL COMMENT '任务类型：script, character_extract, character_image, scene_image, storyboard, video, frame_image, scene_video, smart_parse 等',
+  target_type VARCHAR(50) NOT NULL COMMENT '目标资源类型：script, character, scene, storyboard, ai_model_config',
   target_id INT DEFAULT NULL COMMENT '目标资源ID',
   model_name VARCHAR(255) COMMENT 'AI模型名称',
   input_params JSON COMMENT '输入参数',
@@ -271,7 +291,10 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (job_id) REFERENCES workflow_jobs(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+  INDEX idx_job_id (job_id),
+  INDEX idx_step_index (step_index),
   INDEX idx_user_id (user_id),
   INDEX idx_project_id (project_id),
   INDEX idx_task_type (task_type),

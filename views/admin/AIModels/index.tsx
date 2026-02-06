@@ -34,8 +34,9 @@ const AIModels: React.FC = () => {
       setParseJobId(null);
       setParsing(false);
       const task = completedJob.tasks?.[0];
-      if (task?.result_data?.config) {
-        const config = task.result_data.config;
+      const config = task?.result_data?.config || task?.result_data;
+      if (config && typeof config === 'object' && config.name) {
+        const toJson = (v: any) => v ? (typeof v === 'string' ? v : JSON.stringify(v, null, 2)) : '{}';
         setFormData({
           name: config.name || '',
           category: config.category || 'TEXT',
@@ -47,20 +48,26 @@ const AIModels: React.FC = () => {
           priceValue: config.price_value || 0.0001,
           request_method: config.request_method || 'POST',
           url_template: config.url_template || '',
-          headers_template: config.headers_template ? JSON.stringify(config.headers_template, null, 2) : '{}',
-          body_template: config.body_template ? JSON.stringify(config.body_template, null, 2) : '{}',
-          default_params: config.default_params ? JSON.stringify(config.default_params, null, 2) : '{}',
-          response_mapping: config.response_mapping ? JSON.stringify(config.response_mapping, null, 2) : '{}',
-          query_url_template: '',
-          query_method: 'GET',
-          query_headers_template: '{}',
-          query_body_template: '{}',
-          query_response_mapping: '{}'
+          headers_template: toJson(config.headers_template),
+          body_template: toJson(config.body_template),
+          default_params: toJson(config.default_params),
+          response_mapping: toJson(config.response_mapping),
+          query_url_template: config.query_url_template || '',
+          query_method: config.query_method || 'GET',
+          query_headers_template: toJson(config.query_headers_template),
+          query_body_template: toJson(config.query_body_template),
+          query_response_mapping: toJson(config.query_response_mapping),
+          query_success_condition: config.query_success_condition || '',
+          query_fail_condition: config.query_fail_condition || '',
+          query_success_mapping: toJson(config.query_success_mapping),
+          query_fail_mapping: toJson(config.query_fail_mapping)
         });
         onSmartClose();
         setSmartMode(false);
-        onOpen();
+        // 延迟打开表单，确保 smart modal 先关闭
+        setTimeout(() => onOpen(), 300);
       } else {
+        console.error('[SmartParse] 解析结果:', task?.result_data);
         alert('解析完成但未返回有效配置');
       }
     },
@@ -140,7 +147,11 @@ const AIModels: React.FC = () => {
       query_method: model.query_method || 'GET',
       query_headers_template: model.query_headers_template ? (typeof model.query_headers_template === 'string' ? model.query_headers_template : JSON.stringify(model.query_headers_template, null, 2)) : '{}',
       query_body_template: model.query_body_template ? (typeof model.query_body_template === 'string' ? model.query_body_template : JSON.stringify(model.query_body_template, null, 2)) : '{}',
-      query_response_mapping: model.query_response_mapping ? (typeof model.query_response_mapping === 'string' ? model.query_response_mapping : JSON.stringify(model.query_response_mapping, null, 2)) : '{}'
+      query_response_mapping: model.query_response_mapping ? (typeof model.query_response_mapping === 'string' ? model.query_response_mapping : JSON.stringify(model.query_response_mapping, null, 2)) : '{}',
+      query_success_condition: model.query_success_condition || '',
+      query_fail_condition: model.query_fail_condition || '',
+      query_success_mapping: model.query_success_mapping ? (typeof model.query_success_mapping === 'string' ? model.query_success_mapping : JSON.stringify(model.query_success_mapping, null, 2)) : '{}',
+      query_fail_mapping: model.query_fail_mapping ? (typeof model.query_fail_mapping === 'string' ? model.query_fail_mapping : JSON.stringify(model.query_fail_mapping, null, 2)) : '{}'
     });
     onOpen();
   };
@@ -166,7 +177,11 @@ const AIModels: React.FC = () => {
         query_method: formData.query_method,
         query_headers_template: formData.query_headers_template ? JSON.parse(formData.query_headers_template) : null,
         query_body_template: formData.query_body_template ? JSON.parse(formData.query_body_template) : null,
-        query_response_mapping: formData.query_response_mapping ? JSON.parse(formData.query_response_mapping) : null
+        query_response_mapping: formData.query_response_mapping ? JSON.parse(formData.query_response_mapping) : null,
+        query_success_condition: formData.query_success_condition || null,
+        query_fail_condition: formData.query_fail_condition || null,
+        query_success_mapping: formData.query_success_mapping ? JSON.parse(formData.query_success_mapping) : null,
+        query_fail_mapping: formData.query_fail_mapping ? JSON.parse(formData.query_fail_mapping) : null
       };
 
       const url = editingModel 
@@ -264,13 +279,17 @@ const AIModels: React.FC = () => {
         query_method: config.query_method || 'GET',
         query_headers_template: config.query_headers_template ? JSON.stringify(config.query_headers_template, null, 2) : '{}',
         query_body_template: config.query_body_template ? JSON.stringify(config.query_body_template, null, 2) : '{}',
-        query_response_mapping: config.query_response_mapping ? JSON.stringify(config.query_response_mapping, null, 2) : '{}'
+        query_response_mapping: config.query_response_mapping ? JSON.stringify(config.query_response_mapping, null, 2) : '{}',
+        query_success_condition: config.query_success_condition || '',
+        query_fail_condition: config.query_fail_condition || '',
+        query_success_mapping: config.query_success_mapping ? JSON.stringify(config.query_success_mapping, null, 2) : '{}',
+        query_fail_mapping: config.query_fail_mapping ? JSON.stringify(config.query_fail_mapping, null, 2) : '{}'
       });
       
       setSmartMode(false);
       onSmartClose();
-      onOpen();
-      alert('配置导入成功！请检查并保存');
+      // 延迟打开表单，确保 smart modal 先关闭
+      setTimeout(() => onOpen(), 300);
     } catch (error) {
       console.error('JSON 解析失败:', error);
       alert(`JSON 解析失败: ${error instanceof Error ? error.message : '未知错误'}`);

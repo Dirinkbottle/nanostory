@@ -13,9 +13,15 @@
 const {
   handleScriptGeneration,
   handleCharacterExtraction,
+  handleSceneExtraction,
   handleImageGeneration,
   handleVideoGeneration,
-  handleSmartParse
+  handleSmartParse,
+  handleFrameGeneration,
+  handleSceneVideoGeneration,
+  handleStoryboardGeneration,
+  handleCharacterViewsGeneration,
+  handleSceneImageGeneration
 } = require('./tasks');
 
 // ============================================================
@@ -39,7 +45,7 @@ const WORKFLOW_DEFINITIONS = {
     name: '剧本生成',
     steps: [
       {
-        type: 'script',
+        type: 'script_generation',
         targetType: 'script',
         handler: handleScriptGeneration,
         buildInput: (ctx) => ({
@@ -47,8 +53,52 @@ const WORKFLOW_DEFINITIONS = {
           description: ctx.jobParams.description,
           style: ctx.jobParams.style,
           length: ctx.jobParams.length,
+          modelName: ctx.jobParams.modelName,
+          projectId: ctx.jobParams.projectId,
+          episodeNumber: ctx.jobParams.episodeNumber
+        })
+      }
+    ]
+  },
+
+  /**
+   * 分镜生成
+   */
+  storyboard_generation: {
+    name: '分镜生成',
+    steps: [
+      {
+        type: 'storyboard_generation',
+        targetType: 'storyboard',
+        handler: handleStoryboardGeneration,
+        buildInput: (ctx) => ({
+          scriptContent: ctx.jobParams.scriptContent,
+          scriptTitle: ctx.jobParams.scriptTitle,
           modelName: ctx.jobParams.modelName
         })
+      }
+    ]
+  },
+
+  /**
+   * 场景提取（手动触发）
+   */
+  scene_extraction: {
+    name: '场景提取',
+    steps: [
+      {
+        type: 'scene_extraction',
+        targetType: 'scenes',
+        handler: handleSceneExtraction,
+        buildInput: (context) => ({
+          scenes: context.jobParams.scenes,
+          scriptContent: context.jobParams.scriptContent,
+          projectId: context.jobParams.projectId,
+          scriptId: context.jobParams.scriptId,
+          userId: context.userId,
+          modelName: context.jobParams.modelName
+        }),
+        modelKey: 'modelName'
       }
     ]
   },
@@ -103,55 +153,119 @@ const WORKFLOW_DEFINITIONS = {
   },
 
   /**
-   * 完整漫剧生成流水线：剧本 -> 角色提取 -> 角色图片 -> 视频
+   * 分镜首尾帧生成（单个分镜的图片）
    */
-  comic_generation: {
-    name: '漫剧生成',
+  frame_generation: {
+    name: '分镜首尾帧生成',
     steps: [
       {
-        type: 'script',
-        targetType: 'script',
-        handler: handleScriptGeneration,
-        buildInput: (ctx) => ({
-          title: ctx.jobParams.title,
-          description: ctx.jobParams.description,
-          style: ctx.jobParams.style,
-          length: ctx.jobParams.length,
-          modelName: ctx.jobParams.textModelName
-        })
-      },
-      {
-        type: 'character_extract',
-        targetType: 'character',
-        handler: handleCharacterExtraction,
-        buildInput: (ctx) => ({
-          scriptContent: ctx.previousResults[0]?.content || '',
-          modelName: ctx.jobParams.textModelName
-        })
-      },
-      {
-        type: 'character_image',
-        targetType: 'character',
-        handler: handleImageGeneration,
-        buildInput: (ctx) => {
-          const chars = ctx.previousResults[1]?.characters || [];
-          const firstChar = chars[0] || {};
-          return {
-            prompt: `${firstChar.appearance || firstChar.name || '角色'}，高质量，细节丰富`,
-            modelName: ctx.jobParams.imageModelName
-          };
-        }
-      },
-      {
-        type: 'video',
+        type: 'frame_image',
         targetType: 'storyboard',
-        handler: handleVideoGeneration,
+        handler: handleFrameGeneration,
         buildInput: (ctx) => ({
-          prompt: ctx.previousResults[0]?.content?.substring(0, 500) || '',
-          image_url: ctx.previousResults[2]?.image_url || null,
-          modelName: ctx.jobParams.videoModelName,
+          prompt: ctx.jobParams.prompt,
+          modelName: ctx.jobParams.modelName,
+          width: ctx.jobParams.width || 1024,
+          height: ctx.jobParams.height || 576
+        })
+      }
+    ]
+  },
+
+  /**
+   * 分镜视频生成（单个分镜的视频）
+   */
+  scene_video: {
+    name: '分镜视频生成',
+    steps: [
+      {
+        type: 'scene_video',
+        targetType: 'storyboard',
+        handler: handleSceneVideoGeneration,
+        buildInput: (ctx) => ({
+          prompt: ctx.jobParams.prompt,
+          imageUrl: ctx.jobParams.imageUrl,
+          startFrame: ctx.jobParams.startFrame,
+          endFrame: ctx.jobParams.endFrame,
+          modelName: ctx.jobParams.modelName,
           duration: ctx.jobParams.duration || 5
         })
+      }
+    ]
+  },
+
+  /**
+   * 角色提取（从分镜或剧本中提取角色）
+   */
+  character_extraction: {
+    name: '角色提取',
+    steps: [
+      {
+        type: 'character_extraction',
+        targetType: 'characters',
+        handler: handleCharacterExtraction,
+        buildInput: (context) => ({
+          scenes: context.jobParams.scenes,
+          scriptContent: context.jobParams.scriptContent,
+          projectId: context.jobParams.projectId,
+          scriptId: context.jobParams.scriptId,
+          userId: context.userId,
+          modelName: context.jobParams.modelName
+        }),
+        modelKey: 'modelName'
+      }
+    ]
+  },
+
+  /**
+   * 场景图片生成
+   */
+  scene_image_generation: {
+    name: '场景图片生成',
+    steps: [
+      {
+        type: 'scene_image_generation',
+        targetType: 'scene',
+        handler: handleSceneImageGeneration,
+        buildInput: (context) => ({
+          sceneId: context.jobParams.sceneId,
+          sceneName: context.jobParams.sceneName,
+          description: context.jobParams.description,
+          environment: context.jobParams.environment,
+          lighting: context.jobParams.lighting,
+          mood: context.jobParams.mood,
+          style: context.jobParams.style,
+          modelName: context.jobParams.modelName,
+          width: context.jobParams.width || 1024,
+          height: context.jobParams.height || 576
+        }),
+        modelKey: 'modelName'
+      }
+    ]
+  },
+
+  /**
+   * 角色三视图生成
+   */
+  character_views_generation: {
+    name: '角色三视图生成',
+    steps: [
+      {
+        type: 'character_views_generation',
+        targetType: 'character',
+        handler: handleCharacterViewsGeneration,
+        buildInput: (context) => ({
+          characterId: context.jobParams.characterId,
+          characterName: context.jobParams.characterName,
+          appearance: context.jobParams.appearance,
+          personality: context.jobParams.personality,
+          description: context.jobParams.description,
+          style: context.jobParams.style,
+          modelName: context.jobParams.modelName,
+          width: context.jobParams.width || 512,
+          height: context.jobParams.height || 768
+        }),
+        modelKey: 'modelName'
       }
     ]
   }
@@ -188,6 +302,9 @@ module.exports = {
     handleCharacterExtraction,
     handleImageGeneration,
     handleVideoGeneration,
-    handleSmartParse
+    handleSmartParse,
+    handleFrameGeneration,
+    handleSceneVideoGeneration,
+    handleStoryboardGeneration
   }
 };

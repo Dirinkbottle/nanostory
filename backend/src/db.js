@@ -24,7 +24,15 @@ async function initializeDatabase() {
     connectionLimit: 10,
     queueLimit: 0,
     namedPlaceholders: false,
-    timezone: 'Z'
+    timezone: 'Z',
+    // 防止连接超时
+    connectTimeout: 60000,
+    // 启用保活机制
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
+    // 自动重连
+    maxIdle: 10,
+    idleTimeout: 60000
   });
 
   await pool.query('SELECT 1');

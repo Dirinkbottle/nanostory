@@ -28,14 +28,23 @@ class WorkflowEngine {
    * @returns {Promise<{ jobId: number, tasks: Array }>}
    */
   async startWorkflow(workflowType, { userId, projectId, jobParams }) {
+    console.log('[WorkflowEngine] startWorkflow 调用参数:', {
+      workflowType,
+      userId,
+      projectId,
+      jobParams
+    });
+    
     const definition = getWorkflowDefinition(workflowType);
     if (!definition) {
       throw new Error(`未知的工作流类型: ${workflowType}`);
     }
 
     const steps = definition.steps;
+    console.log(`[WorkflowEngine] 工作流定义找到: ${workflowType}, 步骤数: ${steps.length}`);
 
     // 1. 创建 workflow_job
+    console.log('[WorkflowEngine] 准备插入 workflow_jobs 表...');
     const jobResult = await execute(
       `INSERT INTO workflow_jobs 
        (user_id, project_id, workflow_type, status, current_step_index, total_steps, input_params) 
@@ -44,7 +53,7 @@ class WorkflowEngine {
     );
     const jobId = jobResult.insertId;
 
-    console.log(`[WorkflowEngine] 创建工作流: jobId=${jobId}, type=${workflowType}, steps=${steps.length}`);
+    console.log(`[WorkflowEngine] 创建工作流成功: jobId=${jobId}, type=${workflowType}, steps=${steps.length}`);
 
     // 2. 预创建所有 generation_tasks（状态为 pending）
     const tasks = [];
@@ -198,9 +207,14 @@ class WorkflowEngine {
 
     const jobParams = typeof job.input_params === 'string'
       ? JSON.parse(job.input_params)
-      : (job.input_params || {});
+      : job.input_params;
 
-    return { jobParams, previousResults };
+    return {
+      jobParams,
+      previousResults,
+      userId: job.user_id,  // 添加 userId 到上下文
+      projectId: job.project_id  // 添加 projectId 到上下文
+    };
   }
 
   /**
@@ -333,8 +347,14 @@ class WorkflowEngine {
       params.push(workflowType);
     }
     if (status) {
-      sql += ' AND status = ?';
-      params.push(status);
+      const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
+      if (statuses.length === 1) {
+        sql += ' AND status = ?';
+        params.push(statuses[0]);
+      } else if (statuses.length > 1) {
+        sql += ` AND status IN (${statuses.map(() => '?').join(',')})`;
+        params.push(...statuses);
+      }
     }
 
     sql += ' ORDER BY created_at DESC LIMIT ?';

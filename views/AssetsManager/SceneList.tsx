@@ -1,15 +1,16 @@
 import React from 'react';
 import { Card, CardBody, Button, Chip } from '@heroui/react';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Eye } from 'lucide-react';
 import { Scene } from '../../services/assets';
 
 interface SceneListProps {
   scenes: Scene[];
   onEdit: (scene: Scene) => void;
   onDelete: (id: number) => void;
+  onViewDetail?: (scene: Scene) => void;
 }
 
-const SceneList: React.FC<SceneListProps> = ({ scenes, onEdit, onDelete }) => {
+const SceneList: React.FC<SceneListProps> = ({ scenes, onEdit, onDelete, onViewDetail }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
       {scenes.map((scene) => (
@@ -18,6 +19,17 @@ const SceneList: React.FC<SceneListProps> = ({ scenes, onEdit, onDelete }) => {
             <div className="flex items-start justify-between">
               <h3 className="text-lg font-semibold text-slate-800">{scene.name}</h3>
               <div className="flex gap-1">
+                {onViewDetail && (
+                  <Button 
+                    size="sm" 
+                    isIconOnly 
+                    variant="light" 
+                    onPress={() => onViewDetail(scene)} 
+                    className="hover:bg-green-50"
+                  >
+                    <Eye className="w-4 h-4 text-green-600" />
+                  </Button>
+                )}
                 <Button 
                   size="sm" 
                   isIconOnly 

@@ -6,17 +6,16 @@ const { initializeDatabase } = require('./db');
 
 const authRoutes = require('./auth');
 const scriptRoutes = require('./scripts');
-const storyboardRoutes = require('./storyboards');
+const storyboardRoutes = require('./scripts/Storyboard');
 const billingRoutes = require('./billing');
-const videoRoutes = require('./videos');
 const userRoutes = require('./users');
-const characterRoutes = require('./characters');
-const sceneRoutes = require('./scenes');
-const propsRoutes = require('./props');
+const characterRoutes = require('./scripts/Characters');
+const sceneRoutes = require('./scripts/Scenes');
+const propsRoutes = require('./scripts/Props');
 const projectRoutes = require('./projects');
 const workflowRoutes = require('./nosyntask/routes');
+const modelRoutes = require('./modelRoutes');
 const adminRoutes = require('./adminRoutes');
-const imageRoutes = require('./images');
 
 const app = express();
 
@@ -50,15 +49,14 @@ app.use('/api/auth', authRoutes);
 app.use('/api/scripts', scriptRoutes);
 app.use('/api/storyboards', storyboardRoutes);
 app.use('/api/billing', billingRoutes);
-app.use('/api/videos', videoRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/scenes', sceneRoutes);
 app.use('/api/props', propsRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/workflows', workflowRoutes);
+app.use('/api/ai-models', modelRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/images', imageRoutes);
 
 // Serve static files for production if needed
 const clientBuildPath = path.join(__dirname, '..', '..', 'dist');

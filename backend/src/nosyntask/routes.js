@@ -69,9 +69,6 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!workflowType) {
       return res.status(400).json({ message: '缺少 workflowType' });
     }
-    if (!projectId) {
-      return res.status(400).json({ message: '缺少 projectId' });
-    }
 
     const result = await engine.startWorkflow(workflowType, {
       userId,

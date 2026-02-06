@@ -13,7 +13,7 @@ const AUTH_USER_KEY = 'auth_user';
 
 export function getAuthToken(): string | null {
   if (typeof localStorage === 'undefined') return null;
-  return localStorage.getItem(AUTH_TOKEN_KEY);
+  return localStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem('authToken');
 }
 
 export function getAuthUser(): AuthUser | null {

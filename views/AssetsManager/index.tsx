@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Tabs, Tab, useDisclosure } from '@heroui/react';
 import { Users, MapPin, FileText, Plus, Search } from 'lucide-react';
+import { getAuthToken } from '../../services/auth';
+import { useSceneImageGeneration } from '../StoryBoard/hooks/useSceneImageGeneration';
+import SceneDetailModal from '../StoryBoard/ResourcePanel/SceneDetailModal';
 import { 
   Character, Scene, Prop,
   fetchCharacters, fetchScenes, fetchProps,
@@ -11,7 +14,7 @@ import {
 import CharacterList from './CharacterList';
 import SceneList from './SceneList';
 import PropList from './PropList';
-import AssetModal from './AssetModal';
+import { CharacterModal, SceneModal, PropModal } from './AssetModel';
 
 type TabType = 'characters' | 'scenes' | 'props';
 
@@ -26,6 +29,10 @@ const AssetsManager: React.FC = () => {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [editMode, setEditMode] = useState(false);
   const [currentId, setCurrentId] = useState<number | null>(null);
+  
+  // 场景详情模态框
+  const { isOpen: isDetailOpen, onOpen: onDetailOpen, onOpenChange: onDetailOpenChange } = useDisclosure();
+  const [selectedScene, setSelectedScene] = useState<Scene | null>(null);
   
   const [formData, setFormData] = useState<any>({
     name: '',
@@ -43,6 +50,16 @@ const AssetsManager: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [activeTab]);
+
+  // 场景图片生成轮询
+  const { isGenerating } = useSceneImageGeneration({
+    sceneId: selectedScene?.id?.toString() || null,
+    projectId: null, // AssetsManager 不关联项目
+    isActive: activeTab === 'scenes' && isDetailOpen,
+    onComplete: () => {
+      loadData(); // 刷新场景列表
+    }
+  });
 
   const loadData = async () => {
     setLoading(true);
@@ -142,6 +159,44 @@ const AssetsManager: React.FC = () => {
     }
   };
 
+  // 查看场景详情
+  const handleViewSceneDetail = (scene: Scene) => {
+    setSelectedScene(scene);
+    onDetailOpen();
+  };
+
+  // 生成场景图片
+  const handleGenerateSceneImage = async (sceneId: number, style: string, modelName: string) => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/scenes/${sceneId}/generate-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          style, 
+          modelName, 
+          width: 1024, 
+          height: 576 
+        })
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || '启动生成失败');
+      }
+      
+      const data = await res.json();
+      console.log('[AssetsManager] 场景图片生成已启动:', data.jobId);
+    } catch (error: any) {
+      console.error('[AssetsManager] 生成场景图片失败:', error);
+      alert('生成场景图片失败: ' + error.message);
+      throw error;
+    }
+  };
+
   const filteredCharacters = characters.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -222,7 +277,8 @@ const AssetsManager: React.FC = () => {
             <SceneList 
               scenes={filteredScenes} 
               onEdit={handleEdit} 
-              onDelete={handleDelete} 
+              onDelete={handleDelete}
+              onViewDetail={handleViewSceneDetail}
             />
           </Tab>
 
@@ -244,14 +300,46 @@ const AssetsManager: React.FC = () => {
         </Tabs>
 
         {/* 编辑/新增对话框 */}
-        <AssetModal
-          isOpen={isOpen}
-          onOpenChange={onOpenChange}
-          editMode={editMode}
-          activeTab={activeTab}
-          formData={formData}
-          setFormData={setFormData}
-          onSave={handleSave}
+        {activeTab === 'characters' && (
+          <CharacterModal
+            isOpen={isOpen}
+            onOpenChange={onOpenChange}
+            editMode={editMode}
+            formData={formData}
+            setFormData={setFormData}
+            onSave={handleSave}
+          />
+        )}
+        
+        {activeTab === 'scenes' && (
+          <SceneModal
+            isOpen={isOpen}
+            onOpenChange={onOpenChange}
+            editMode={editMode}
+            formData={formData}
+            setFormData={setFormData}
+            onSave={handleSave}
+          />
+        )}
+        
+        {activeTab === 'props' && (
+          <PropModal
+            isOpen={isOpen}
+            onOpenChange={onOpenChange}
+            editMode={editMode}
+            formData={formData}
+            setFormData={setFormData}
+            onSave={handleSave}
+          />
+        )}
+
+        {/* 场景详情模态框 */}
+        <SceneDetailModal
+          isOpen={isDetailOpen}
+          onClose={onDetailOpenChange}
+          scene={selectedScene}
+          onGenerateImage={handleGenerateSceneImage}
+          isGenerating={isGenerating}
         />
       </div>
     </div>

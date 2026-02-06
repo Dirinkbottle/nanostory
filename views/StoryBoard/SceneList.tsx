@@ -2,25 +2,8 @@ import React, { useState } from 'react';
 import { Button } from '@heroui/react';
 import { Plus } from 'lucide-react';
 import SceneCard from './SceneCard';
-
-interface StoryboardScene {
-  id: number;
-  order: number;
-  description: string;
-  dialogue: string;
-  duration: number;
-  imageUrl?: string;
-  videoUrl?: string;
-  characters: string[];
-  props: string[];
-  location: string;
-  // 新增字段
-  shotType?: string;
-  emotion?: string;
-  hasAction?: boolean;
-  startFrame?: string;
-  endFrame?: string;
-}
+import { StoryboardScene } from './useSceneManager';
+import { TaskState } from '../../hooks/useTaskRunner';
 
 interface SceneListProps {
   scenes: StoryboardScene[];
@@ -30,8 +13,9 @@ interface SceneListProps {
   onDeleteScene: (id: number) => void;
   onAddScene: () => void;
   onUpdateDescription: (id: number, description: string) => void;
-  onGenerateImage: (id: number, prompt: string) => void;
-  onUpdateVideo: (id: number, videoUrl: string) => void;
+  onGenerateImage: (id: number, prompt: string) => Promise<{ success: boolean; error?: string }>;
+  onGenerateVideo: (id: number) => Promise<{ success: boolean; error?: string }>;
+  tasks: Record<string, TaskState>;
   onReorderScenes: (newScenes: StoryboardScene[]) => void;
 }
 
@@ -44,7 +28,8 @@ const SceneList: React.FC<SceneListProps> = ({
   onAddScene,
   onUpdateDescription,
   onGenerateImage,
-  onUpdateVideo,
+  onGenerateVideo,
+  tasks,
   onReorderScenes
 }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -130,7 +115,9 @@ const SceneList: React.FC<SceneListProps> = ({
               onDelete={onDeleteScene}
               onUpdateDescription={onUpdateDescription}
               onGenerateImage={onGenerateImage}
-              onUpdateVideo={onUpdateVideo}
+              onGenerateVideo={onGenerateVideo}
+              imageTask={tasks[`img_${scene.id}`]}
+              videoTask={tasks[`vid_${scene.id}`]}
             />
           </div>
         ))}

@@ -107,25 +107,85 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
     console.log('[AI Model] Request Method:', requestOptions.method);
     console.log('[AI Model] Request Headers:', JSON.stringify(requestOptions.headers, null, 2));
     if (requestOptions.body) {
-      console.log('[AI Model] Request Body:', requestOptions.body);
+      const bodyPreview = requestOptions.body.substring(0, 100);
+      console.log('[AI Model] Request Body (first 100 chars):', bodyPreview + (requestOptions.body.length > 100 ? '...' : ''));
     }
     
-    const response = await fetch(url, requestOptions);
-    console.log('[AI Model] Response Status:', response.status, response.statusText);
-    console.log('[AI Model] Response Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
+    // 添加超时控制（600秒）
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 600000);
     
-    const data = await response.json();
-    console.log('[AI Model] Response Data:', JSON.stringify(data, null, 2));
+    let data;
+    let response;
+    try {
+      response = await fetch(url, {
+        ...requestOptions,
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      
+      console.log('[AI Model] Response Status:', response.status, response.statusText);
+      console.log('[AI Model] Response Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
     
-    if (!response.ok) {
-      throw new Error(data.error?.message || `API 调用失败: ${response.status}`);
+      // 获取响应文本
+      const responseText = await response.text();
+      console.log('[AI Model] Response Text (first 500 chars):', responseText.substring(0, 500));
+    
+      // 尝试解析 JSON
+      try {
+        data = JSON.parse(responseText);
+        const dataStr = JSON.stringify(data, null, 2);
+        console.log('[AI Model] Response Data (first 100 chars):', dataStr.substring(0, 100) + (dataStr.length > 100 ? '...' : ''));
+      } catch (parseError) {
+        console.error('[AI Model] JSON Parse Error:', parseError.message);
+        console.error('[AI Model] Raw Response:', responseText);
+        throw new Error(`API 返回的不是有效的 JSON 格式。响应内容: ${responseText.substring(0, 200)}...`);
+      }
+      
+      if (!response.ok) {
+        throw new Error(data.error?.message || `API 调用失败: ${response.status}`);
+      }
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      if (fetchError.name === 'AbortError') {
+        console.error('[AI Model] Request timeout after 600 seconds');
+        throw new Error('API 请求超时（600秒），请稍后重试');
+      }
+      console.error('[AI Model] Network error:', fetchError.message);
+      throw new Error(`网络请求失败: ${fetchError.message}。请检查网络连接或稍后重试`);
     }
     
     // 使用 mapResponse 提取字段（更简洁）
     const result = mapResponse(data, responseMapping);
     
     // 添加原始响应和模型信息
-    result._raw = data;
+    // 根据 Content-Type 决定如何保存请求体
+    let requestBody = null;
+    if (requestOptions.body) {
+      const contentType = requestOptions.headers['Content-Type'] || requestOptions.headers['content-type'] || '';
+      if (contentType.includes('application/x-www-form-urlencoded')) {
+        // URL 编码格式，保存原始字符串
+        requestBody = requestOptions.body;
+      } else {
+        // JSON 格式，解析为对象
+        try {
+          requestBody = JSON.parse(requestOptions.body);
+        } catch (e) {
+          requestBody = requestOptions.body; // 解析失败则保存原始字符串
+        }
+      }
+    }
+    
+    result._raw = {
+      ...data,
+      request: {
+        url,
+        method: requestOptions.method,
+        headers: requestOptions.headers,
+        body: requestBody
+      },
+      headers: Object.fromEntries(response.headers.entries())
+    };
     result._model = {
       name: model.name,
       provider: model.provider,
@@ -136,6 +196,97 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
     return result;
   } catch (error) {
     console.error(`[AI Model] Error calling ${modelName}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * 统一的 AI 模型查询接口（用于异步任务轮询）
+ * 使用模型配置中的 query_* 字段构建请求
+ * @param {string} modelName - 模型名称
+ * @param {object} params - 查询参数（提交接口映射结果的字段，会替换查询模板中的占位符）
+ * @param {string} apiKey - API 密钥（可选）
+ * @returns {Promise<object>} - 返回映射后的查询响应
+ */
+async function queryAIModel(modelName, params = {}, apiKey = null) {
+  try {
+    const model = await queryOne(
+      'SELECT * FROM ai_model_configs WHERE name = ? AND is_active = 1',
+      [modelName]
+    );
+
+    if (!model) {
+      throw new Error(`模型 "${modelName}" 不存在或未启用`);
+    }
+
+    if (!model.query_url_template) {
+      throw new Error(`模型 "${modelName}" 未配置查询接口`);
+    }
+
+    // API Key
+    if (!apiKey) {
+      if (model.api_key) {
+        apiKey = model.api_key;
+      } else {
+        const envKey = `${model.provider.toUpperCase()}_API_KEY`;
+        apiKey = process.env[envKey];
+      }
+    }
+
+    const mergedParams = { ...params, apiKey };
+
+    // 渲染查询 URL
+    const url = renderTemplate(model.query_url_template, mergedParams);
+
+    // 渲染查询 Headers
+    const queryHeadersTemplate = model.query_headers_template
+      ? (typeof model.query_headers_template === 'string' ? JSON.parse(model.query_headers_template) : model.query_headers_template)
+      : {};
+    const headers = renderJsonTemplate(queryHeadersTemplate, mergedParams);
+
+    // 构建请求
+    const queryMethod = model.query_method || 'GET';
+    const requestOptions = { method: queryMethod, headers };
+
+    // 渲染查询 Body（根据 Content-Type 选择编码方式）
+    const queryBodyTemplate = model.query_body_template
+      ? (typeof model.query_body_template === 'string' ? JSON.parse(model.query_body_template) : model.query_body_template)
+      : null;
+
+    if (queryBodyTemplate && queryMethod !== 'GET') {
+      const renderedBody = renderJsonTemplate(queryBodyTemplate, mergedParams);
+      const contentType = headers['Content-Type'] || headers['content-type'] || '';
+
+      if (contentType.includes('application/x-www-form-urlencoded')) {
+        const urlParams = new URLSearchParams();
+        for (const [key, value] of Object.entries(renderedBody)) {
+          urlParams.append(key, String(value));
+        }
+        requestOptions.body = urlParams.toString();
+      } else {
+        requestOptions.body = JSON.stringify(renderedBody);
+      }
+    }
+
+    console.log(`[AI Model Query] Querying ${modelName}:`, url);
+    const response = await fetch(url, requestOptions);
+    const data = await response.json();
+    console.log('[AI Model Query] Response:', JSON.stringify(data, null, 2));
+
+    // 使用查询响应映射
+    const queryResponseMapping = model.query_response_mapping
+      ? (typeof model.query_response_mapping === 'string' ? JSON.parse(model.query_response_mapping) : model.query_response_mapping)
+      : null;
+
+    let result = data;
+    if (queryResponseMapping) {
+      result = mapResponse(data, queryResponseMapping);
+      result._raw = data;
+    }
+
+    return result;
+  } catch (error) {
+    console.error(`[AI Model Query] Error querying ${modelName}:`, error);
     throw error;
   }
 }
@@ -164,6 +315,7 @@ async function getImageModels() {
 
 module.exports = {
   callAIModel,
+  queryAIModel,
   getTextModels,
   getImageModels
 };

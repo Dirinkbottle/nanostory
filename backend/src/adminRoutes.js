@@ -170,6 +170,8 @@ router.get('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
               body_template, default_params, response_mapping,
               query_url_template, query_method, query_headers_template, 
               query_body_template, query_response_mapping,
+              query_success_condition, query_fail_condition,
+              query_success_mapping, query_fail_mapping,
               created_at, updated_at 
        FROM ai_model_configs ORDER BY id DESC`
     );
@@ -206,7 +208,9 @@ router.post('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
     price_config, request_method, url_template, headers_template,
     body_template, default_params, response_mapping,
     query_url_template, query_method, query_headers_template,
-    query_body_template, query_response_mapping
+    query_body_template, query_response_mapping,
+    query_success_condition, query_fail_condition,
+    query_success_mapping, query_fail_mapping
   } = req.body;
   
   if (!name || !category || !provider || !price_config || !url_template || !headers_template || !response_mapping) {
@@ -220,8 +224,10 @@ router.post('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
         price_config, request_method, url_template, headers_template,
         body_template, default_params, response_mapping,
         query_url_template, query_method, query_headers_template,
-        query_body_template, query_response_mapping
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        query_body_template, query_response_mapping,
+        query_success_condition, query_fail_condition,
+        query_success_mapping, query_fail_mapping
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name, category, provider, description, is_active ?? 1, api_key,
         JSON.stringify(price_config), request_method || 'POST', url_template,
@@ -230,7 +236,10 @@ router.post('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
         query_url_template || null, query_method || 'GET',
         query_headers_template ? JSON.stringify(query_headers_template) : null,
         query_body_template ? JSON.stringify(query_body_template) : null,
-        query_response_mapping ? JSON.stringify(query_response_mapping) : null
+        query_response_mapping ? JSON.stringify(query_response_mapping) : null,
+        query_success_condition || null, query_fail_condition || null,
+        query_success_mapping ? JSON.stringify(query_success_mapping) : null,
+        query_fail_mapping ? JSON.stringify(query_fail_mapping) : null
       ]
     );
     
@@ -248,7 +257,9 @@ router.put('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) =
     price_config, request_method, url_template, headers_template,
     body_template, default_params, response_mapping,
     query_url_template, query_method, query_headers_template,
-    query_body_template, query_response_mapping
+    query_body_template, query_response_mapping,
+    query_success_condition, query_fail_condition,
+    query_success_mapping, query_fail_mapping
   } = req.body;
   
   try {
@@ -263,7 +274,9 @@ router.put('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) =
         price_config = ?, request_method = ?, url_template = ?, headers_template = ?,
         body_template = ?, default_params = ?, response_mapping = ?,
         query_url_template = ?, query_method = ?, query_headers_template = ?,
-        query_body_template = ?, query_response_mapping = ?
+        query_body_template = ?, query_response_mapping = ?,
+        query_success_condition = ?, query_fail_condition = ?,
+        query_success_mapping = ?, query_fail_mapping = ?
       WHERE id = ?`,
       [
         name, category, provider, description, is_active, api_key,
@@ -274,6 +287,9 @@ router.put('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) =
         query_headers_template ? JSON.stringify(query_headers_template) : null,
         query_body_template ? JSON.stringify(query_body_template) : null,
         query_response_mapping ? JSON.stringify(query_response_mapping) : null,
+        query_success_condition || null, query_fail_condition || null,
+        query_success_mapping ? JSON.stringify(query_success_mapping) : null,
+        query_fail_mapping ? JSON.stringify(query_fail_mapping) : null,
         id
       ]
     );

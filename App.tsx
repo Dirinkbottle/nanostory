@@ -13,6 +13,7 @@ import AIModels from './views/admin/AIModels';
 import UserManagement from './views/admin/UserManagement';
 import { ToastProvider } from './contexts/ToastContext';
 import { PreviewProvider } from './components/PreviewProvider';
+import TaskQueueBubble from './components/TaskQueueBubble';
 
 const App: React.FC = () => {
   return (
@@ -41,6 +42,7 @@ const App: React.FC = () => {
             </Layout>
           } />
         </Routes>
+        <TaskQueueBubble />
       </PreviewProvider>
     </Router>
   );

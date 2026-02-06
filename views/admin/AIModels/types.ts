@@ -23,6 +23,10 @@ export interface AIModel {
   query_headers_template?: any;
   query_body_template?: any;
   query_response_mapping?: any;
+  query_success_condition?: string;
+  query_fail_condition?: string;
+  query_success_mapping?: any;
+  query_fail_mapping?: any;
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +58,10 @@ export interface ModelFormData {
   query_headers_template: string;
   query_body_template: string;
   query_response_mapping: string;
+  query_success_condition: string;
+  query_fail_condition: string;
+  query_success_mapping: string;
+  query_fail_mapping: string;
 }
 
 export const DEFAULT_FORM_DATA: ModelFormData = {
@@ -75,5 +83,9 @@ export const DEFAULT_FORM_DATA: ModelFormData = {
   query_method: 'GET',
   query_headers_template: '{}',
   query_body_template: '{}',
-  query_response_mapping: '{}'
+  query_response_mapping: '{}',
+  query_success_condition: '',
+  query_fail_condition: '',
+  query_success_mapping: '{}',
+  query_fail_mapping: '{}'
 };

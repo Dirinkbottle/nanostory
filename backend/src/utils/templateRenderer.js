@@ -27,39 +27,64 @@ function renderTemplate(template, data) {
 
 /**
  * 渲染 JSON 对象模板，递归替换所有占位符
- * 支持两种模式：
- * 1. "{{key}}" - 字符串形式，会先替换为 JSON 字符串再解析
- * 2. {{key}} - 无引号形式（仅在 JS 对象中使用）
+ * 遇到 {{key}} 占位符就整体替换：
+ * - 如果值存在：替换为对应的值（保持类型）
+ * - 如果值不存在（undefined/null）：标记该字段删除
  */
 function renderJsonTemplate(template, data) {
   if (!template) return template;
   
-  // 先将整个模板转为 JSON 字符串
-  let jsonStr = JSON.stringify(template);
-  
-  // 1. 替换纯占位符（如 "{{messages}}" -> 数组/对象）
-  jsonStr = jsonStr.replace(/"{{(\w+)}}"/g, (match, key) => {
-    const value = data[key];
-    if (value === undefined) return match;
-    // 将值序列化为 JSON（保持类型）
-    return JSON.stringify(value);
-  });
-  
-  // 2. 替换字符串内的占位符（如 "Bearer {{apiKey}}" -> "Bearer sk-xxx"）
-  jsonStr = jsonStr.replace(/{{(\w+)}}/g, (match, key) => {
-    const value = data[key];
-    if (value === undefined) return match;
-    // 字符串内的占位符，直接替换为值（不需要 JSON.stringify）
-    return String(value);
-  });
-  
-  // 解析回对象
-  try {
-    return JSON.parse(jsonStr);
-  } catch (error) {
-    console.error('JSON parse error:', error, 'String:', jsonStr);
-    return template;
+  // 递归处理对象/数组
+  function processValue(value) {
+    if (typeof value === 'string') {
+      // 检查是否是纯占位符 "{{key}}"
+      const pureMatch = value.match(/^{{(\w+)}}$/);
+      if (pureMatch) {
+        const key = pureMatch[1];
+        const dataValue = data[key];
+        // 如果值不存在，标记删除
+        if (dataValue === undefined || dataValue === null) {
+          return '__REMOVE_FIELD__';
+        }
+        // 返回实际值（保持类型）
+        return dataValue;
+      }
+      
+      // 字符串内包含占位符（如 "Bearer {{apiKey}}"）
+      if (value.includes('{{')) {
+        let result = value;
+        result = result.replace(/{{(\w+)}}/g, (match, key) => {
+          const dataValue = data[key];
+          if (dataValue === undefined || dataValue === null) {
+            return '__REMOVE_FIELD__';
+          }
+          return String(dataValue);
+        });
+        // 如果替换后包含 __REMOVE_FIELD__，标记整个字段删除
+        if (result.includes('__REMOVE_FIELD__')) {
+          return '__REMOVE_FIELD__';
+        }
+        return result;
+      }
+      
+      return value;
+    } else if (Array.isArray(value)) {
+      return value.map(processValue).filter(item => item !== '__REMOVE_FIELD__');
+    } else if (value && typeof value === 'object') {
+      const result = {};
+      for (const [k, v] of Object.entries(value)) {
+        const processed = processValue(v);
+        if (processed !== '__REMOVE_FIELD__') {
+          result[k] = processed;
+        }
+      }
+      return result;
+    }
+    
+    return value;
   }
+  
+  return processValue(template);
 }
 
 /**

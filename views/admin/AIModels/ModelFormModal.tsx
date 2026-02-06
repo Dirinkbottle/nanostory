@@ -196,7 +196,50 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
               onChange={(e) => setFormData({ ...formData, query_response_mapping: e.target.value })}
               minRows={2}
               className="mt-4"
+              description='基础字段映射，提取 status 等原始值。如: {"status": "data.task_status"}'
             />
+
+            <div className="border-t pt-4 mt-4">
+              <h4 className="font-semibold text-slate-700 mb-1">异步状态判断</h4>
+              <p className="text-xs text-slate-400 mb-3">配置异步模型的成功/失败判断条件和结果映射。同步模型无需配置。</p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="成功条件表达式"
+                  placeholder='status == "succeed" || status == "completed"'
+                  value={formData.query_success_condition}
+                  onChange={(e) => setFormData({ ...formData, query_success_condition: e.target.value })}
+                  description="JS 表达式，变量来自查询响应映射的字段"
+                />
+                <Input
+                  label="失败条件表达式"
+                  placeholder='status == "failed" || status == "error"'
+                  value={formData.query_fail_condition}
+                  onChange={(e) => setFormData({ ...formData, query_fail_condition: e.target.value })}
+                  description="JS 表达式，变量来自查询响应映射的字段"
+                />
+              </div>
+
+              <Textarea
+                label="成功结果映射 (JSON)"
+                placeholder='{"image_url": "data.task_result.images.0.url", "video_url": "data.remote_url"}'
+                value={formData.query_success_mapping}
+                onChange={(e) => setFormData({ ...formData, query_success_mapping: e.target.value })}
+                minRows={2}
+                className="mt-4"
+                description="成功时从原始响应提取结果字段"
+              />
+
+              <Textarea
+                label="失败错误映射 (JSON)"
+                placeholder='{"error": "data.fail_reason", "message": "data.error.message"}'
+                value={formData.query_fail_mapping}
+                onChange={(e) => setFormData({ ...formData, query_fail_mapping: e.target.value })}
+                minRows={2}
+                className="mt-4"
+                description="失败时从原始响应提取错误信息"
+              />
+            </div>
           </div>
         </ModalBody>
         <ModalFooter>

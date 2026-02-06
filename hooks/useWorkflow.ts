@@ -31,6 +31,7 @@ export interface WorkflowJob {
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   current_step_index: number;
   total_steps: number;
+  params?: string | any;  // 工作流参数（可能是字符串或对象）
   input_params: any;
   error_message: string | null;
   started_at: string | null;
@@ -147,7 +148,9 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
     try {
       setLoading(true);
       setError(null);
+      console.log('[useWorkflow] 查询工作流状态:', jobId);
       const data = await getWorkflowStatus(jobId);
+      console.log('[useWorkflow] 工作流状态:', data.status, 'jobId:', data.id);
       setJob(data);
 
       // 进度回调
@@ -155,10 +158,12 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
 
       // 终态：停止轮询
       if (data.status === 'completed') {
+        console.log('[useWorkflow] 工作流完成，停止轮询');
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
+        console.log('[useWorkflow] 触发 onCompleted 回调');
         callbackRefs.current.onCompleted?.(data);
       } else if (data.status === 'failed') {
         if (intervalRef.current) {
@@ -198,8 +203,10 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
   // jobId 变化时自动开始/停止轮询
   useEffect(() => {
     if (jobId) {
+      console.log('[useWorkflow] 启动轮询, jobId:', jobId, '间隔:', interval, 'ms');
       startPolling();
     } else {
+      console.log('[useWorkflow] 停止轮询');
       stopPolling();
       setJob(null);
     }
