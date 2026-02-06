@@ -49,16 +49,21 @@ CREATE TABLE IF NOT EXISTS scripts (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   project_id INT NOT NULL COMMENT '所属项目ID',
+  episode_number INT NOT NULL DEFAULT 1 COMMENT '集数编号，从1开始',
   title VARCHAR(255),
   content TEXT NOT NULL,
   model_provider VARCHAR(100),
   token_used INT DEFAULT 0,
+  status ENUM('generating', 'completed', 'failed') DEFAULT 'completed' COMMENT '生成状态',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-  UNIQUE KEY uk_project_script (project_id) COMMENT '每个项目只能有一个剧本',
+  UNIQUE KEY uk_project_episode (project_id, episode_number) COMMENT '每个项目的每集只能有一个剧本',
   INDEX idx_user_id (user_id),
   INDEX idx_project_id (project_id),
+  INDEX idx_episode_number (episode_number),
+  INDEX idx_status (status),
   INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

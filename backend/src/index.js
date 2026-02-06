@@ -15,6 +15,7 @@ const sceneRoutes = require('./scenes');
 const propsRoutes = require('./props');
 const projectRoutes = require('./projects');
 const adminRoutes = require('./adminRoutes');
+const imageRoutes = require('./images');
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use('/api/scenes', sceneRoutes);
 app.use('/api/props', propsRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/images', imageRoutes);
 
 // Serve static files for production if needed
 const clientBuildPath = path.join(__dirname, '..', '..', 'dist');

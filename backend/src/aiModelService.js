@@ -151,7 +151,19 @@ async function getTextModels() {
   return models;
 }
 
+/**
+ * 获取所有启用的图片模型列表
+ */
+async function getImageModels() {
+  const { queryAll } = require('./dbHelper');
+  const models = await queryAll(
+    "SELECT id, name, provider, category, description FROM ai_model_configs WHERE category = 'IMAGE' AND is_active = 1 ORDER BY id ASC"
+  );
+  return models;
+}
+
 module.exports = {
   callAIModel,
-  getTextModels
+  getTextModels,
+  getImageModels
 };

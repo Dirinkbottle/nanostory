@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, Tab } from '@heroui/react';
 import { getAuthToken } from '../../services/auth';
-import { Project } from '../../services/projects';
-import ProjectSelector from '../../components/ProjectSelector';
+import { Project, fetchProject, createProject } from '../../services/projects';
 import ProjectInfo from './ProjectInfo';
 import ScriptActions from './ScriptActions';
 import ScriptGeneratorForm from './ScriptGeneratorForm';
 import ScriptPreview from './ScriptPreview';
 import StoryBoard from '../StoryBoard';
 import { FileText, Film } from 'lucide-react';
+
+const LAST_PROJECT_KEY = 'nanostory_last_project_id';
+const LAST_TAB_KEY = 'nanostory_last_tab';
 
 interface VideoModel {
   id: string;
@@ -22,9 +25,25 @@ interface VideoModel {
 }
 
 const ScriptStudio: React.FC = () => {
+  const navigate = useNavigate();
+  
   // 流程控制
-  const [showProjectSelector, setShowProjectSelector] = useState(true);
+  const [showProjectSelector, setShowProjectSelector] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [initLoading, setInitLoading] = useState(true);
+  
+  // 多集剧本状态
+  interface Script {
+    id: number;
+    episode_number: number;
+    title: string;
+    content: string;
+    status: 'generating' | 'completed' | 'failed';
+    created_at: string;
+  }
+  const [scripts, setScripts] = useState<Script[]>([]);
+  const [currentEpisode, setCurrentEpisode] = useState(1);
+  const [nextEpisode, setNextEpisode] = useState(1);
   
   // 剧本相关状态
   const [scriptId, setScriptId] = useState<number | null>(null);
@@ -38,18 +57,47 @@ const ScriptStudio: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loadingScript, setLoadingScript] = useState(false);
   
-  // 模型相关状态
+  // 模型相关状态（保留但不使用）
   const [videoModels, setVideoModels] = useState<VideoModel[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [textModels, setTextModels] = useState<any[]>([]);
   const [selectedTextModel, setSelectedTextModel] = useState('');
   
-  // 子标签页状态
-  const [activeTab, setActiveTab] = useState<'script' | 'storyboard'>('script');
+  // 子标签页状态 - 从 localStorage 恢复
+  const [activeTab, setActiveTab] = useState<'script' | 'storyboard'>(() => {
+    const savedTab = localStorage.getItem(LAST_TAB_KEY);
+    return savedTab === 'storyboard' ? 'storyboard' : 'script';
+  });
 
+  // 切换标签页时保存
+  const handleTabChange = (key: 'script' | 'storyboard') => {
+    setActiveTab(key);
+    localStorage.setItem(LAST_TAB_KEY, key);
+  };
+
+  // 初始化：检查是否有上次选择的工程
   useEffect(() => {
-    fetchTextModels();
+    initializeProject();
   }, []);
+
+  const initializeProject = async () => {
+    try {
+      const lastProjectId = localStorage.getItem(LAST_PROJECT_KEY);
+      if (lastProjectId) {
+        const project = await fetchProject(parseInt(lastProjectId));
+        if (project) {
+          setSelectedProject(project);
+          await loadProjectScript(project.id);
+        }
+      }
+    } catch (error) {
+      console.error('加载上次工程失败:', error);
+      localStorage.removeItem(LAST_PROJECT_KEY);
+    }
+    // 无论有没有工程，直接进入工作台
+    setShowProjectSelector(false);
+    setInitLoading(false);
+  };
 
   const fetchTextModels = async () => {
     try {
@@ -69,10 +117,12 @@ const ScriptStudio: React.FC = () => {
   const handleSelectProject = async (project: Project) => {
     setSelectedProject(project);
     setShowProjectSelector(false);
+    // 保存到 localStorage
+    localStorage.setItem(LAST_PROJECT_KEY, project.id.toString());
     await loadProjectScript(project.id);
   };
 
-  const loadProjectScript = async (projectId: number) => {
+  const loadProjectScript = async (projectId: number, episode?: number) => {
     try {
       setLoadingScript(true);
       const token = getAuthToken();
@@ -84,10 +134,18 @@ const ScriptStudio: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.script) {
-          setScriptId(data.script.id);
-          setTitle(data.script.title || '');
-          setContent(data.script.content);
+        setScripts(data.scripts || []);
+        setNextEpisode(data.nextEpisode || 1);
+        
+        // 选择指定集或默认第一集
+        const targetEpisode = episode || (data.scripts.length > 0 ? data.scripts[0].episode_number : 1);
+        setCurrentEpisode(targetEpisode);
+        
+        const currentScript = data.scripts.find((s: any) => s.episode_number === targetEpisode);
+        if (currentScript) {
+          setScriptId(currentScript.id);
+          setTitle(currentScript.title || '');
+          setContent(currentScript.content);
           setIsEditing(false);
         } else {
           setScriptId(null);
@@ -103,13 +161,24 @@ const ScriptStudio: React.FC = () => {
     }
   };
 
+  // 切换集数
+  const handleEpisodeChange = (episode: number) => {
+    const script = scripts.find(s => s.episode_number === episode);
+    setCurrentEpisode(episode);
+    if (script) {
+      setScriptId(script.id);
+      setTitle(script.title || '');
+      setContent(script.content);
+      setIsEditing(false);
+    } else {
+      setScriptId(null);
+      setTitle('');
+      setContent('');
+    }
+  };
+
   const handleBackToProjects = () => {
-    setShowProjectSelector(true);
-    setScriptId(null);
-    setTitle('');
-    setDescription('');
-    setContent('');
-    setIsEditing(false);
+    navigate('/projects');
   };
 
   const handleSaveScript = async () => {
@@ -179,14 +248,30 @@ const ScriptStudio: React.FC = () => {
   };
 
   const handleGenerate = async () => {
-    if (!selectedProject) {
-      alert('请先选择项目');
-      return;
-    }
-
     if (!description && !title) {
       alert('请至少填写标题或故事概述');
       return;
+    }
+
+    let projectToUse = selectedProject;
+
+    // 如果没有选择工程，自动创建一个
+    if (!projectToUse) {
+      try {
+        const projectName = title || `新工程_${new Date().toLocaleDateString('zh-CN')}`;
+        const newProject = await createProject({
+          name: projectName,
+          description: description || '',
+          type: 'comic',
+          status: 'draft'
+        });
+        projectToUse = newProject;
+        setSelectedProject(newProject);
+        localStorage.setItem(LAST_PROJECT_KEY, newProject.id.toString());
+      } catch (error: any) {
+        alert('自动创建工程失败: ' + error.message);
+        return;
+      }
     }
 
     setLoading(true);
@@ -199,12 +284,11 @@ const ScriptStudio: React.FC = () => {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ 
-          projectId: selectedProject.id,
-          title, 
+          projectId: projectToUse.id,
+          title: title || `第${nextEpisode}集`, 
           description, 
           style, 
-          length,
-          modelName: selectedTextModel
+          length
         })
       });
 
@@ -219,10 +303,9 @@ const ScriptStudio: React.FC = () => {
         throw new Error(data.message || '生成失败');
       }
 
-      setScriptId(data.id);
-      setContent(data.content);
-      setIsEditing(false);
-      alert(`生成成功！`);
+      // 生成成功，刷新剧本列表
+      await loadProjectScript(projectToUse.id, data.episodeNumber);
+      alert(data.message || `第${data.episodeNumber}集生成成功！`);
     } catch (error: any) {
       alert(error.message || '生成失败');
     } finally {
@@ -230,8 +313,16 @@ const ScriptStudio: React.FC = () => {
     }
   };
 
-  if (showProjectSelector) {
-    return <ProjectSelector onSelectProject={handleSelectProject} />;
+  // 初始化加载中
+  if (initLoading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600 mb-4"></div>
+          <p className="text-slate-600">加载中...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -251,7 +342,7 @@ const ScriptStudio: React.FC = () => {
         <div className="px-8 border-b border-slate-200">
           <Tabs
             selectedKey={activeTab}
-            onSelectionChange={(key) => setActiveTab(key as 'script' | 'storyboard')}
+            onSelectionChange={(key) => handleTabChange(key as 'script' | 'storyboard')}
             variant="underlined"
             classNames={{
               tabList: "gap-8 w-full relative p-0",
@@ -289,6 +380,40 @@ const ScriptStudio: React.FC = () => {
             {/* 左侧：创作区 */}
             <div className="w-1/2 border-r border-slate-200 flex flex-col bg-white">
               <div className="p-8 space-y-6 overflow-auto">
+                {/* 集数选择器 */}
+                {scripts.length > 0 && (
+                  <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+                    <span className="text-sm text-slate-500 font-medium">集数:</span>
+                    <div className="flex gap-2 flex-wrap flex-1">
+                      {scripts.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => handleEpisodeChange(s.episode_number)}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                            currentEpisode === s.episode_number
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          } ${s.status === 'generating' ? 'animate-pulse' : ''}`}
+                        >
+                          第{s.episode_number}集
+                          {s.status === 'generating' && ' (生成中)'}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setScriptId(null);
+                        setContent('');
+                        setIsEditing(false);
+                      }}
+                      disabled={loading}
+                      className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <span className="text-lg leading-none">+</span> 生成第{nextEpisode}集
+                    </button>
+                  </div>
+                )}
+
                 <ScriptActions
                   scriptId={scriptId}
                   isEditing={isEditing}
@@ -307,15 +432,13 @@ const ScriptStudio: React.FC = () => {
                     description={description}
                     style={style}
                     length={length}
-                    selectedTextModel={selectedTextModel}
-                    textModels={textModels}
                     loading={loading}
+                    nextEpisode={nextEpisode}
                     onCreationTypeChange={setCreationType}
                     onTitleChange={setTitle}
                     onDescriptionChange={setDescription}
                     onStyleChange={setStyle}
                     onLengthChange={setLength}
-                    onModelChange={setSelectedTextModel}
                     onGenerate={handleGenerate}
                   />
                 )}
@@ -333,7 +456,20 @@ const ScriptStudio: React.FC = () => {
             </div>
           </div>
         ) : (
-          <StoryBoard />
+          <StoryBoard 
+            scriptId={scriptId} 
+            episodeNumber={currentEpisode}
+            scripts={scripts}
+            onEpisodeChange={(ep, sid) => {
+              setCurrentEpisode(ep);
+              const targetScript = scripts.find(s => s.id === sid);
+              if (targetScript) {
+                setScriptId(sid);
+                setContent(targetScript.content);
+                setTitle(targetScript.title);
+              }
+            }}
+          />
         )}
       </div>
     </div>

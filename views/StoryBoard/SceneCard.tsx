@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Card, CardBody, Chip, Textarea } from '@heroui/react';
-import { ChevronUp, ChevronDown, Trash2, Mic, Wand2, Play, Edit2, Check } from 'lucide-react';
+import { Card, CardBody, Chip, Textarea, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Spinner } from '@heroui/react';
+import { ChevronUp, ChevronDown, Trash2, Mic, Wand2, Play, Edit2, Check, Clapperboard, Video, Film } from 'lucide-react';
 import SceneImageGenerator from './SceneImageGenerator';
+import { getAuthToken } from '../../services/auth';
 
 interface StoryboardScene {
   id: number;
@@ -10,9 +11,16 @@ interface StoryboardScene {
   dialogue: string;
   duration: number;
   imageUrl?: string;
+  videoUrl?: string;
   characters: string[];
   props: string[];
   location: string;
+  // 新增字段
+  shotType?: string;
+  emotion?: string;
+  hasAction?: boolean;
+  startFrame?: string;
+  endFrame?: string;
 }
 
 interface SceneCardProps {
@@ -27,6 +35,7 @@ interface SceneCardProps {
   onDelete: (id: number) => void;
   onUpdateDescription: (id: number, description: string) => void;
   onGenerateImage: (id: number, prompt: string) => void;
+  onUpdateVideo: (id: number, videoUrl: string) => void;
 }
 
 const SceneCard: React.FC<SceneCardProps> = ({
@@ -40,16 +49,69 @@ const SceneCard: React.FC<SceneCardProps> = ({
   onMoveDown,
   onDelete,
   onUpdateDescription,
-  onGenerateImage
+  onGenerateImage,
+  onUpdateVideo
 }) => {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(scene.description);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [showVideoPreview, setShowVideoPreview] = useState(false);
 
   const handleSaveDescription = () => {
     onUpdateDescription(scene.id, editedDescription);
     setIsEditingDescription(false);
   };
+
+  // 生成视频
+  const handleGenerateVideo = async () => {
+    if (!scene.imageUrl) {
+      alert('请先生成图片');
+      return;
+    }
+
+    setIsGeneratingVideo(true);
+    try {
+      const token = getAuthToken();
+      // 对于有动作的镜头，使用首尾帧生成；否则使用单图生成
+      const requestBody = scene.hasAction && scene.startFrame && scene.endFrame
+        ? {
+            prompt: scene.description,
+            startFrame: scene.startFrame,
+            endFrame: scene.endFrame,
+            imageUrl: scene.imageUrl,
+            duration: scene.duration || 3
+          }
+        : {
+            prompt: scene.description,
+            imageUrl: scene.imageUrl,
+            duration: scene.duration || 2
+          };
+
+      const res = await fetch('/api/videos/generate-scene', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.message || '视频生成失败');
+      }
+
+      onUpdateVideo(scene.id, data.videoUrl);
+      alert('视频生成成功！');
+    } catch (error: any) {
+      alert(error.message || '视频生成失败');
+    } finally {
+      setIsGeneratingVideo(false);
+    }
+  };
   return (
+    <>
     <Card
       className={`transition-all ${
         isSelected
@@ -91,12 +153,53 @@ const SceneCard: React.FC<SceneCardProps> = ({
             </div>
           </div>
 
-          {/* 图片生成区域 */}
-          <SceneImageGenerator
-            imageUrl={scene.imageUrl}
-            sceneDescription={scene.description}
-            onGenerate={(prompt) => onGenerateImage(scene.id, prompt)}
-          />
+          {/* 媒体展示区域：视频优先，其次图片 */}
+          {scene.videoUrl ? (
+            <div className="w-40 h-24 rounded-xl flex-shrink-0 relative overflow-hidden group border-2 border-orange-300 bg-black">
+              <video 
+                src={scene.videoUrl}
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setShowVideoPreview(true)}
+                muted
+                loop
+                autoPlay
+                playsInline
+              />
+              {/* 悬停显示操作 */}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setShowVideoPreview(true)}
+                  className="p-2 bg-white/90 rounded-full hover:bg-white transition-colors"
+                  title="预览视频"
+                >
+                  <Play className="w-4 h-4 text-slate-700" />
+                </button>
+                <button
+                  onClick={handleGenerateVideo}
+                  disabled={isGeneratingVideo}
+                  className="p-2 bg-orange-500/90 rounded-full hover:bg-orange-500 transition-colors disabled:opacity-50"
+                  title="重新生成视频"
+                >
+                  {isGeneratingVideo ? (
+                    <Spinner size="sm" color="white" />
+                  ) : (
+                    <Film className="w-4 h-4 text-white" />
+                  )}
+                </button>
+              </div>
+              {/* 视频标识 */}
+              <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded font-bold">
+                视频
+              </div>
+            </div>
+          ) : (
+            <SceneImageGenerator
+              sceneId={scene.id}
+              imageUrl={scene.imageUrl}
+              sceneDescription={scene.description}
+              onGenerate={(prompt) => onGenerateImage(scene.id, prompt)}
+            />
+          )}
 
           {/* 内容 */}
           <div className="flex-1 min-w-0">
@@ -158,21 +261,59 @@ const SceneCard: React.FC<SceneCardProps> = ({
 
             {/* 资源信息 */}
             <div className="space-y-3 mt-3">
-              {/* 场景位置 */}
-              {scene.location && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-500">场景</span>
+              {/* 镜头类型和场景位置 */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {scene.shotType && (
+                  <Chip size="sm" variant="flat" className="bg-blue-100 text-blue-700 text-xs font-medium">
+                    🎬 {scene.shotType}
+                  </Chip>
+                )}
+                {scene.location && (
                   <Chip size="sm" variant="flat" className="bg-purple-100 text-purple-700 text-xs font-medium">
                     📍 {scene.location}
                   </Chip>
-                  <Chip size="sm" variant="flat" className="bg-green-100 text-green-700 text-xs font-medium">
-                    ⏱️ {scene.duration}s
+                )}
+                <Chip size="sm" variant="flat" className="bg-green-100 text-green-700 text-xs font-medium">
+                  ⏱️ {scene.duration}s
+                </Chip>
+                {scene.emotion && (
+                  <Chip size="sm" variant="flat" className="bg-pink-100 text-pink-700 text-xs font-medium">
+                    💫 {scene.emotion}
                   </Chip>
+                )}
+                {scene.hasAction && (
+                  <Chip size="sm" variant="flat" className="bg-orange-100 text-orange-700 text-xs font-bold">
+                    🎭 有动作
+                  </Chip>
+                )}
+              </div>
+
+              {/* 首尾帧 - 仅在有动作时显示 */}
+              {scene.hasAction && (scene.startFrame || scene.endFrame) && (
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-3 border border-orange-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Video className="w-4 h-4 text-orange-600" />
+                    <span className="text-xs font-bold text-orange-700">动作帧（用于生成视频）</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {scene.startFrame && (
+                      <div className="bg-white rounded-md p-2 border border-orange-100">
+                        <span className="text-xs font-semibold text-green-600 block mb-1">▶ 首帧</span>
+                        <p className="text-xs text-slate-600">{scene.startFrame}</p>
+                      </div>
+                    )}
+                    {scene.endFrame && (
+                      <div className="bg-white rounded-md p-2 border border-orange-100">
+                        <span className="text-xs font-semibold text-red-600 block mb-1">◼ 尾帧</span>
+                        <p className="text-xs text-slate-600">{scene.endFrame}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
               {/* 角色列表 */}
-              {scene.characters.length > 0 && (
+              {scene.characters && scene.characters.length > 0 && (
                 <div>
                   <span className="text-xs font-semibold text-slate-500 mb-2 block">角色</span>
                   <div className="flex flex-wrap gap-2">
@@ -182,23 +323,6 @@ const SceneCard: React.FC<SceneCardProps> = ({
                           👤
                         </div>
                         <span className="text-xs font-medium text-blue-700">{char}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 道具列表 */}
-              {scene.props.length > 0 && (
-                <div>
-                  <span className="text-xs font-semibold text-slate-500 mb-2 block">道具</span>
-                  <div className="flex flex-wrap gap-2">
-                    {scene.props.map((prop, idx) => (
-                      <div key={idx} className="flex items-center gap-2 bg-amber-50 rounded-lg px-2 py-1 border border-amber-200">
-                        <div className="w-6 h-6 rounded bg-amber-200 flex items-center justify-center text-xs">
-                          🎬
-                        </div>
-                        <span className="text-xs font-medium text-amber-700">{prop}</span>
                       </div>
                     ))}
                   </div>
@@ -216,15 +340,69 @@ const SceneCard: React.FC<SceneCardProps> = ({
                 <Wand2 className="w-3 h-3" />
                 特效
               </button>
-              <button className="px-3 py-1.5 text-xs bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 rounded-lg flex items-center gap-1 transition-all shadow-sm hover:shadow">
-                <Play className="w-3 h-3" />
-                预览
-              </button>
+              {!scene.videoUrl && (
+                <button 
+                  onClick={handleGenerateVideo}
+                  disabled={isGeneratingVideo || !scene.imageUrl}
+                  className="px-3 py-1.5 text-xs bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 rounded-lg flex items-center gap-1 transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingVideo ? (
+                    <>
+                      <Spinner size="sm" color="white" />
+                      生成中...
+                    </>
+                  ) : (
+                    <>
+                      <Film className="w-3 h-3" />
+                      生成视频
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
       </CardBody>
     </Card>
+
+    {/* 视频预览弹窗 */}
+    <Modal 
+      isOpen={showVideoPreview} 
+      onOpenChange={setShowVideoPreview}
+      size="2xl"
+    >
+      <ModalContent>
+        {(onClose) => (
+          <>
+            <ModalHeader className="flex items-center gap-2">
+              <Play className="w-5 h-5 text-blue-600" />
+              视频预览 - 分镜 {index + 1}
+            </ModalHeader>
+            <ModalBody>
+              {scene.videoUrl ? (
+                <video 
+                  src={scene.videoUrl}
+                  controls
+                  autoPlay
+                  className="w-full rounded-lg"
+                  style={{ maxHeight: '60vh' }}
+                />
+              ) : (
+                <div className="text-center py-10 text-slate-500">
+                  暂无视频
+                </div>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="light" onPress={onClose}>
+                关闭
+              </Button>
+            </ModalFooter>
+          </>
+        )}
+      </ModalContent>
+    </Modal>
+    </>
   );
 };
 

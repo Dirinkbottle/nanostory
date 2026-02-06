@@ -10,9 +10,16 @@ interface StoryboardScene {
   dialogue: string;
   duration: number;
   imageUrl?: string;
+  videoUrl?: string;
   characters: string[];
   props: string[];
   location: string;
+  // 新增字段
+  shotType?: string;
+  emotion?: string;
+  hasAction?: boolean;
+  startFrame?: string;
+  endFrame?: string;
 }
 
 interface SceneListProps {
@@ -24,6 +31,7 @@ interface SceneListProps {
   onAddScene: () => void;
   onUpdateDescription: (id: number, description: string) => void;
   onGenerateImage: (id: number, prompt: string) => void;
+  onUpdateVideo: (id: number, videoUrl: string) => void;
   onReorderScenes: (newScenes: StoryboardScene[]) => void;
 }
 
@@ -36,6 +44,7 @@ const SceneList: React.FC<SceneListProps> = ({
   onAddScene,
   onUpdateDescription,
   onGenerateImage,
+  onUpdateVideo,
   onReorderScenes
 }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -121,6 +130,7 @@ const SceneList: React.FC<SceneListProps> = ({
               onDelete={onDeleteScene}
               onUpdateDescription={onUpdateDescription}
               onGenerateImage={onGenerateImage}
+              onUpdateVideo={onUpdateVideo}
             />
           </div>
         ))}

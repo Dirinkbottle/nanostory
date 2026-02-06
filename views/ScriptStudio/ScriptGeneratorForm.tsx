@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, CardBody, Button, Input, Textarea, Select, SelectItem } from '@heroui/react';
-import { FileText, BookOpen } from 'lucide-react';
-import AIModelSelector from '../../components/AIModelSelector';
+import { FileText } from 'lucide-react';
 
 interface ScriptGeneratorFormProps {
   creationType: 'script' | 'comic';
@@ -9,15 +8,13 @@ interface ScriptGeneratorFormProps {
   description: string;
   style: string;
   length: string;
-  selectedTextModel: string;
-  textModels: any[];
   loading: boolean;
+  nextEpisode: number;
   onCreationTypeChange: (type: 'script' | 'comic') => void;
   onTitleChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onStyleChange: (value: string) => void;
   onLengthChange: (value: string) => void;
-  onModelChange: (value: string) => void;
   onGenerate: () => void;
 }
 
@@ -27,29 +24,37 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
   description,
   style,
   length,
-  selectedTextModel,
-  textModels,
   loading,
+  nextEpisode,
   onCreationTypeChange,
   onTitleChange,
   onDescriptionChange,
   onStyleChange,
   onLengthChange,
-  onModelChange,
   onGenerate
 }) => {
+  // 根据是否是第一集显示不同的标签
+  const isFirstEpisode = nextEpisode === 1;
+  
   return (
     <Card className="bg-white border border-slate-200 shadow-sm">
       <CardBody className="p-6 space-y-5">
         <div className="mb-1">
-          <h2 className="text-lg font-bold text-slate-800 mb-1">创作你的故事</h2>
+          <h2 className="text-lg font-bold text-slate-800 mb-1">
+            {isFirstEpisode ? '创作你的故事' : `创作第${nextEpisode}集`}
+          </h2>
           <div className="w-12 h-1 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
+          {!isFirstEpisode && (
+            <p className="text-xs text-slate-500 mt-2">
+              AI 将基于前面的剧情继续创作，您的输入会影响剧情走向
+            </p>
+          )}
         </div>
 
 
         <Input
-          label="剧本标题"
-          placeholder="输入你的创意标题"
+          label={isFirstEpisode ? "剧本标题" : "本集标题"}
+          placeholder={isFirstEpisode ? "输入你的创意标题" : `第${nextEpisode}集的标题（可选）`}
           value={title}
           onValueChange={onTitleChange}
           classNames={{
@@ -60,8 +65,11 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
         />
 
         <Textarea
-          label="故事概述"
-          placeholder="描述你的故事创意..."
+          label={isFirstEpisode ? "故事概述" : "故事走向"}
+          placeholder={isFirstEpisode 
+            ? "描述你的故事创意..." 
+            : "描述你希望剧情如何发展，例如：主角发现了隐藏的真相..."
+          }
           value={description}
           onValueChange={onDescriptionChange}
           minRows={4}
@@ -117,16 +125,6 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
           </Select>
         </div>
 
-        {/* AI 模型选择 */}
-        <AIModelSelector
-          label="AI 模型"
-          models={textModels}
-          selectedModel={selectedTextModel}
-          onModelChange={onModelChange}
-          filterType="TEXT"
-          placeholder="选择用于生成剧本的 AI 模型"
-        />
-
         <Button
           className="w-full text-white font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-500/25"
           size="lg"
@@ -134,7 +132,7 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
           isLoading={loading}
           onPress={onGenerate}
         >
-          {loading ? '生成中...' : '生成剧本'}
+          {loading ? '生成中...' : `生成第${nextEpisode}集`}
         </Button>
       </CardBody>
     </Card>

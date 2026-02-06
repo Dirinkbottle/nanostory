@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardBody, Button, Input, Textarea, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip } from '@heroui/react';
 import { FolderOpen, Plus, Edit, Trash2, Search, BookOpen, Clock } from 'lucide-react';
 import { Project, fetchProjects, createProject, updateProject, deleteProject } from '../services/projects';
 
+const LAST_PROJECT_KEY = 'nanostory_last_project_id';
+
 const Projects: React.FC = () => {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,6 +89,12 @@ const Projects: React.FC = () => {
     }
   };
 
+  // 双击进入项目
+  const handleEnterProject = (project: Project) => {
+    localStorage.setItem(LAST_PROJECT_KEY, project.id.toString());
+    navigate('/');
+  };
+
   const filteredProjects = projects.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -164,10 +174,14 @@ const Projects: React.FC = () => {
               <Card 
                 key={project.id} 
                 className="bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                onDoubleClick={() => handleEnterProject(project)}
               >
                 <CardBody className="p-0">
                   {/* 封面区域 */}
-                  <div className="h-32 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden">
+                  <div 
+                    className="h-32 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden"
+                    onDoubleClick={() => handleEnterProject(project)}
+                  >
                     {project.cover_url ? (
                       <img src={project.cover_url} alt={project.name} className="w-full h-full object-cover" />
                     ) : (
