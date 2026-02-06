@@ -3,6 +3,12 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Texta
 import { Plus, Wand2, RefreshCw, ZoomIn } from 'lucide-react';
 
 const GENERATING_KEY = 'nanostory_generating_images';
+const GENERATING_TIMEOUT = 120000; // 2分钟自动过期
+
+interface GeneratingItem {
+  id: number;
+  startTime: number;
+}
 
 interface SceneImageGeneratorProps {
   sceneId: number;
@@ -22,10 +28,18 @@ const SceneImageGenerator: React.FC<SceneImageGeneratorProps> = ({
   const [prompt, setPrompt] = useState(sceneDescription);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // 初始化时检查是否有正在生成的状态
+  // 初始化时检查是否有正在生成的状态（自动清除超时项）
   useEffect(() => {
-    const generatingIds = JSON.parse(localStorage.getItem(GENERATING_KEY) || '[]');
-    if (generatingIds.includes(sceneId) && !imageUrl) {
+    const items: GeneratingItem[] = JSON.parse(localStorage.getItem(GENERATING_KEY) || '[]');
+    const now = Date.now();
+    // 过滤掉超时的项目
+    const validItems = items.filter(item => now - item.startTime < GENERATING_TIMEOUT);
+    // 更新 localStorage
+    if (validItems.length !== items.length) {
+      localStorage.setItem(GENERATING_KEY, JSON.stringify(validItems));
+    }
+    // 检查当前分镜是否在生成中
+    if (validItems.some(item => item.id === sceneId) && !imageUrl) {
       setIsGenerating(true);
     }
   }, [sceneId, imageUrl]);
@@ -39,17 +53,17 @@ const SceneImageGenerator: React.FC<SceneImageGeneratorProps> = ({
   }, [imageUrl]);
 
   const addGeneratingId = (id: number) => {
-    const generatingIds = JSON.parse(localStorage.getItem(GENERATING_KEY) || '[]');
-    if (!generatingIds.includes(id)) {
-      generatingIds.push(id);
-      localStorage.setItem(GENERATING_KEY, JSON.stringify(generatingIds));
+    const items: GeneratingItem[] = JSON.parse(localStorage.getItem(GENERATING_KEY) || '[]');
+    if (!items.some(item => item.id === id)) {
+      items.push({ id, startTime: Date.now() });
+      localStorage.setItem(GENERATING_KEY, JSON.stringify(items));
     }
   };
 
   const removeGeneratingId = (id: number) => {
-    const generatingIds = JSON.parse(localStorage.getItem(GENERATING_KEY) || '[]');
-    const newIds = generatingIds.filter((gid: number) => gid !== id);
-    localStorage.setItem(GENERATING_KEY, JSON.stringify(newIds));
+    const items: GeneratingItem[] = JSON.parse(localStorage.getItem(GENERATING_KEY) || '[]');
+    const newItems = items.filter(item => item.id !== id);
+    localStorage.setItem(GENERATING_KEY, JSON.stringify(newItems));
   };
 
   const handleOpenGenerateModal = () => {
