@@ -5,7 +5,7 @@ import { getWorkflowList, WorkflowJob } from '../../hooks/useWorkflow';
 export interface UseTaskQueueReturn {
   jobs: WorkflowJob[];
   loading: boolean;
-  fetchJobs: () => Promise<void>;
+  fetchJobs: (showLoading?: boolean) => Promise<void>;
   getJobProgress: (job: WorkflowJob) => number;
 }
 
@@ -13,15 +13,20 @@ export function useTaskQueue(): UseTaskQueueReturn {
   const [jobs, setJobs] = useState<WorkflowJob[]>([]);
   const [loading, setLoading] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isFirstLoad = useRef(true);
 
-  const fetchJobs = useCallback(async () => {
+  const fetchJobs = useCallback(async (showLoading = false) => {
     const token = getAuthToken();
     if (!token) return;
 
     try {
-      setLoading(true);
+      // 只在手动刷新或首次加载时显示 loading
+      if (showLoading || isFirstLoad.current) {
+        setLoading(true);
+      }
       const data = await getWorkflowList({ status: 'pending,running' });
       setJobs(data.jobs || []);
+      isFirstLoad.current = false;
     } catch (err) {
       console.error('[TaskQueue] 获取任务列表失败:', err);
     } finally {
@@ -33,8 +38,8 @@ export function useTaskQueue(): UseTaskQueueReturn {
     const token = getAuthToken();
     if (!token) return;
 
-    fetchJobs();
-    intervalRef.current = setInterval(fetchJobs, 5000);
+    fetchJobs(true); // 首次加载显示 loading
+    intervalRef.current = setInterval(() => fetchJobs(false), 5000); // 自动刷新不显示
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };

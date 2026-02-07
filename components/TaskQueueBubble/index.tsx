@@ -57,7 +57,7 @@ const TaskQueueBubble: React.FC = () => {
       {/* 浮动小球 */}
       {!isOpen && (
         <button
-          onClick={() => { setIsOpen(true); fetchJobs(); }}
+          onClick={() => { setIsOpen(true); fetchJobs(true); }}
           className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center"
           title="任务队列"
         >
@@ -134,7 +134,7 @@ const TaskQueueBubble: React.FC = () => {
               共 {jobs.length} 个任务
             </span>
             <button
-              onClick={fetchJobs}
+              onClick={() => fetchJobs(true)}
               className="text-xs text-blue-500 hover:text-blue-700 flex items-center gap-1"
             >
               <RotateCcw className="w-3 h-3" />
