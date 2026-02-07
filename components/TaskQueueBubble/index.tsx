@@ -171,13 +171,9 @@ const TaskQueueBubble: React.FC = () => {
           style={getPanelStyle()}
           className="fixed z-50 w-96 max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
         >
-          {/* 头部 - 可拖动 */}
-          <div 
-            className={`flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-            onMouseDown={handleMouseDown}
-          >
+          {/* 头部 */}
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
             <div className="flex items-center gap-2">
-              <GripVertical className="w-4 h-4 opacity-60" />
               <ListTodo className="w-4 h-4" />
               <span className="font-semibold text-sm">任务队列</span>
               {jobs.length > 0 && (
