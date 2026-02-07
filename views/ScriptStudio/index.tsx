@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Tabs, Tab, Button, useDisclosure } from '@heroui/react';
+import { Tabs, Tab, Button, useDisclosure, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import { FileText, Film, Bot } from 'lucide-react';
 import { useProjectInit } from './hooks/useProjectInit';
 import { useScriptManagement } from './hooks/useScriptManagement';
@@ -63,6 +63,10 @@ const ScriptStudio: React.FC = () => {
   const [length, setLength] = useState('短篇');
   const [selectedEpisodeForGeneration, setSelectedEpisodeForGeneration] = useState<number | null>(null);
 
+  // 删除确认弹窗
+  const { isOpen: isDeleteModalOpen, onOpen: openDeleteModal, onClose: closeDeleteModal } = useDisclosure();
+  const [deleteResult, setDeleteResult] = useState<{ type: 'confirm' | 'success' | 'error'; message: string }>({ type: 'confirm', message: '' });
+
   // 全局 AI 模型管理
   const aiModels = useAIModels(selectedProject?.id);
   const { isOpen: isModelConfigOpen, onOpen: openModelConfig, onOpenChange: onModelConfigChange } = useDisclosure();
@@ -100,9 +104,18 @@ const ScriptStudio: React.FC = () => {
   };
   
   const handleDelete = async () => {
-    const success = await handleDeleteScript();
-    if (success) {
+    // 打开确认弹窗
+    setDeleteResult({ type: 'confirm', message: '' });
+    openDeleteModal();
+  };
+
+  const confirmDelete = async () => {
+    const result = await handleDeleteScript();
+    if (result.success) {
+      setDeleteResult({ type: 'success', message: result.message });
       setIsEditing(false);
+    } else {
+      setDeleteResult({ type: 'error', message: result.message });
     }
   };
 
@@ -282,6 +295,44 @@ const ScriptStudio: React.FC = () => {
         selected={aiModels.selected}
         onSelect={aiModels.setSelected}
       />
+
+      {/* 删除确认弹窗 */}
+      <Modal isOpen={isDeleteModalOpen} onClose={closeDeleteModal} size="sm">
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            {deleteResult.type === 'confirm' && '删除确认'}
+            {deleteResult.type === 'success' && '删除成功'}
+            {deleteResult.type === 'error' && '删除失败'}
+          </ModalHeader>
+          <ModalBody>
+            {deleteResult.type === 'confirm' && (
+              <p className="text-slate-600">确定要删除这个剧本吗？删除后无法恢复。</p>
+            )}
+            {deleteResult.type === 'success' && (
+              <p className="text-green-600">{deleteResult.message}</p>
+            )}
+            {deleteResult.type === 'error' && (
+              <p className="text-red-600">{deleteResult.message}</p>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            {deleteResult.type === 'confirm' ? (
+              <>
+                <Button variant="light" onPress={closeDeleteModal}>
+                  取消
+                </Button>
+                <Button color="danger" onPress={confirmDelete} isLoading={scriptLoading}>
+                  确认删除
+                </Button>
+              </>
+            ) : (
+              <Button color="primary" onPress={closeDeleteModal}>
+                确定
+              </Button>
+            )}
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 };

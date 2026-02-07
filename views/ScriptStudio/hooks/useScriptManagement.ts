@@ -113,12 +113,8 @@ export function useScriptManagement() {
   };
 
   // 删除剧本
-  const handleDeleteScript = async () => {
-    if (!scriptId) return;
-
-    if (!confirm('确定要删除这个剧本吗？删除后无法恢复。')) {
-      return;
-    }
+  const handleDeleteScript = async (): Promise<{ success: boolean; message: string }> => {
+    if (!scriptId) return { success: false, message: '没有可删除的剧本' };
 
     try {
       setLoading(true);
@@ -132,17 +128,15 @@ export function useScriptManagement() {
 
       const data = await res.json();
       if (res.ok) {
-        alert('剧本删除成功！');
         setScriptId(null);
         setTitle('');
         setContent('');
-        return true;
+        return { success: true, message: '剧本删除成功！' };
       } else {
-        throw new Error(data.message || '删除失败');
+        return { success: false, message: data.message || '删除失败' };
       }
     } catch (error: any) {
-      alert(error.message || '删除失败');
-      return false;
+      return { success: false, message: error.message || '删除失败' };
     } finally {
       setLoading(false);
     }
