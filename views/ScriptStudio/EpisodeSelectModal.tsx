@@ -126,21 +126,21 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
 
           {/* 状态提示 */}
           <div className="space-y-3">
-            {/* 缺失集数警告 */}
+            {/* 缺失集数警告 - 禁止跳过 */}
             {missingEpisodes.length > 0 && (
-              <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-amber-800 mb-1">
-                      检测到缺失的集数
+                    <p className="text-sm font-semibold text-red-800 mb-1">
+                      无法跳过集数生成
                     </p>
-                    <p className="text-sm text-amber-700">
+                    <p className="text-sm text-red-700">
                       缺失第 {missingEpisodes.slice(0, 10).join('、')} 集
                       {missingEpisodes.length > 10 && ` 等 ${missingEpisodes.length} 集`}
                     </p>
-                    <p className="text-xs text-amber-600 mt-2">
-                      💡 建议先补充缺失的集数，以保持剧情连贯性
+                    <p className="text-xs text-red-600 mt-2 font-medium">
+                      ⚠️ 请先生成第 {missingEpisodes[0]} 集，不能跳过集数
                     </p>
                   </div>
                 </div>
@@ -220,10 +220,9 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
           <Button
             color="primary"
             onPress={handleConfirm}
-            isDisabled={hasExisting}
+            isDisabled={hasExisting || missingEpisodes.length > 0}
             startContent={<Play className="w-4 h-4" />}
-            className="bg-blue-600 text-white"
-          >
+            className="bg-blue-600 text-white">
             确认生成
           </Button>
         </ModalFooter>
