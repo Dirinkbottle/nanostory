@@ -27,6 +27,8 @@ export interface AIModel {
   query_fail_condition?: string;
   query_success_mapping?: any;
   query_fail_mapping?: any;
+  custom_handler?: string;
+  custom_query_handler?: string;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +64,8 @@ export interface ModelFormData {
   query_fail_condition: string;
   query_success_mapping: string;
   query_fail_mapping: string;
+  custom_handler: string;
+  custom_query_handler: string;
 }
 
 export const DEFAULT_FORM_DATA: ModelFormData = {
@@ -87,5 +91,7 @@ export const DEFAULT_FORM_DATA: ModelFormData = {
   query_success_condition: '',
   query_fail_condition: '',
   query_success_mapping: '{}',
-  query_fail_mapping: '{}'
+  query_fail_mapping: '{}',
+  custom_handler: '',
+  custom_query_handler: ''
 };

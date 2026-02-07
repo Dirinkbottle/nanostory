@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS projects (
   type VARCHAR(50) DEFAULT 'video' COMMENT '项目类型：video=视频, comic=漫画',
   status VARCHAR(50) DEFAULT 'draft' COMMENT '状态：draft=草稿, in_progress=进行中, completed=已完成',
   settings_json TEXT COMMENT '项目配置（JSON格式）',
+  use_models JSON DEFAULT NULL COMMENT 'AI模型选择配置（按category分类，如 {"TEXT":"模型名","IMAGE":"模型名","VIDEO":"模型名"}）',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -75,16 +76,15 @@ CREATE TABLE IF NOT EXISTS storyboards (
   idx INT NOT NULL COMMENT '分镜序号',
   prompt_template TEXT COMMENT '提示词模板',
   variables_json TEXT COMMENT '变量（JSON格式）',
-  image_ref TEXT COMMENT '参考图片URL',
+  first_frame_url TEXT COMMENT '首帧图片URL',
+  last_frame_url TEXT COMMENT '尾帧图片URL',
   video_url TEXT COMMENT '生成的视频URL',
-  generation_status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT NULL COMMENT '生成状态',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
   INDEX idx_project_id (project_id),
   INDEX idx_script_id (script_id),
-  INDEX idx_idx (idx),
-  INDEX idx_generation_status (generation_status)
+  INDEX idx_idx (idx)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 角色表
@@ -232,6 +232,11 @@ CREATE TABLE IF NOT EXISTS ai_model_configs (
   query_success_mapping JSON COMMENT '成功时的结果字段映射。示例: {"image_url": "data.task_result.images.0.url", "video_url": "data.remote_url"}',
   query_fail_mapping JSON COMMENT '失败时的错误字段映射。示例: {"error": "data.fail_reason", "message": "data.error.message"}',
   
+  -- 自定义 Handler（用于无法通过模板配置覆盖的特殊 API，如特殊认证、特殊参数格式等）
+  -- handler 名称对应 backend/src/customHandlers/ 目录下的文件名（不含 .js）
+  custom_handler VARCHAR(100) DEFAULT NULL COMMENT '自定义提交 handler 名称，为空则走模板流程。示例: "kling_video"',
+  custom_query_handler VARCHAR(100) DEFAULT NULL COMMENT '自定义查询 handler 名称，为空则走模板流程。示例: "kling_video"',
+  
   -- 时间戳
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -335,5 +340,8 @@ ON DUPLICATE KEY UPDATE
   provider=VALUES(provider),
   description=VALUES(description),
   api_key=VALUES(api_key);
+
+-- 迁移：为已有数据库添加 use_models 字段（幂等，列已存在则忽略）
+-- ALTER TABLE projects ADD COLUMN use_models JSON DEFAULT NULL COMMENT 'AI模型选择配置' AFTER settings_json;
 
 SET FOREIGN_KEY_CHECKS = 1;

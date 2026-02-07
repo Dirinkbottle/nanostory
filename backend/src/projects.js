@@ -109,6 +109,65 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// 获取项目的 AI 模型选择
+router.get('/:id/models', authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+  const { id } = req.params;
+
+  try {
+    const project = await queryOne(
+      'SELECT use_models FROM projects WHERE id = ? AND user_id = ?',
+      [id, userId]
+    );
+
+    if (!project) {
+      return res.status(404).json({ message: '工程不存在' });
+    }
+
+    let useModels = {};
+    try {
+      useModels = typeof project.use_models === 'string'
+        ? JSON.parse(project.use_models)
+        : project.use_models || {};
+    } catch (e) {
+      useModels = {};
+    }
+
+    res.json({ useModels });
+  } catch (error) {
+    console.error('[Project Models Get]', error);
+    res.status(500).json({ message: '获取模型配置失败' });
+  }
+});
+
+// 更新项目的 AI 模型选择
+router.put('/:id/models', authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+  const { id } = req.params;
+  const { useModels } = req.body;
+
+  try {
+    const existing = await queryOne(
+      'SELECT id FROM projects WHERE id = ? AND user_id = ?',
+      [id, userId]
+    );
+
+    if (!existing) {
+      return res.status(404).json({ message: '工程不存在' });
+    }
+
+    await execute(
+      'UPDATE projects SET use_models = ? WHERE id = ? AND user_id = ?',
+      [JSON.stringify(useModels || {}), id, userId]
+    );
+
+    res.json({ message: '模型配置已保存', useModels });
+  } catch (error) {
+    console.error('[Project Models Update]', error);
+    res.status(500).json({ message: '保存模型配置失败' });
+  }
+});
+
 // 删除工程
 router.delete('/:id', authMiddleware, async (req, res) => {
   const userId = req.user.id;

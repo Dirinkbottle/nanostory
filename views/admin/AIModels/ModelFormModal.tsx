@@ -240,6 +240,27 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
                 description="失败时从原始响应提取错误信息"
               />
             </div>
+
+            <div className="border-t pt-4 mt-4">
+              <h4 className="font-semibold text-slate-700 mb-1">自定义 Handler（可选）</h4>
+              <p className="text-xs text-slate-400 mb-3">用于无法通过模板配置覆盖的特殊 API（如特殊认证方式、特殊参数格式等）。留空则走模板流程。</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="提交 Handler"
+                  placeholder='如: kling_video'
+                  value={formData.custom_handler}
+                  onChange={(e) => setFormData({ ...formData, custom_handler: e.target.value })}
+                  description="对应 customHandlers/ 目录下的文件名（不含 .js）"
+                />
+                <Input
+                  label="查询 Handler"
+                  placeholder='如: kling_video'
+                  value={formData.custom_query_handler}
+                  onChange={(e) => setFormData({ ...formData, custom_query_handler: e.target.value })}
+                  description="留空则查询走模板流程"
+                />
+              </div>
+            </div>
           </div>
         </ModalBody>
         <ModalFooter>

@@ -2,15 +2,19 @@
  * JSON 修复处理器
  * 当 AI 返回的 JSON 不完整时，尝试让 AI 修复完整
  * 
- * input:  { incompleteJson, originalPrompt, modelName }
+ * input:  { incompleteJson, originalPrompt, textModel }
  * output: { repairedJson, success }
  */
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 
 async function handleRepairJsonResponse(inputParams, onProgress) {
-  const { incompleteJson, originalPrompt, modelName } = inputParams;
-  const selectedModel = modelName || 'DeepSeek Chat';
+  const { incompleteJson, originalPrompt, textModel, modelName: _legacy } = inputParams;
+  const modelName = textModel || _legacy;
+
+  if (!modelName) {
+    throw new Error('textModel 参数是必需的');
+  }
 
   console.log('[RepairJson] 开始修复不完整的 JSON...');
   console.log('[RepairJson] 不完整内容长度:', incompleteJson.length);
@@ -53,7 +57,7 @@ ${incompleteJson}
   console.log('[RepairJson] 调用 AI 模型修复...');
   const result = await handleBaseTextModelCall({
     prompt: repairPrompt,
-    modelName: selectedModel,
+    textModel: modelName,
     maxTokens: 8000,
     temperature: 0.3
   }, (progress) => {

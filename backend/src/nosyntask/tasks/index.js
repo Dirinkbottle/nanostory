@@ -9,12 +9,16 @@ const handleSceneExtraction = require('./StoryBoard/sceneExtraction');
 const handleImageGeneration = require('./base/imageGeneration');
 const handleVideoGeneration = require('./videoGeneration');
 const handleSmartParse = require('./admin/smartParse');
-const handleFrameGeneration = require('./frameGeneration');
-const handleSceneVideoGeneration = require('./sceneVideoGeneration');
+const handleFrameGeneration = require('./StoryBoard/frameGeneration');
+const handleSingleFrameGeneration = require('./StoryBoard/singleFrameGeneration');
+const handleSceneVideoGeneration = require('./StoryBoard/sceneVideoGeneration');
 const handleStoryboardGeneration = require('./StoryBoard/storyboardGeneration');
 const handleCharacterViewsGeneration = require('./StoryBoard/characterViewsGeneration');
 const handleSceneImageGeneration = require('./StoryBoard/sceneImageGeneration');
 const handleBaseTextModelCall = require('./base/baseTextModelCall');
+const handleBatchFrameGeneration = require('./StoryBoard/batchFrameGeneration');
+const handleBatchSceneVideoGeneration = require('./StoryBoard/batchSceneVideoGeneration');
+const handleBaseVideoModelCall = require('./base/baseVideoModelCall');
 
 module.exports = {
   handleScriptGeneration,
@@ -24,9 +28,13 @@ module.exports = {
   handleVideoGeneration,
   handleSmartParse,
   handleFrameGeneration,
+  handleSingleFrameGeneration,
   handleSceneVideoGeneration,
   handleStoryboardGeneration,
   handleCharacterViewsGeneration,
   handleSceneImageGeneration,
-  handleBaseTextModelCall
+  handleBaseTextModelCall,
+  handleBatchFrameGeneration,
+  handleBatchSceneVideoGeneration,
+  handleBaseVideoModelCall
 };

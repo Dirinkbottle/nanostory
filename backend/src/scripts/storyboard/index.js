@@ -8,10 +8,14 @@ const saveFromWorkflow = require('./saveFromWorkflow');
 const getByScriptId = require('./getByScriptId');
 const saveManual = require('./saveManual');
 const extractScenes = require('./extractScenes');
+const batchGenerateFrames = require('./batchGenerateFrames');
+const batchGenerateVideos = require('./batchGenerateVideos');
 
 // 注册路由（顺序很重要！具体路由在前，通用路由在后）
 getTemplates(router);
 autoGenerate(router);
+batchGenerateFrames(router);
+batchGenerateVideos(router);
 saveFromWorkflow(router);
 extractScenes(router);
 saveManual(router);

@@ -10,9 +10,9 @@ export const useResourceModals = () => {
   const { isOpen: isViewsModalOpen, onOpen: openViewsModal, onOpenChange: onViewsModalChange } = useDisclosure();
   const { isOpen: isPreviewModalOpen, onOpen: openPreviewModal, onOpenChange: onPreviewModalChange } = useDisclosure();
 
-  const handleGenerateViews = async (charName: string, modelName: string, characterId?: number) => {
-    // 如果是从角色卡片点击进来（没有 modelName），先从数据库获取三视图数据
-    if (!modelName && characterId) {
+  const handleGenerateViews = async (charName: string, imageModel: string, textModel: string, characterId?: number) => {
+    // 如果是从角色卡片点击进来（没有 imageModel），先从数据库获取三视图数据
+    if (!imageModel && !textModel && characterId) {
       try {
         const token = getAuthToken();
         
@@ -51,7 +51,7 @@ export const useResourceModals = () => {
     }
 
     // 如果是从弹窗内点击生成按钮，验证模型并启动工作流
-    if (!modelName) {
+    if (!imageModel) {
       alert('请选择图片生成模型');
       return;
     }
@@ -75,7 +75,8 @@ export const useResourceModals = () => {
         },
         body: JSON.stringify({
           style: '动漫风格',
-          modelName: modelName
+          imageModel,
+          textModel
         })
       });
 

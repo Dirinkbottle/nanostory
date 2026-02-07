@@ -6,6 +6,9 @@ import { useAutoStoryboard } from './useAutoStoryboard';
 import { useSceneGeneration } from './useSceneGeneration';
 import { useCharacterExtraction } from './hooks/useCharacterExtraction';
 import { useSceneExtraction } from './hooks/useSceneExtraction';
+import { useFrameGeneration } from './hooks/useFrameGeneration';
+import { useBatchFrameGeneration } from './hooks/useBatchFrameGeneration';
+import { useBatchSceneVideoGeneration } from './hooks/useBatchSceneVideoGeneration';
 import EpisodeSelector from './EpisodeSelector';
 import AutoStoryboardModal from './AutoStoryboardModal';
 import ImportStoryboardModal from './ImportStoryboardModal';
@@ -25,6 +28,9 @@ interface StoryBoardProps {
   projectId?: number | null;
   episodeNumber?: number;
   scripts?: Script[];
+  textModel: string;
+  imageModel: string;
+  videoModel: string;
   onEpisodeChange?: (episodeNumber: number, scriptId: number) => void;
 }
 
@@ -33,6 +39,9 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   projectId,
   episodeNumber = 1,
   scripts = [],
+  textModel,
+  imageModel,
+  videoModel,
   onEpisodeChange
 }) => {
   const [currentScriptId, setCurrentScriptId] = useState<number | null>(scriptId || null);
@@ -64,8 +73,9 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   const autoStoryboard = useAutoStoryboard({
     scriptId: currentScriptId,
     projectId: currentProjectId,
-    isActive: true, // StoryBoard 组件渲染时就是激活状态
+    isActive: true,
     hasExistingScenes: scenes.length > 0,
+    textModel,
     onScenesGenerated: (newScenes) => {
       setScenes(newScenes);
       if (newScenes.length > 0) setSelectedScene(newScenes[0].id);
@@ -77,7 +87,10 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     projectId: currentProjectId,
     scriptId: currentScriptId,
     scenes,
-    setScenes
+    setScenes,
+    imageModel,
+    textModel,
+    videoModel
   });
 
   // 6. 角色提取
@@ -99,6 +112,49 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     isActive: true,
     onCompleted: () => {
       console.log('[StoryBoard] 场景提取完成');
+    }
+  });
+
+  // 8. 批量帧生成
+  const batchFrameGen = useBatchFrameGeneration({
+    scriptId: currentScriptId,
+    projectId: currentProjectId,
+    imageModel,
+    textModel,
+    onComplete: () => {
+      console.log('[StoryBoard] 批量帧生成完成，重新加载分镜');
+      if (currentScriptId) {
+        loadStoryboards(currentScriptId);
+      }
+    }
+  });
+
+  // 9. 批量视频生成
+  const batchSceneVideoGen = useBatchSceneVideoGeneration({
+    scriptId: currentScriptId,
+    projectId: currentProjectId,
+    videoModel,
+    textModel,
+    // duration 不传，让每个分镜根据自身 hasAction 决定时长（有动作3秒，无动作2秒）
+    onComplete: () => {
+      console.log('[StoryBoard] 批量视频生成完成，重新加载分镜');
+      if (currentScriptId) {
+        loadStoryboards(currentScriptId);
+      }
+    }
+  });
+
+  // 10. 首尾帧生成轮询
+  const frameGeneration = useFrameGeneration({
+    sceneId: null,
+    projectId: currentProjectId,
+    isActive: true,
+    onComplete: () => {
+      console.log('[StoryBoard] 首尾帧生成完成，重新加载分镜');
+      // 重新加载分镜以获取最新的首尾帧 URL
+      if (currentScriptId) {
+        loadStoryboards(currentScriptId);
+      }
     }
   });
 
@@ -129,8 +185,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           location: scene.location || '',
           emotion: scene.emotion || '',
           hasAction: scene.hasAction || false,
-          startFrame: scene.startFrame || '',
-          endFrame: scene.endFrame || ''
+          startFrame: scene.startFrame,
+          endFrame: scene.endFrame
         }
       }));
 
@@ -220,7 +276,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
             variant="flat"
             className="bg-purple-50 text-purple-600 font-medium"
             startContent={<Users className="w-4 h-4" />}
-            onPress={characterExtraction.startExtraction}
+            onPress={() => characterExtraction.startExtraction(textModel)}
             isLoading={characterExtraction.isExtracting}
             isDisabled={!currentProjectId || scenes.length === 0 || characterExtraction.isExtracting}
           >
@@ -231,7 +287,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
             variant="flat"
             className="bg-green-50 text-green-600 font-medium"
             startContent={<MapPin className="w-4 h-4" />}
-            onPress={sceneExtraction.startExtraction}
+            onPress={() => sceneExtraction.startExtraction(textModel)}
             isLoading={sceneExtraction.isExtracting}
             isDisabled={!currentProjectId || scenes.length === 0 || sceneExtraction.isExtracting}
           >
@@ -278,6 +334,12 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
               onGenerateImage={generateImage}
               onGenerateVideo={generateVideo}
               tasks={tasks}
+              onBatchGenerate={(overwrite) => batchFrameGen.startBatchGeneration(overwrite)}
+              isBatchGenerating={batchFrameGen.isGenerating}
+              batchProgress={batchFrameGen.progress}
+              onBatchGenerateVideo={(overwrite) => batchSceneVideoGen.startBatchVideoGeneration(overwrite)}
+              isBatchGeneratingVideo={batchSceneVideoGen.isGenerating}
+              batchVideoProgress={batchSceneVideoGen.progress}
             />
           </div>
 
@@ -289,6 +351,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
             projectId={currentProjectId}
             scriptId={currentScriptId}
             scenes={scenes}
+            imageModel={imageModel}
+            textModel={textModel}
           />
         </div>
       )}

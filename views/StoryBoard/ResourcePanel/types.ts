@@ -32,6 +32,8 @@ export interface ResourcePanelProps {
   projectId?: number | null;
   scriptId?: number | null;
   scenes?: any[];
+  imageModel: string;
+  textModel: string;
   onExtractResources?: () => void;
 }
 

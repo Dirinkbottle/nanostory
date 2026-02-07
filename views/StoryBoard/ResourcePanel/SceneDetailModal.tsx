@@ -20,8 +20,9 @@ interface SceneDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   scene: Scene | null;
-  onGenerateImage?: (sceneId: number, style: string, modelName: string) => Promise<void>;
+  onGenerateImage?: (sceneId: number, style: string, imageModel: string) => Promise<void>;
   isGenerating?: boolean;
+  imageModel?: string;
 }
 
 const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
@@ -29,10 +30,10 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
   onClose,
   scene,
   onGenerateImage,
-  isGenerating = false
+  isGenerating = false,
+  imageModel = ''
 }) => {
   const [selectedStyle, setSelectedStyle] = useState('写实风格');
-  const [selectedModel, setSelectedModel] = useState('FLUX.1 [schnell]');
   const [generating, setGenerating] = useState(false);
 
   if (!scene) return null;
@@ -42,7 +43,7 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
     
     setGenerating(true);
     try {
-      await onGenerateImage(scene.id, selectedStyle, selectedModel);
+      await onGenerateImage(scene.id, selectedStyle, imageModel);
     } catch (error) {
       console.error('生成场景图片失败:', error);
     } finally {
@@ -194,24 +195,18 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
                         <SelectItem key="水彩画" value="水彩画">水彩画</SelectItem>
                       </Select>
                       
-                      <Select
-                        label="AI 模型"
-                        placeholder="选择模型"
-                        selectedKeys={[selectedModel]}
-                        onChange={(e) => setSelectedModel(e.target.value)}
-                        size="sm"
-                        className="max-w-xs"
-                      >
-                        <SelectItem key="FLUX.1 [schnell]" value="FLUX.1 [schnell]">FLUX.1 [schnell]</SelectItem>
-                        <SelectItem key="Stable Diffusion XL" value="Stable Diffusion XL">Stable Diffusion XL</SelectItem>
-                      </Select>
+                      {imageModel ? (
+                        <p className="text-sm text-slate-500">使用图片模型：<span className="font-medium text-slate-700">{imageModel}</span></p>
+                      ) : (
+                        <p className="text-sm text-amber-600">请先点击右上角「AI 模型」按钮选择图片模型</p>
+                      )}
 
                       <Button
                         color="primary"
                         size="sm"
                         startContent={generating || isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                         onPress={handleGenerateImage}
-                        isDisabled={generating || isGenerating}
+                        isDisabled={generating || isGenerating || !imageModel}
                         className="w-full"
                       >
                         {generating || isGenerating ? '生成中...' : '生成场景图片'}

@@ -186,7 +186,8 @@ export function useScriptGeneration({
     description: string,
     style: string,
     length: string,
-    nextEpisode: number
+    nextEpisode: number,
+    textModel: string
   ) => {
     if (!description && !title) {
       alert('请至少填写标题或故事概述');
@@ -232,7 +233,8 @@ export function useScriptGeneration({
           title: title || `第${episodeNumber || nextEpisode}集`, 
           description, 
           style, 
-          length
+          length,
+          textModel
         })
       });
 

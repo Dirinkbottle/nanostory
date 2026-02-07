@@ -24,12 +24,14 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   projectId,
   scriptId,
   scenes,
+  imageModel,
+  textModel,
   onExtractResources
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('characters');
   
-  const { dbCharacters, isLoadingCharacters, loadCharacters } = useCharacterData(projectId);
-  const { dbScenes, isLoadingScenes, loadScenes } = useSceneData(projectId);
+  const { dbCharacters, isLoadingCharacters, loadCharacters } = useCharacterData(projectId, scriptId);
+  const { dbScenes, isLoadingScenes, loadScenes } = useSceneData(projectId, scriptId);
   
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -60,7 +62,8 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
   const handleGenerateViewsWrapper = (charName: string, characterId: number) => {
     setViewsCharacterId(characterId);
-    handleGenerateViews(charName, '', characterId);
+    // 传空字符串表示仅打开弹窗查看，不立即生成
+    handleGenerateViews(charName, '', '', characterId);
   };
 
   const sceneImageGeneration = useSceneImageGeneration({
@@ -111,7 +114,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     setIsSceneImageModalOpen(false);
   };
 
-  const handleGenerateSceneImage = async (sceneId: number, style: string, modelName: string) => {
+  const handleGenerateSceneImage = async (sceneId: number, style: string, imageModelName: string) => {
     try {
       const token = getAuthToken();
       const res = await fetch(`/api/scenes/${sceneId}/generate-image`, {
@@ -122,7 +125,8 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         },
         body: JSON.stringify({ 
           style, 
-          modelName, 
+          imageModel: imageModelName, 
+          textModel,
           width: 1024, 
           height: 576 
         })
@@ -215,6 +219,8 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         generatedPrompts={generatedPrompts}
         onGenerate={handleGenerateViews}
         characterId={viewsCharacterId}
+        imageModel={imageModel}
+        textModel={textModel}
       />
 
       <CharacterDetailModal
@@ -230,6 +236,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         scene={selectedScene}
         onGenerateImage={handleGenerateSceneImage}
         isGenerating={sceneImageGeneration.isGenerating}
+        imageModel={imageModel}
       />
 
       <SceneImageModal
@@ -238,6 +245,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         scene={selectedScene}
         isGenerating={sceneImageGeneration.isGenerating}
         onGenerate={handleGenerateSceneImage}
+        imageModel={imageModel}
       />
     </div>
   );

@@ -8,9 +8,14 @@ const { queryOne } = require('../dbHelper');
 async function autoGenerate(req, res) {
   const userId = req.user.id;
   const scriptId = Number(req.params.scriptId);
+  const { textModel } = req.body || {};
 
   if (!scriptId) {
     return res.status(400).json({ message: '无效的剧本ID' });
+  }
+
+  if (!textModel) {
+    return res.status(400).json({ message: '缺少模型名称，请选择一个文本模型' });
   }
 
   try {
@@ -35,7 +40,7 @@ async function autoGenerate(req, res) {
     });
 
     // 使用工作流引擎生成分镜
-    const engine = require('../nosyntask/engine');
+    const engine = require('../nosyntask/engine/index');
     const result = await engine.startWorkflow('storyboard_generation', {
       userId,
       projectId: script.project_id,
@@ -43,7 +48,7 @@ async function autoGenerate(req, res) {
         scriptId,
         scriptContent: script.content,
         scriptTitle: script.title || `第${script.episode_number}集`,
-        modelName: 'DeepSeek Chat'
+        textModel
       }
     });
 

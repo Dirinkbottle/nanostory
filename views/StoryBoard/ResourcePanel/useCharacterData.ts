@@ -2,23 +2,27 @@ import { useState, useEffect } from 'react';
 import { getAuthToken } from '../../../services/auth';
 import { Character } from './types';
 
-export const useCharacterData = (projectId?: number | null) => {
+export const useCharacterData = (projectId?: number | null, scriptId?: number | null) => {
   const [dbCharacters, setDbCharacters] = useState<Character[]>([]);
   const [isLoadingCharacters, setIsLoadingCharacters] = useState(false);
 
   useEffect(() => {
-    if (projectId) {
+    if (projectId && scriptId) {
       loadCharacters();
     }
-  }, [projectId]);
+  }, [projectId, scriptId]);
 
   const loadCharacters = async () => {
-    if (!projectId) return;
+    if (!projectId || !scriptId) {
+      console.log('[ResourcePanel] 缺少 projectId 或 scriptId，跳过加载角色');
+      return;
+    }
     
     setIsLoadingCharacters(true);
     try {
       const token = getAuthToken();
-      const res = await fetch(`/api/characters/project/${projectId}`, {
+      // 强制传递 scriptId 给后端
+      const res = await fetch(`/api/characters/project/${projectId}?scriptId=${scriptId}`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         }

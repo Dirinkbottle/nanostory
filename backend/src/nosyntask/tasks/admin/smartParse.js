@@ -1,14 +1,14 @@
 /**
  * 智能解析 API 文档处理器
- * input:  { apiDoc, modelName, customPrompt }
+ * input:  { apiDoc, textModel, customPrompt }
  * output: { config (parsed JSON), tokens, rawContent }
  */
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 
 async function handleSmartParse(inputParams, onProgress) {
-  const { apiDoc, modelName, customPrompt } = inputParams;
-  const selectedModel = modelName || 'DeepSeek Chat';
+  const { apiDoc, textModel, modelName: _legacy, customPrompt } = inputParams;
+  const selectedModel = textModel || _legacy || 'DeepSeek Chat';
 
   const systemInstruction = `你是 AI 模型配置工程师。你的唯一任务是：将用户提供的 API 文档转换为一个标准 JSON 配置对象。
 
@@ -211,7 +211,7 @@ ${userMessage}`;
 
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
-    modelName: selectedModel,
+    textModel: selectedModel,
     maxTokens: 8192,
     temperature: 0.1
   }, onProgress);

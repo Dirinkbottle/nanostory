@@ -1,39 +1,41 @@
 /**
- * 视频生成处理器
- * 使用公共轮询组件 submitAndPoll 处理同步/异步模型
- * 
- * input:  { prompt, image_url, modelName, duration }
- * output: { video_url, taskId?, tokens?, provider }
+ * 视频生成处理器（占位）
+ * input:  { prompt, imageUrl, videoModel, duration }
+ * output: { videoUrl, model }
  */
 
 const { submitAndPoll } = require('./pollUtils');
 
 async function handleVideoGeneration(inputParams, onProgress) {
-  const { prompt, image_url, modelName, duration } = inputParams;
-  const selectedModel = modelName || 'Default Video Model';
+  const { prompt, imageUrl, videoModel, modelName: _legacy, duration } = inputParams;
+  const modelName = videoModel || _legacy;
+
+  if (!modelName) {
+    throw new Error('videoModel 参数是必需的');
+  }
 
   if (onProgress) onProgress(10);
 
-  const result = await submitAndPoll(selectedModel, {
+  const result = await submitAndPoll(modelName, {
     prompt,
-    image_url,
+    image_url: imageUrl,
     duration: duration || 5
   }, {
     intervalMs: 5000,
     maxDurationMs: 600000,
-    onProgress,
-    progressStart: 30,
-    progressEnd: 90,
     logTag: 'VideoGen'
   });
 
   if (onProgress) onProgress(100);
 
+  const videoUrl = result.video_url || result.videoUrl || result.url || null;
+  if (!videoUrl) {
+    throw new Error('视频生成成功但未找到视频 URL');
+  }
+
   return {
-    video_url: result.video_url || result.videoUrl || result.url || null,
-    taskId: result._submitResult?.taskId || null,
-    tokens: result._submitResult?.tokens || 0,
-    provider: result._submitResult?._model?.provider || 'unknown'
+    videoUrl,
+    model: modelName
   };
 }
 

@@ -5,9 +5,11 @@
  * 1. 任务只负责调用 AI，返回 result_data（纯数据）
  * 2. 工作流引擎负责串联步骤、传递数据
  * 3. 副作用操作（保存数据库、扣费等）由各步骤的 onComplete 回调处理
- * 4. 每个步骤的 buildInput 函数负责从上下文中提取本步骤需要的输入
+ * 4. 每个步骤的 buildInput 由 createBuildInput 工厂生成，字段名从统一字段表中选取
  * 
- * 任务处理器统一放在 ./tasks/ 目录下，每个文件一个处理器
+ * 字段表：  config/workflow_fieldtable.js
+ * 工厂函数：buildInputFactory.js
+ * 任务处理器：./tasks/ 目录
  */
 
 const {
@@ -18,11 +20,16 @@ const {
   handleVideoGeneration,
   handleSmartParse,
   handleFrameGeneration,
+  handleSingleFrameGeneration,
   handleSceneVideoGeneration,
   handleStoryboardGeneration,
   handleCharacterViewsGeneration,
-  handleSceneImageGeneration
+  handleSceneImageGeneration,
+  handleBatchFrameGeneration,
+  handleBatchSceneVideoGeneration
 } = require('./tasks');
+
+const { createBuildInput } = require('./buildInputFactory');
 
 // ============================================================
 // 工作流定义（Workflow Definitions）
@@ -31,9 +38,8 @@ const {
 //   - type:       任务类型（对应 generation_tasks.task_type）
 //   - targetType: 产物关联的业务表（对应 generation_tasks.target_type）
 //   - handler:    执行函数（纯 AI 调用）
-//   - buildInput: 从工作流上下文构建本步骤的 input_params
+//   - buildInput: 由 createBuildInput 生成，字段名必须在字段表中注册
 //                 context = { jobParams, previousResults: { [stepIndex]: result_data } }
-//   - modelKey:   从 jobParams 中取模型名的 key（可选）
 // ============================================================
 
 const WORKFLOW_DEFINITIONS = {
@@ -48,15 +54,10 @@ const WORKFLOW_DEFINITIONS = {
         type: 'script_generation',
         targetType: 'script',
         handler: handleScriptGeneration,
-        buildInput: (ctx) => ({
-          title: ctx.jobParams.title,
-          description: ctx.jobParams.description,
-          style: ctx.jobParams.style,
-          length: ctx.jobParams.length,
-          modelName: ctx.jobParams.modelName,
-          projectId: ctx.jobParams.projectId,
-          episodeNumber: ctx.jobParams.episodeNumber
-        })
+        buildInput: createBuildInput([
+          'title', 'description', 'style', 'length',
+          'textModel', 'projectId', 'episodeNumber'
+        ])
       }
     ]
   },
@@ -71,11 +72,9 @@ const WORKFLOW_DEFINITIONS = {
         type: 'storyboard_generation',
         targetType: 'storyboard',
         handler: handleStoryboardGeneration,
-        buildInput: (ctx) => ({
-          scriptContent: ctx.jobParams.scriptContent,
-          scriptTitle: ctx.jobParams.scriptTitle,
-          modelName: ctx.jobParams.modelName
-        })
+        buildInput: createBuildInput([
+          'scriptContent', 'scriptTitle', 'textModel'
+        ])
       }
     ]
   },
@@ -90,15 +89,10 @@ const WORKFLOW_DEFINITIONS = {
         type: 'scene_extraction',
         targetType: 'scenes',
         handler: handleSceneExtraction,
-        buildInput: (context) => ({
-          scenes: context.jobParams.scenes,
-          scriptContent: context.jobParams.scriptContent,
-          projectId: context.jobParams.projectId,
-          scriptId: context.jobParams.scriptId,
-          userId: context.userId,
-          modelName: context.jobParams.modelName
-        }),
-        modelKey: 'modelName'
+        buildInput: createBuildInput([
+          'scenes', 'scriptContent', 'projectId', 'scriptId',
+          'userId', 'textModel'
+        ])
       }
     ]
   },
@@ -113,22 +107,18 @@ const WORKFLOW_DEFINITIONS = {
         type: 'script',
         targetType: 'script',
         handler: handleScriptGeneration,
-        buildInput: (ctx) => ({
-          title: ctx.jobParams.title,
-          description: ctx.jobParams.description,
-          style: ctx.jobParams.style,
-          length: ctx.jobParams.length,
-          modelName: ctx.jobParams.modelName
-        })
+        buildInput: createBuildInput([
+          'title', 'description', 'style', 'length', 'textModel'
+        ])
       },
       {
         type: 'character_extract',
         targetType: 'character',
         handler: handleCharacterExtraction,
-        buildInput: (ctx) => ({
-          scriptContent: ctx.previousResults[0]?.content || '',
-          modelName: ctx.jobParams.modelName
-        })
+        buildInput: createBuildInput([
+          { key: 'scriptContent', from: ctx => ctx.previousResults[0]?.content || '' },
+          'textModel'
+        ])
       }
     ]
   },
@@ -143,17 +133,15 @@ const WORKFLOW_DEFINITIONS = {
         type: 'smart_parse',
         targetType: 'ai_model_config',
         handler: handleSmartParse,
-        buildInput: (ctx) => ({
-          apiDoc: ctx.jobParams.apiDoc,
-          modelName: ctx.jobParams.modelName,
-          customPrompt: ctx.jobParams.customPrompt
-        })
+        buildInput: createBuildInput([
+          'apiDoc', 'textModel', 'customPrompt'
+        ])
       }
     ]
   },
 
   /**
-   * 分镜首尾帧生成（单个分镜的图片）
+   * 分镜首尾帧生成（有动作的分镜）
    */
   frame_generation: {
     name: '分镜首尾帧生成',
@@ -162,12 +150,30 @@ const WORKFLOW_DEFINITIONS = {
         type: 'frame_image',
         targetType: 'storyboard',
         handler: handleFrameGeneration,
-        buildInput: (ctx) => ({
-          prompt: ctx.jobParams.prompt,
-          modelName: ctx.jobParams.modelName,
-          width: ctx.jobParams.width || 1024,
-          height: ctx.jobParams.height || 576
-        })
+        buildInput: createBuildInput([
+          'storyboardId', 'prompt', 'imageModel', 'textModel',
+          { key: 'width', defaultValue: 1024 },
+          { key: 'height', defaultValue: 576 }
+        ])
+      }
+    ]
+  },
+
+  /**
+   * 分镜单帧生成（无动作的分镜）
+   */
+  single_frame_generation: {
+    name: '分镜单帧生成',
+    steps: [
+      {
+        type: 'single_frame',
+        targetType: 'storyboard',
+        handler: handleSingleFrameGeneration,
+        buildInput: createBuildInput([
+          'storyboardId', 'description', 'imageModel', 'textModel',
+          { key: 'width', defaultValue: 1024 },
+          { key: 'height', defaultValue: 576 }
+        ])
       }
     ]
   },
@@ -182,14 +188,9 @@ const WORKFLOW_DEFINITIONS = {
         type: 'scene_video',
         targetType: 'storyboard',
         handler: handleSceneVideoGeneration,
-        buildInput: (ctx) => ({
-          prompt: ctx.jobParams.prompt,
-          imageUrl: ctx.jobParams.imageUrl,
-          startFrame: ctx.jobParams.startFrame,
-          endFrame: ctx.jobParams.endFrame,
-          modelName: ctx.jobParams.modelName,
-          duration: ctx.jobParams.duration || 5
-        })
+        buildInput: createBuildInput([
+          'storyboardId', 'videoModel', 'textModel', 'duration'
+        ])
       }
     ]
   },
@@ -204,15 +205,10 @@ const WORKFLOW_DEFINITIONS = {
         type: 'character_extraction',
         targetType: 'characters',
         handler: handleCharacterExtraction,
-        buildInput: (context) => ({
-          scenes: context.jobParams.scenes,
-          scriptContent: context.jobParams.scriptContent,
-          projectId: context.jobParams.projectId,
-          scriptId: context.jobParams.scriptId,
-          userId: context.userId,
-          modelName: context.jobParams.modelName
-        }),
-        modelKey: 'modelName'
+        buildInput: createBuildInput([
+          'scenes', 'scriptContent', 'projectId', 'scriptId',
+          'userId', 'textModel'
+        ])
       }
     ]
   },
@@ -227,19 +223,52 @@ const WORKFLOW_DEFINITIONS = {
         type: 'scene_image_generation',
         targetType: 'scene',
         handler: handleSceneImageGeneration,
-        buildInput: (context) => ({
-          sceneId: context.jobParams.sceneId,
-          sceneName: context.jobParams.sceneName,
-          description: context.jobParams.description,
-          environment: context.jobParams.environment,
-          lighting: context.jobParams.lighting,
-          mood: context.jobParams.mood,
-          style: context.jobParams.style,
-          modelName: context.jobParams.modelName,
-          width: context.jobParams.width || 1024,
-          height: context.jobParams.height || 576
-        }),
-        modelKey: 'modelName'
+        buildInput: createBuildInput([
+          'sceneId', 'sceneName', 'description', 'environment',
+          'lighting', 'mood', 'style',
+          'imageModel', 'textModel',
+          { key: 'width', defaultValue: 1024 },
+          { key: 'height', defaultValue: 576 }
+        ])
+      }
+    ]
+  },
+
+  /**
+   * 批量分镜帧生成（一键生成一集所有分镜图片）
+   */
+  batch_frame_generation: {
+    name: '批量分镜帧生成',
+    steps: [
+      {
+        type: 'batch_frame',
+        targetType: 'storyboard',
+        handler: handleBatchFrameGeneration,
+        buildInput: createBuildInput([
+          'scriptId', 'imageModel', 'textModel', 'overwriteFrames',
+          { key: 'maxConcurrency', defaultValue: 20 },
+          { key: 'width', defaultValue: 1024 },
+          { key: 'height', defaultValue: 576 }
+        ])
+      }
+    ]
+  },
+
+  /**
+   * 批量分镜视频生成（一键生成一集所有分镜视频）
+   */
+  batch_scene_video_generation: {
+    name: '批量分镜视频生成',
+    steps: [
+      {
+        type: 'batch_scene_video',
+        targetType: 'storyboard',
+        handler: handleBatchSceneVideoGeneration,
+        buildInput: createBuildInput([
+          'scriptId', 'videoModel', 'textModel', 'duration',
+          'overwriteVideos',
+          { key: 'maxConcurrency', defaultValue: 3 }
+        ])
       }
     ]
   },
@@ -254,18 +283,12 @@ const WORKFLOW_DEFINITIONS = {
         type: 'character_views_generation',
         targetType: 'character',
         handler: handleCharacterViewsGeneration,
-        buildInput: (context) => ({
-          characterId: context.jobParams.characterId,
-          characterName: context.jobParams.characterName,
-          appearance: context.jobParams.appearance,
-          personality: context.jobParams.personality,
-          description: context.jobParams.description,
-          style: context.jobParams.style,
-          modelName: context.jobParams.modelName,
-          width: context.jobParams.width || 512,
-          height: context.jobParams.height || 768
-        }),
-        modelKey: 'modelName'
+        buildInput: createBuildInput([
+          'characterId', 'characterName', 'appearance', 'personality',
+          'description', 'style', 'imageModel', 'textModel',
+          { key: 'width', defaultValue: 512 },
+          { key: 'height', defaultValue: 768 }
+        ])
       }
     ]
   }
@@ -305,6 +328,8 @@ module.exports = {
     handleSmartParse,
     handleFrameGeneration,
     handleSceneVideoGeneration,
-    handleStoryboardGeneration
+    handleStoryboardGeneration,
+    handleBatchFrameGeneration,
+    handleBatchSceneVideoGeneration
   }
 };

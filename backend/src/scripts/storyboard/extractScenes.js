@@ -6,10 +6,14 @@ module.exports = (router) => {
   router.post('/extract-scenes/:scriptId', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const scriptId = Number(req.params.scriptId);
-    const { modelName } = req.body;
+    const { textModel } = req.body;
+
+    if (!textModel) {
+      return res.status(400).json({ message: '缺少模型名称，请选择一个文本模型' });
+    }
 
     try {
-      console.log('[Extract Scenes] 提取场景:', { scriptId, userId, modelName });
+      console.log('[Extract Scenes] 提取场景:', { scriptId, userId, textModel });
 
       // 获取该剧本的所有分镜
       const storyboards = await queryAll(
@@ -53,7 +57,7 @@ module.exports = (router) => {
       });
 
       // 启动场景提取工作流
-      const engine = require('../../nosyntask/engine');
+      const engine = require('../../nosyntask/engine/index');
       const result = await engine.startWorkflow('scene_extraction', {
         userId,
         projectId: script.project_id,
@@ -62,7 +66,7 @@ module.exports = (router) => {
           scriptContent: script.content,
           projectId: script.project_id,
           scriptId,
-          modelName: modelName || 'DeepSeek Chat'
+          textModel
         }
       });
 

@@ -27,7 +27,7 @@ const SceneCardActions: React.FC<SceneCardActionsProps> = ({
       {!scene.videoUrl && (
         <button 
           onClick={onGenerateVideo}
-          disabled={isGeneratingVideo || !scene.imageUrl}
+          disabled={isGeneratingVideo}
           className="px-3 py-1.5 text-xs bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 rounded-lg flex items-center gap-1 transition-all shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isGeneratingVideo ? (

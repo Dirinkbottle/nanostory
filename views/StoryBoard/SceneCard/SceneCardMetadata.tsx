@@ -44,17 +44,17 @@ const SceneCardMetadata: React.FC<SceneCardMetadataProps> = ({ scene }) => {
             <Video className="w-4 h-4 text-orange-600" />
             <span className="text-xs font-bold text-orange-700">动作帧（用于生成视频）</span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex gap-3">
             {scene.startFrame && (
-              <div className="bg-white rounded-md p-2 border border-orange-100">
-                <span className="text-xs font-semibold text-green-600 block mb-1">▶ 首帧</span>
-                <p className="text-xs text-slate-600">{scene.startFrame}</p>
+              <div className="bg-white rounded-md p-1.5 border border-orange-100">
+                <span className="text-[10px] font-semibold text-green-600 block mb-1 text-center">▶ 首帧</span>
+                <img src={scene.startFrame} alt="首帧" className="w-20 h-14 object-cover rounded" />
               </div>
             )}
             {scene.endFrame && (
-              <div className="bg-white rounded-md p-2 border border-orange-100">
-                <span className="text-xs font-semibold text-red-600 block mb-1">◼ 尾帧</span>
-                <p className="text-xs text-slate-600">{scene.endFrame}</p>
+              <div className="bg-white rounded-md p-1.5 border border-orange-100">
+                <span className="text-[10px] font-semibold text-red-600 block mb-1 text-center">◼ 尾帧</span>
+                <img src={scene.endFrame} alt="尾帧" className="w-20 h-14 object-cover rounded" />
               </div>
             )}
           </div>

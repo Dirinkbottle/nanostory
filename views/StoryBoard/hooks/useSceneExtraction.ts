@@ -95,9 +95,14 @@ export function useSceneExtraction({
   });
 
   // 启动场景提取
-  const startExtraction = async () => {
+  const startExtraction = async (textModel: string) => {
     if (!scriptId || !projectId || scenes.length === 0) {
       alert('请先生成分镜');
+      return;
+    }
+
+    if (!textModel) {
+      alert('请先选择文本模型');
       return;
     }
 
@@ -112,7 +117,7 @@ export function useSceneExtraction({
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          modelName: 'DeepSeek Chat'
+          textModel
         })
       });
 

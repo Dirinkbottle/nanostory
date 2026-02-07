@@ -143,7 +143,7 @@ export function useStoryboardGeneration({
   });
 
   // 启动分镜生成
-  const startGeneration = async () => {
+  const startGeneration = async (textModel: string) => {
     if (!scriptId) {
       alert('请先选择或生成一个剧本');
       return;
@@ -159,7 +159,8 @@ export function useStoryboardGeneration({
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
+        },
+        body: JSON.stringify({ textModel })
       });
 
       const data = await res.json();

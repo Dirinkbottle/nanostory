@@ -6,7 +6,7 @@ module.exports = (router) => {
   router.post('/:id/generate-image', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
-    const { style, modelName, width, height } = req.body;
+    const { style, imageModel, textModel, width, height } = req.body;
 
     try {
       const scene = await queryOne(
@@ -26,7 +26,7 @@ module.exports = (router) => {
       }
 
       // 启动异步工作流生成场景图片
-      const engine = require('../../nosyntask/engine');
+      const engine = require('../../nosyntask/engine/index');
       const result = await engine.startWorkflow('scene_image_generation', {
         userId,
         projectId: scene.project_id,
@@ -38,7 +38,8 @@ module.exports = (router) => {
           lighting: scene.lighting,
           mood: scene.mood,
           style: style || '写实风格',
-          modelName: modelName,
+          imageModel,
+          textModel,
           width: width || 1024,
           height: height || 576
         }

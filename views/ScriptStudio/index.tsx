@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Tabs, Tab } from '@heroui/react';
-import { FileText, Film } from 'lucide-react';
+import { Tabs, Tab, Button, useDisclosure } from '@heroui/react';
+import { FileText, Film, Bot } from 'lucide-react';
 import { useProjectInit } from './hooks/useProjectInit';
 import { useScriptManagement } from './hooks/useScriptManagement';
 import { useScriptGeneration } from './hooks/useScriptGeneration';
@@ -13,6 +13,8 @@ import EpisodeSelectModal from './EpisodeSelectModal';
 import EpisodeSelector from './EpisodeSelector';
 import LoadingScreen from './LoadingScreen';
 import StoryBoard from '../StoryBoard';
+import AIModelConfigModal from '../../components/AIModelConfigModal';
+import { useAIModels } from '../../hooks/useAIModels';
 
 const LAST_TAB_KEY = 'nanostory_last_tab';
 
@@ -60,6 +62,10 @@ const ScriptStudio: React.FC = () => {
   const [style, setStyle] = useState('电影感');
   const [length, setLength] = useState('短篇');
   const [selectedEpisodeForGeneration, setSelectedEpisodeForGeneration] = useState<number | null>(null);
+
+  // 全局 AI 模型管理
+  const aiModels = useAIModels(selectedProject?.id);
+  const { isOpen: isModelConfigOpen, onOpen: openModelConfig, onOpenChange: onModelConfigChange } = useDisclosure();
   
   // 子标签页状态
   const [activeTab, setActiveTab] = useState<'script' | 'storyboard'>(() => {
@@ -74,7 +80,7 @@ const ScriptStudio: React.FC = () => {
     setActiveTab(key);
     localStorage.setItem(LAST_TAB_KEY, key);
   };
-  
+
   // 加载项目剧本
   useEffect(() => {
     if (selectedProject) {
@@ -117,38 +123,49 @@ const ScriptStudio: React.FC = () => {
           )}
         </div>
         
-        {/* 子标签页 */}
-        <div className="px-8 border-b border-slate-200">
-          <Tabs
-            selectedKey={activeTab}
-            onSelectionChange={(key) => handleTabChange(key as 'script' | 'storyboard')}
-            variant="underlined"
-            classNames={{
-              tabList: "gap-8 w-full relative p-0",
-              cursor: "w-full bg-blue-600 h-0.5",
-              tab: "max-w-fit px-0 h-12 data-[hover-unselected=true]:opacity-80",
-              tabContent: "group-data-[selected=true]:text-blue-600 group-data-[selected=false]:text-slate-600 font-medium"
-            }}
+        {/* 子标签页 + AI 模型按钮 */}
+        <div className="px-8 border-b border-slate-200 flex items-center">
+          <div className="flex-1">
+            <Tabs
+              selectedKey={activeTab}
+              onSelectionChange={(key) => handleTabChange(key as 'script' | 'storyboard')}
+              variant="underlined"
+              classNames={{
+                tabList: "gap-8 w-full relative p-0",
+                cursor: "w-full bg-blue-600 h-0.5",
+                tab: "max-w-fit px-0 h-12 data-[hover-unselected=true]:opacity-80",
+                tabContent: "group-data-[selected=true]:text-blue-600 group-data-[selected=false]:text-slate-600 font-medium"
+              }}
+            >
+              <Tab
+                key="script"
+                title={
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    <span>剧本生成</span>
+                  </div>
+                }
+              />
+              <Tab
+                key="storyboard"
+                title={
+                  <div className="flex items-center gap-2">
+                    <Film className="w-4 h-4" />
+                    <span>分镜</span>
+                  </div>
+                }
+              />
+            </Tabs>
+          </div>
+          <Button
+            size="sm"
+            variant="flat"
+            className="bg-blue-50 text-blue-600 font-medium"
+            startContent={<Bot className="w-4 h-4" />}
+            onPress={openModelConfig}
           >
-            <Tab
-              key="script"
-              title={
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  <span>剧本生成</span>
-                </div>
-              }
-            />
-            <Tab
-              key="storyboard"
-              title={
-                <div className="flex items-center gap-2">
-                  <Film className="w-4 h-4" />
-                  <span>分镜</span>
-                </div>
-              }
-            />
-          </Tabs>
+            {aiModels.selected.text || 'AI 模型'}
+          </Button>
         </div>
       </div>
 
@@ -195,9 +212,12 @@ const ScriptStudio: React.FC = () => {
                     onStyleChange={setStyle}
                     onLengthChange={setLength}
                     onGenerate={() => {
-                      // 直接生成，使用选中的集数
+                      if (!aiModels.selected.text) {
+                        alert('请先点击右上角「AI 模型」按钮选择文本模型');
+                        return;
+                      }
                       const episodeToGenerate = selectedEpisodeForGeneration || nextEpisode;
-                      handleGenerate(episodeToGenerate, title, description, style, length, nextEpisode);
+                      handleGenerate(episodeToGenerate, title, description, style, length, nextEpisode, aiModels.selected.text);
                       setSelectedEpisodeForGeneration(null);
                     }}
                   />
@@ -221,6 +241,9 @@ const ScriptStudio: React.FC = () => {
             projectId={selectedProject?.id || null}
             episodeNumber={currentEpisode}
             scripts={scripts}
+            textModel={aiModels.selected.text}
+            imageModel={aiModels.selected.image}
+            videoModel={aiModels.selected.video}
             onEpisodeChange={(ep, sid) => {
               setCurrentEpisode(ep);
               const targetScript = scripts.find(s => s.id === sid);
@@ -249,6 +272,15 @@ const ScriptStudio: React.FC = () => {
           setContent('');
           setIsEditing(false);
         }}
+      />
+
+      {/* AI 模型配置弹窗 */}
+      <AIModelConfigModal
+        isOpen={isModelConfigOpen}
+        onOpenChange={onModelConfigChange}
+        models={aiModels.models}
+        selected={aiModels.selected}
+        onSelect={aiModels.setSelected}
       />
     </div>
   );

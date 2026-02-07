@@ -62,6 +62,14 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onEdit, onDelete, onTest }
             <span className="text-slate-600">价格</span>
             <span className="font-medium text-slate-800">{parsePrice(model.price_config)}</span>
           </div>
+          {model.custom_handler && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-600">Handler</span>
+              <Chip size="sm" className="bg-amber-100 text-amber-700">
+                {model.custom_handler}
+              </Chip>
+            </div>
+          )}
           {model.description && (
             <div className="text-xs text-slate-500 mt-2 line-clamp-2">
               {model.description}

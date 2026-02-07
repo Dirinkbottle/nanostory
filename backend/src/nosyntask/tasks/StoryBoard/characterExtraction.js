@@ -1,6 +1,6 @@
 /**
  * 角色提取处理器
- * input:  { scriptContent, scenes, projectId, modelName }
+ * input:  { scriptContent, scenes, projectId, textModel }
  * output: { characters: [{ name, appearance, personality, description }] }
  */
 
@@ -8,8 +8,12 @@ const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const db = require('../../../db');
 
 async function handleCharacterExtraction(inputParams, onProgress) {
-  const { scenes, scriptContent, modelName, projectId, scriptId, userId } = inputParams;
-  const selectedModel = modelName || 'DeepSeek Chat';
+  const { scenes, scriptContent, textModel, modelName: _legacy, projectId, scriptId, userId } = inputParams;
+  const modelName = textModel || _legacy;
+
+  if (!modelName) {
+    throw new Error('textModel 参数是必需的');
+  }
   
   console.log('[CharacterExtraction] 参数:', { projectId, scriptId, userId, scenesCount: scenes?.length });
 
@@ -70,7 +74,7 @@ ${contentForAnalysis}
 
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
-    modelName: selectedModel,
+    textModel: modelName,
     maxTokens: 4096,
     temperature: 0.3
   }, onProgress);

@@ -9,7 +9,7 @@
  *   personality: string,
  *   description: string,
  *   style: string,
- *   modelName: string
+ *   imageModel: string
  * }
  * 
  * output: {
@@ -20,7 +20,6 @@
  * }
  */
 
-const { getImageModels, getTextModels } = require('../../../aiModelService');
 const handleImageGeneration = require('../base/imageGeneration');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 
@@ -68,7 +67,7 @@ character name, detailed appearance, specific pose, art style, high quality, det
   // 调用基础文本模型
   const response = await handleBaseTextModelCall({
     prompt: fullPrompt,
-    modelName: textModel,
+    textModel: textModel,
     maxTokens: 500,
     temperature: 0.7
   });
@@ -120,33 +119,24 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     personality = '',
     description = '',
     style = '动漫风格',
-    modelName,
+    imageModel: _imageModel, modelName: _legacyModel,
+    textModel: _textModel, textModelName: _legacyTextModel,
     width = 512,
     height = 768
   } = inputParams;
 
+  const imageModel = _imageModel || _legacyModel;
+  const textModel = _textModel || _legacyTextModel || null;
+
   console.log('[CharacterViews] 开始生成三视图:', {
     characterId,
     characterName,
-    modelName,
+    imageModel,
     style
   });
 
-  // 选择可用的图片生成模型
-  let imageModel = modelName;
   if (!imageModel) {
-    const models = await getImageModels();
-    if (!models || models.length === 0) {
-      throw new Error('没有可用的图片生成模型');
-    }
-    imageModel = models[0].name;
-  }
-
-  // 选择可用的文本模型（用于生成提示词）
-  let textModel = null;
-  const textModels = await getTextModels();
-  if (textModels && textModels.length > 0) {
-    textModel = textModels[0].name;
+    throw new Error('imageModel 参数是必需的');
   }
 
   console.log('[CharacterViews] 使用的模型:', {
@@ -161,7 +151,7 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
   const frontPrompt = await generateViewPrompt('front', characterName, appearance, personality, description, style, textModel);
   const frontResult = await handleImageGeneration({
     prompt: frontPrompt,
-    modelName: imageModel,
+    imageModel: imageModel,
     width,
     height
   }, (progress) => {
@@ -189,15 +179,27 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
 
   if (onProgress) onProgress(30);
 
-  // 生成侧面视图
+  // 收集参考图片 URL（用于保持角色一致性）
+  const referenceUrls = [];
+  if (frontViewUrl) {
+    referenceUrls.push(frontViewUrl);
+    console.log('[CharacterViews] 正面视图将作为参考图传递给后续生成');
+  }
+
+  // 生成侧面视图（带正面参考图）
   console.log('[CharacterViews] 生成侧面视图...');
   const sidePrompt = await generateViewPrompt('side', characterName, appearance, personality, description, style, textModel);
-  const sideResult = await handleImageGeneration({
+  const sideGenParams = {
     prompt: sidePrompt,
-    modelName: imageModel,
+    imageModel: imageModel,
     width,
     height
-  }, (progress) => {
+  };
+  if (referenceUrls.length > 0) {
+    sideGenParams.imageUrls = referenceUrls;
+    console.log('[CharacterViews] 侧面视图参考图:', referenceUrls);
+  }
+  const sideResult = await handleImageGeneration(sideGenParams, (progress) => {
     if (onProgress) onProgress(30 + progress * 0.25); // 30% -> 55%
   });
   const sideViewUrl = sideResult.image_url;
@@ -221,15 +223,25 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
 
   if (onProgress) onProgress(60);
 
-  // 生成背面视图
+  // 累加侧面视图到参考图
+  if (sideViewUrl) {
+    referenceUrls.push(sideViewUrl);
+  }
+
+  // 生成背面视图（带正面+侧面参考图）
   console.log('[CharacterViews] 生成背面视图...');
   const backPrompt = await generateViewPrompt('back', characterName, appearance, personality, description, style, textModel);
-  const backResult = await handleImageGeneration({
+  const backGenParams = {
     prompt: backPrompt,
-    modelName: imageModel,
+    imageModel: imageModel,
     width,
     height
-  }, (progress) => {
+  };
+  if (referenceUrls.length > 0) {
+    backGenParams.imageUrls = referenceUrls;
+    console.log('[CharacterViews] 背面视图参考图:', referenceUrls);
+  }
+  const backResult = await handleImageGeneration(backGenParams, (progress) => {
     if (onProgress) onProgress(60 + progress * 0.25); // 60% -> 85%
   });
   const backViewUrl = backResult.image_url;

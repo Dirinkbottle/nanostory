@@ -2,7 +2,7 @@
  * 自动分镜处理器
  * 调用文本模型将剧本内容拆分为分镜镜头列表
  * 
- * input:  { scriptContent, scriptTitle, modelName }
+ * input:  { scriptContent, scriptTitle, textModel }
  * output: { scenes: [...], count }
  */
 
@@ -10,13 +10,16 @@ const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const handleRepairJsonResponse = require('./repairJsonResponse');
 
 async function handleStoryboardGeneration(inputParams, onProgress) {
-  const { scriptContent, scriptTitle, modelName } = inputParams;
+  const { scriptContent, scriptTitle, textModel, modelName: _legacy } = inputParams;
+  const modelName = textModel || _legacy;
 
   if (!scriptContent || scriptContent.trim() === '') {
     throw new Error('剧本内容为空，无法生成分镜');
   }
 
-  const selectedModel = modelName || 'DeepSeek Chat';
+  if (!modelName) {
+    throw new Error('textModel 参数是必需的');
+  }
 
   if (onProgress) onProgress(10);
 
@@ -73,7 +76,7 @@ ${scriptContent}
 
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
-    modelName: selectedModel,
+    textModel: modelName,
     maxTokens: 8192,
     temperature: 0.3
   }, onProgress);
@@ -169,7 +172,7 @@ ${scriptContent}
         const repairResult = await handleRepairJsonResponse({
           incompleteJson: jsonStr,
           originalPrompt: fullPrompt,
-          modelName: selectedModel
+          textModel: modelName
         }, (progress) => {
           if (onProgress) onProgress(80 + progress * 0.15); // 80% -> 95%
         });

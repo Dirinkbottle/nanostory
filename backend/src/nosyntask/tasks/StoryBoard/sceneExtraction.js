@@ -1,15 +1,19 @@
 /**
  * 场景提取处理器
  * 从分镜中提取场景信息并保存到数据库
- * input:  { scenes, scriptContent, projectId, scriptId, userId, modelName }
+ * input:  { scenes, scriptContent, projectId, scriptId, userId, textModel }
  * output: { scenes: [{ name, description, environment, lighting, mood }] }
  */
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 
 async function handleSceneExtraction(inputParams, onProgress) {
-  const { scenes, scriptContent, modelName, projectId, scriptId, userId } = inputParams;
-  const selectedModel = modelName || 'DeepSeek Chat';
+  const { scenes, scriptContent, textModel, modelName: _legacy, projectId, scriptId, userId } = inputParams;
+  const modelName = textModel || _legacy;
+
+  if (!modelName) {
+    throw new Error('textModel 参数是必需的');
+  }
   
   console.log('[SceneExtraction] 参数:', { projectId, scriptId, userId, scenesCount: scenes?.length });
 
@@ -73,7 +77,7 @@ ${contentForAnalysis}
 
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
-    modelName: selectedModel,
+    textModel: modelName,
     maxTokens: 4096,
     temperature: 0.3
   }, onProgress);

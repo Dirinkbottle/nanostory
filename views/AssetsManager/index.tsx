@@ -166,7 +166,7 @@ const AssetsManager: React.FC = () => {
   };
 
   // 生成场景图片
-  const handleGenerateSceneImage = async (sceneId: number, style: string, modelName: string) => {
+  const handleGenerateSceneImage = async (sceneId: number, style: string, imageModel: string) => {
     try {
       const token = getAuthToken();
       const res = await fetch(`/api/scenes/${sceneId}/generate-image`, {
@@ -177,7 +177,7 @@ const AssetsManager: React.FC = () => {
         },
         body: JSON.stringify({ 
           style, 
-          modelName, 
+          imageModel, 
           width: 1024, 
           height: 576 
         })

@@ -7,6 +7,7 @@ interface UseAutoStoryboardOptions {
   projectId: number | null;
   isActive: boolean; // 是否在分镜页面
   hasExistingScenes: boolean;
+  textModel: string;
   onScenesGenerated: (scenes: StoryboardScene[]) => void;
 }
 
@@ -15,6 +16,7 @@ export function useAutoStoryboard({
   projectId,
   isActive,
   hasExistingScenes,
+  textModel,
   onScenesGenerated
 }: UseAutoStoryboardOptions) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -37,23 +39,26 @@ export function useAutoStoryboard({
       alert('请先选择或生成一个剧本');
       return;
     }
+    if (!textModel) {
+      alert('请先点击右上角「AI 模型」按钮选择文本模型');
+      return;
+    }
 
     const skipConfirm = sessionStorage.getItem('skipStoryboardConfirm') === 'true';
-
     if (skipConfirm || !hasExistingScenes) {
-      startGeneration();
+      startGeneration(textModel);
     } else {
       setShowConfirmModal(true);
     }
   };
 
-  // 确认后执行
+  // 确认弹窗后执行
   const handleConfirmGenerate = () => {
     if (dontShowAgain) {
       sessionStorage.setItem('skipStoryboardConfirm', 'true');
     }
     setShowConfirmModal(false);
-    startGeneration();
+    startGeneration(textModel);
   };
 
   return {

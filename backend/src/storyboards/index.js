@@ -11,8 +11,12 @@ const saveFromWorkflow = require('./saveFromWorkflow');
 const getStoryboards = require('./getStoryboards');
 const saveStoryboards = require('./saveStoryboards');
 const updateMedia = require('./updateMedia');
+const validateReadiness = require('./validateReadiness');
 
 const router = express.Router();
+
+// 分镜生成预检（检查资产完整性）
+router.get('/:storyboardId/validate', authMiddleware, validateReadiness);
 
 // 获取分镜模板
 router.get('/templates', authMiddleware, getTemplates);

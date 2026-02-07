@@ -12,7 +12,7 @@
 
 const express = require('express');
 const { authMiddleware } = require('../middleware');
-const engine = require('./engine');
+const engine = require('./engine/index');
 const { getAvailableWorkflows } = require('./definitions');
 
 const router = express.Router();

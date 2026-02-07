@@ -151,7 +151,9 @@ const AIModels: React.FC = () => {
       query_success_condition: model.query_success_condition || '',
       query_fail_condition: model.query_fail_condition || '',
       query_success_mapping: model.query_success_mapping ? (typeof model.query_success_mapping === 'string' ? model.query_success_mapping : JSON.stringify(model.query_success_mapping, null, 2)) : '{}',
-      query_fail_mapping: model.query_fail_mapping ? (typeof model.query_fail_mapping === 'string' ? model.query_fail_mapping : JSON.stringify(model.query_fail_mapping, null, 2)) : '{}'
+      query_fail_mapping: model.query_fail_mapping ? (typeof model.query_fail_mapping === 'string' ? model.query_fail_mapping : JSON.stringify(model.query_fail_mapping, null, 2)) : '{}',
+      custom_handler: model.custom_handler || '',
+      custom_query_handler: model.custom_query_handler || ''
     });
     onOpen();
   };
@@ -181,7 +183,9 @@ const AIModels: React.FC = () => {
         query_success_condition: formData.query_success_condition || null,
         query_fail_condition: formData.query_fail_condition || null,
         query_success_mapping: formData.query_success_mapping ? JSON.parse(formData.query_success_mapping) : null,
-        query_fail_mapping: formData.query_fail_mapping ? JSON.parse(formData.query_fail_mapping) : null
+        query_fail_mapping: formData.query_fail_mapping ? JSON.parse(formData.query_fail_mapping) : null,
+        custom_handler: formData.custom_handler || null,
+        custom_query_handler: formData.custom_query_handler || null
       };
 
       const url = editingModel 
@@ -313,7 +317,7 @@ const AIModels: React.FC = () => {
         },
         body: JSON.stringify({
           apiDoc,
-          modelName: selectedTextModel
+          textModel: selectedTextModel
         })
       });
 

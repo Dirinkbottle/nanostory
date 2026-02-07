@@ -13,23 +13,27 @@ export interface Scene {
   tags?: string;
 }
 
-export const useSceneData = (projectId?: number | null) => {
+export const useSceneData = (projectId?: number | null, scriptId?: number | null) => {
   const [dbScenes, setDbScenes] = useState<Scene[]>([]);
   const [isLoadingScenes, setIsLoadingScenes] = useState(false);
 
   useEffect(() => {
-    if (projectId) {
+    if (projectId && scriptId) {
       loadScenes();
     }
-  }, [projectId]);
+  }, [projectId, scriptId]);
 
   const loadScenes = async () => {
-    if (!projectId) return;
+    if (!projectId || !scriptId) {
+      console.log('[ResourcePanel] 缺少 projectId 或 scriptId，跳过加载场景');
+      return;
+    }
     
     setIsLoadingScenes(true);
     try {
       const token = getAuthToken();
-      const res = await fetch(`/api/scenes/project/${projectId}`, {
+      // 强制传递 scriptId 给后端
+      const res = await fetch(`/api/scenes/project/${projectId}?scriptId=${scriptId}`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         }

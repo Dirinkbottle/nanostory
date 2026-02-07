@@ -25,17 +25,28 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // 获取项目的所有场景
+// 支持可选的 scriptId 参数：/project/:projectId?scriptId=123
+// 如果不传 scriptId，返回项目下所有场景；如果传了，只返回该剧本的场景
 router.get('/project/:projectId', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { projectId } = req.params;
+  const { scriptId } = req.query;
 
   try {
-    const scenes = await queryAll(
-      'SELECT * FROM scenes WHERE project_id = ? AND user_id = ? ORDER BY created_at DESC',
-      [projectId, userId]
-    );
+    let sql = 'SELECT * FROM scenes WHERE project_id = ? AND user_id = ?';
+    const params = [projectId, userId];
 
-    console.log('[Scenes by Project] 项目', projectId, '共有', scenes.length, '个场景');
+    // 如果提供了 scriptId，添加过滤条件
+    if (scriptId) {
+      sql += ' AND script_id = ?';
+      params.push(scriptId);
+    }
+
+    sql += ' ORDER BY created_at DESC';
+
+    const scenes = await queryAll(sql, params);
+
+    console.log('[Scenes by Project] 项目', projectId, 'scriptId:', scriptId || 'all', '共有', scenes.length, '个场景');
     res.json({ scenes });
   } catch (error) {
     console.error('[Scenes by Project]', error);

@@ -7,6 +7,7 @@ const {
   mapResponse,
   mergeParams
 } = require('./utils/templateRenderer');
+const { getHandler } = require('./customHandlers');
 
 /**
  * 统一的 AI 模型调用接口
@@ -102,13 +103,72 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
       }
     }
     
+    // === 自定义 Handler 拦截 ===
+    // 模板渲染完成后，如果配置了 custom_handler，则交给 handler 处理请求
+    if (model.custom_handler) {
+      const handler = getHandler(model.custom_handler);
+      if (handler && typeof handler.call === 'function') {
+        console.log(`[AI Model] 使用自定义 handler "${model.custom_handler}" 处理提交请求`);
+        
+        // 解析渲染后的 body 为对象（handler 拿到的是对象，不是字符串）
+        let bodyObj = null;
+        if (requestOptions.body) {
+          try { bodyObj = JSON.parse(requestOptions.body); } catch { bodyObj = requestOptions.body; }
+        }
+        
+        const rendered = {
+          url,
+          method: requestOptions.method,
+          headers: { ...headers },
+          body: bodyObj
+        };
+        
+        // handler 返回原始 API 响应 data
+        const data = await handler.call(model, mergedParams, rendered);
+        
+        // 外层统一做 response_mapping
+        const result = mapResponse(data, responseMapping);
+        result._raw = data;
+        result._model = {
+          name: model.name,
+          provider: model.provider,
+          category: model.category,
+          priceConfig
+        };
+        return result;
+      } else {
+        console.warn(`[AI Model] custom_handler "${model.custom_handler}" 未找到或缺少 call 方法，回退到模板流程`);
+      }
+    }
+    
+    // === 默认模板 fetch 流程 ===
     // 发送请求
     console.log(`[AI Model] Calling ${modelName}:`, url);
     console.log('[AI Model] Request Method:', requestOptions.method);
     console.log('[AI Model] Request Headers:', JSON.stringify(requestOptions.headers, null, 2));
     if (requestOptions.body) {
-      const bodyPreview = requestOptions.body.substring(0, 100);
-      console.log('[AI Model] Request Body (first 100 chars):', bodyPreview + (requestOptions.body.length > 100 ? '...' : ''));
+      try {
+        const bodyObj = JSON.parse(requestOptions.body);
+        const fields = Object.keys(bodyObj);
+        console.log(`[AI Model] Request Body 字段列表: [${fields.join(', ')}]`);
+        for (const key of fields) {
+          const val = typeof bodyObj[key] === 'string' ? bodyObj[key] : JSON.stringify(bodyObj[key]);
+          console.log(`[AI Model]   ${key}: ${val.substring(0, 200)}${val.length > 200 ? '...' : ''}`);
+        }
+      } catch (e) {
+        // 尝试以 form-urlencoded 解析
+        try {
+          const formParams = new URLSearchParams(requestOptions.body);
+          const fields = [...formParams.keys()];
+          console.log(`[AI Model] Request Body (form-urlencoded) 字段列表: [${fields.join(', ')}]`);
+          for (const key of fields) {
+            const val = formParams.get(key) || '';
+            console.log(`[AI Model]   ${key}: ${val.substring(0, 200)}${val.length > 200 ? '...' : ''}`);
+          }
+        } catch (e2) {
+          console.log('[AI Model] Request Body (未知格式):', requestOptions.body.substring(0, 200));
+        }
+      }
     }
     
     // 添加超时控制（600秒）
@@ -268,6 +328,45 @@ async function queryAIModel(modelName, params = {}, apiKey = null) {
       }
     }
 
+    // === 自定义 Query Handler 拦截 ===
+    if (model.custom_query_handler) {
+      const handler = getHandler(model.custom_query_handler);
+      if (handler && typeof handler.query === 'function') {
+        console.log(`[AI Model Query] 使用自定义 handler "${model.custom_query_handler}" 处理查询请求`);
+        
+        let bodyObj = null;
+        if (requestOptions.body) {
+          try { bodyObj = JSON.parse(requestOptions.body); } catch { bodyObj = requestOptions.body; }
+        }
+        
+        const rendered = {
+          url,
+          method: queryMethod,
+          headers: { ...headers },
+          body: bodyObj
+        };
+        
+        // handler 返回原始 API 响应 data
+        const data = await handler.query(model, mergedParams, rendered);
+        console.log('[AI Model Query] Response:', JSON.stringify(data, null, 2));
+        
+        // 外层统一做 query_response_mapping
+        const queryResponseMapping = model.query_response_mapping
+          ? (typeof model.query_response_mapping === 'string' ? JSON.parse(model.query_response_mapping) : model.query_response_mapping)
+          : null;
+        
+        let result = data;
+        if (queryResponseMapping) {
+          result = mapResponse(data, queryResponseMapping);
+          result._raw = data;
+        }
+        return result;
+      } else {
+        console.warn(`[AI Model Query] custom_query_handler "${model.custom_query_handler}" 未找到或缺少 query 方法，回退到模板流程`);
+      }
+    }
+    
+    // === 默认模板 fetch 流程 ===
     console.log(`[AI Model Query] Querying ${modelName}:`, url);
     const response = await fetch(url, requestOptions);
     const data = await response.json();

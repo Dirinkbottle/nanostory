@@ -96,9 +96,14 @@ export function useCharacterExtraction({
   });
 
   // 启动角色提取
-  const startExtraction = async () => {
+  const startExtraction = async (textModel: string) => {
     if (!projectId || !scriptId || scenes.length === 0) {
       alert('请先生成分镜');
+      return;
+    }
+
+    if (!textModel) {
+      alert('请先选择文本模型');
       return;
     }
 
@@ -154,7 +159,7 @@ export function useCharacterExtraction({
             scenes: scenesData,
             projectId,
             scriptId,
-            modelName: 'DeepSeek Chat'
+            textModel
           }
         })
       });

@@ -10,7 +10,7 @@
  *   lighting: string,
  *   mood: string,
  *   style: string,
- *   modelName: string,
+ *   imageModel: string,
  *   width: number,
  *   height: number
  * }
@@ -21,14 +21,13 @@
  * }
  */
 
-const { getImageModels, getTextModels } = require('../../../aiModelService');
 const handleImageGeneration = require('../base/imageGeneration');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 
 /**
  * 使用 AI 生成场景图片提示词
  */
-async function generateScenePrompt(sceneName, description, environment, lighting, mood, style, textModel) {
+async function generateScenePrompt(sceneName, description, environment, lighting, mood, style, textModelName) {
   console.log('[SceneImageGen] 使用 AI 生成场景图片提示词...');
 
   const fullPrompt = `你是一个专业的图片生成提示词专家。你的任务是根据场景信息生成高质量的场景图片生成提示词（用于 Stable Diffusion、Midjourney 等 AI 绘图工具）。
@@ -61,7 +60,7 @@ scene description, environment details, lighting conditions, mood and atmosphere
   // 调用基础文本模型
   const response = await handleBaseTextModelCall({
     prompt: fullPrompt,
-    modelName: textModel,
+    textModel: textModelName,
     maxTokens: 500,
     temperature: 0.7
   });
@@ -117,16 +116,20 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
     lighting, 
     mood, 
     style, 
-    modelName,
+    imageModel, modelName: _legacyModel,
+    textModel, textModelName: _legacyTextModel,
     width = 1024,
     height = 576
   } = inputParams;
+
+  const resolvedImageModel = imageModel || _legacyModel;
+  const resolvedTextModel = textModel || _legacyTextModel || null;
 
   console.log('[SceneImageGen] 开始生成场景图片:', {
     sceneId,
     sceneName,
     style,
-    modelName,
+    imageModel: resolvedImageModel,
     dimensions: `${width}x${height}`
   });
 
@@ -139,26 +142,14 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
     throw new Error('场景信息不足：至少需要提供场景名称、描述或环境描述之一');
   }
 
+  if (!resolvedImageModel) {
+    throw new Error('imageModel 参数是必需的');
+  }
+
   if (onProgress) onProgress(5);
 
-  // 获取可用的文本模型和图片模型
-  const textModels = await getTextModels();
-  const imageModels = await getImageModels();
-
-  console.log('[SceneImageGen] 可用文本模型:', textModels.map(m => m.name));
-  console.log('[SceneImageGen] 可用图片模型:', imageModels.map(m => m.name));
-
-  // 选择模型
-  const textModel = modelName && textModels.find(m => m.name === modelName) 
-    ? modelName 
-    : (textModels[0]?.name || 'DeepSeek Chat');
-
-  const imageModel = modelName && imageModels.find(m => m.name === modelName)
-    ? modelName
-    : (imageModels[0]?.name || 'FLUX.1 [schnell]');
-
-  console.log('[SceneImageGen] 使用文本模型:', textModel);
-  console.log('[SceneImageGen] 使用图片模型:', imageModel);
+  console.log('[SceneImageGen] 使用文本模型:', resolvedTextModel);
+  console.log('[SceneImageGen] 使用图片模型:', resolvedImageModel);
 
   if (onProgress) onProgress(10);
 
@@ -171,7 +162,7 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
     lighting,
     mood,
     style,
-    textModel
+    resolvedTextModel
   );
 
   if (onProgress) onProgress(30);
@@ -180,7 +171,7 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
   console.log('[SceneImageGen] 生成场景图片...');
   const imageResult = await handleImageGeneration({
     prompt: scenePrompt,
-    modelName: imageModel,
+    imageModel: resolvedImageModel,
     width,
     height
   }, (progress) => {
@@ -192,7 +183,7 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
   console.log('[SceneImageGen] DEBUG - 场景图片结果:', {
     prompt: scenePrompt.substring(0, 150) + '...',
     imageUrl,
-    imageModel,
+    imageModel: resolvedImageModel,
     dimensions: `${width}x${height}`
   });
 
@@ -219,8 +210,8 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
     imageUrl,
     sceneId,
     prompt: scenePrompt,
-    imageModel,
-    textModel
+    imageModel: resolvedImageModel,
+    textModel: resolvedTextModel
   };
 }
 

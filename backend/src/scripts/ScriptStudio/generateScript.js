@@ -6,12 +6,16 @@
 const { queryOne, execute, getLastInsertId } = require('../../dbHelper');
 
 async function generateScript(req, res) {
-  const { projectId, title, description, style, length, episodeNumber } = req.body || {};
+  const { projectId, title, description, style, length, episodeNumber, textModel } = req.body || {};
   const userId = req.user.id;
 
   // 验证 projectId
   if (!projectId) {
     return res.status(400).json({ message: '缺少项目ID' });
+  }
+
+  if (!textModel) {
+    return res.status(400).json({ message: '缺少模型名称，请选择一个文本模型' });
   }
 
   // 确定集数（默认为下一集）
@@ -68,7 +72,7 @@ async function generateScript(req, res) {
     const scriptId = await getLastInsertId();
 
     // 使用工作流引擎生成剧本
-    const engine = require('../../nosyntask/engine');
+    const engine = require('../../nosyntask/engine/index');
     
     console.log('[Generate Script] 准备启动工作流:', {
       workflowType: 'script_only',
@@ -85,6 +89,7 @@ async function generateScript(req, res) {
         description: description || '',
         style: style || '电影感',
         length: length || '短篇',
+        textModel,
         projectId,
         episodeNumber: targetEpisode
       }

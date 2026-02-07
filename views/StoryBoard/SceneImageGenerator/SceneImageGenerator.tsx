@@ -8,6 +8,7 @@ interface SceneImageGeneratorProps {
   sceneId: number;
   startFrame?: string;
   endFrame?: string;
+  hasAction?: boolean;
   sceneDescription: string;
   onGenerate: (prompt: string) => Promise<{ success: boolean; error?: string }>;
 }
@@ -16,6 +17,7 @@ const SceneImageGenerator: React.FC<SceneImageGeneratorProps> = ({
   sceneId,
   startFrame,
   endFrame,
+  hasAction,
   sceneDescription,
   onGenerate
 }) => {
@@ -75,6 +77,7 @@ const SceneImageGenerator: React.FC<SceneImageGeneratorProps> = ({
       <ImageFrames
         startFrame={startFrame}
         endFrame={endFrame}
+        hasAction={hasAction}
         isGenerating={isGenerating}
         hasImages={hasImages}
         onQuickGenerate={handleQuickGenerate}

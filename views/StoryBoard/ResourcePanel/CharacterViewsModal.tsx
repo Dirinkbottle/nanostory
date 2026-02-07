@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from '@heroui/react';
 import { Layers, Wand2 } from 'lucide-react';
 import { ResourceItem } from './types';
-import AIModelSelector, { AIModel } from '../../../components/AIModelSelector';
-import { getAuthToken } from '../../../services/auth';
 
 interface CharacterViewsModalProps {
   isOpen: boolean;
@@ -11,8 +9,10 @@ interface CharacterViewsModalProps {
   selectedResource: ResourceItem | null;
   isGenerating: boolean;
   generatedPrompts: any;
-  onGenerate: (charName: string, modelName: string, characterId?: number) => void;
+  onGenerate: (charName: string, imageModel: string, textModel: string, characterId?: number) => void;
   characterId?: number;
+  imageModel: string;
+  textModel: string;
 }
 
 const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
@@ -22,39 +22,10 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
   isGenerating,
   generatedPrompts,
   onGenerate,
-  characterId
+  characterId,
+  imageModel,
+  textModel
 }) => {
-  const [models, setModels] = useState<AIModel[]>([]);
-  const [selectedModel, setSelectedModel] = useState('');
-
-  // 加载图片生成模型
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        const token = getAuthToken();
-        const res = await fetch('/api/ai-models?type=IMAGE', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          const imageModels = data.models || [];
-          setModels(imageModels);
-          
-          // 默认选择第一个模型
-          if (imageModels.length > 0 && !selectedModel) {
-            setSelectedModel(imageModels[0].name);
-          }
-        }
-      } catch (error) {
-        console.error('加载模型失败:', error);
-      }
-    };
-
-    if (isOpen) {
-      loadModels();
-    }
-  }, [isOpen]);
 
   return (
     <Modal isOpen={isOpen} onOpenChange={onClose} size="2xl">
@@ -111,21 +82,16 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
                 </div>
               )}
 
-              {/* AI 模型选择器 */}
+              {/* 模型信息 */}
               <div className="mb-4">
                 <h3 className="text-sm font-semibold text-slate-700 mb-3">
                   {selectedResource?.frontViewUrl ? '重新生成三视图' : '生成三视图'}
                 </h3>
-                <AIModelSelector
-                  label="图片生成模型"
-                  description="选择用于生成三视图的 AI 模型"
-                  models={models}
-                  selectedModel={selectedModel}
-                  onModelChange={setSelectedModel}
-                  filterType="IMAGE"
-                  size="md"
-                  isDisabled={isGenerating}
-                />
+                {imageModel ? (
+                  <p className="text-sm text-slate-500">使用图片模型：<span className="font-medium text-slate-700">{imageModel}</span></p>
+                ) : (
+                  <p className="text-sm text-amber-600">请先点击右上角「AI 模型」按钮选择图片模型</p>
+                )}
               </div>
 
               {isGenerating ? (
@@ -175,9 +141,9 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
               <Button 
                 className="bg-purple-600 text-white font-semibold"
                 startContent={<Wand2 className="w-4 h-4" />}
-                onPress={() => onGenerate(selectedResource?.name || '', selectedModel, characterId)}
+                onPress={() => onGenerate(selectedResource?.name || '', imageModel, textModel, characterId)}
                 isLoading={isGenerating}
-                isDisabled={!selectedModel || isGenerating}
+                isDisabled={!imageModel || isGenerating}
               >
                 {generatedPrompts ? '重新生成' : '开始生成'}
               </Button>

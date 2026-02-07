@@ -1,6 +1,6 @@
 /**
  * 剧本生成处理器（支持连续剧集）
- * input:  { title, description, style, length, modelName, projectId, episodeNumber }
+ * input:  { title, description, style, length, textModel, projectId, episodeNumber }
  * output: { content, tokens, provider, episodeNumber }
  */
 
@@ -8,8 +8,12 @@ const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const { queryAll } = require('../../../dbHelper');
 
 async function handleScriptGeneration(inputParams, onProgress) {
-  const { title, description, style, length, modelName, projectId, episodeNumber } = inputParams;
-  const selectedModel = modelName || 'DeepSeek Chat';
+  const { title, description, style, length, textModel, modelName: _legacy, projectId, episodeNumber } = inputParams;
+  const modelName = textModel || _legacy;
+
+  if (!modelName) {
+    throw new Error('textModel 参数是必需的');
+  }
   const targetEpisode = episodeNumber || 1;
 
   if (onProgress) onProgress(10);
@@ -72,7 +76,7 @@ ${userPrompt}`;
 
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
-    modelName: selectedModel,
+    textModel: modelName,
     maxTokens: 8000,
     temperature: 0.7
   }, onProgress);
@@ -83,7 +87,7 @@ ${userPrompt}`;
     content: result.content,
     tokens: result.tokens || 0,
     provider: result._model?.provider || 'unknown',
-    modelName: selectedModel,
+    modelName,
     episodeNumber: targetEpisode
   };
 }

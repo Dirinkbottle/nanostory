@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Select, SelectItem } from '@heroui/react';
 import { Image as ImageIcon, Wand2 } from 'lucide-react';
-import AIModelSelector, { AIModel } from '../../../components/AIModelSelector';
-import { getAuthToken } from '../../../services/auth';
 import { Scene } from './useSceneData';
 
 interface SceneImageModalProps {
@@ -10,7 +8,8 @@ interface SceneImageModalProps {
   onClose: () => void;
   scene: Scene | null;
   isGenerating: boolean;
-  onGenerate: (sceneId: number, style: string, modelName: string) => void;
+  onGenerate: (sceneId: number, style: string, imageModel: string) => void;
+  imageModel: string;
 }
 
 const STYLE_OPTIONS = [
@@ -27,44 +26,14 @@ const SceneImageModal: React.FC<SceneImageModalProps> = ({
   onClose,
   scene,
   isGenerating,
-  onGenerate
+  onGenerate,
+  imageModel
 }) => {
-  const [models, setModels] = useState<AIModel[]>([]);
-  const [selectedModel, setSelectedModel] = useState('');
   const [selectedStyle, setSelectedStyle] = useState('写实风格');
 
-  // 加载图片生成模型
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        const token = getAuthToken();
-        const res = await fetch('/api/ai-models?type=IMAGE', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          const imageModels = data.models || [];
-          setModels(imageModels);
-          
-          // 默认选择第一个模型
-          if (imageModels.length > 0 && !selectedModel) {
-            setSelectedModel(imageModels[0].name);
-          }
-        }
-      } catch (error) {
-        console.error('加载模型失败:', error);
-      }
-    };
-
-    if (isOpen) {
-      loadModels();
-    }
-  }, [isOpen]);
-
   const handleGenerate = () => {
-    if (scene && selectedModel) {
-      onGenerate(scene.id, selectedStyle, selectedModel);
+    if (scene && imageModel) {
+      onGenerate(scene.id, selectedStyle, imageModel);
     }
   };
 
@@ -143,18 +112,13 @@ const SceneImageModal: React.FC<SceneImageModalProps> = ({
                 </Select>
               </div>
 
-              {/* AI 模型选择器 */}
+              {/* 模型信息 */}
               <div className="mb-4">
-                <AIModelSelector
-                  label="图片生成模型"
-                  description="选择用于生成场景图片的 AI 模型"
-                  models={models}
-                  selectedModel={selectedModel}
-                  onModelChange={setSelectedModel}
-                  filterType="IMAGE"
-                  size="md"
-                  isDisabled={isGenerating}
-                />
+                {imageModel ? (
+                  <p className="text-sm text-slate-500">使用图片模型：<span className="font-medium text-slate-700">{imageModel}</span></p>
+                ) : (
+                  <p className="text-sm text-amber-600">请先点击右上角「AI 模型」按钮选择图片模型</p>
+                )}
               </div>
 
               {/* 生成状态 */}
@@ -177,7 +141,7 @@ const SceneImageModal: React.FC<SceneImageModalProps> = ({
                 startContent={<Wand2 className="w-4 h-4" />}
                 onPress={handleGenerate}
                 isLoading={isGenerating}
-                isDisabled={!selectedModel || !scene || isGenerating}
+                isDisabled={!imageModel || !scene || isGenerating}
               >
                 {scene?.image_url ? '重新生成' : '开始生成'}
               </Button>

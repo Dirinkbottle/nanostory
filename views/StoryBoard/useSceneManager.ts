@@ -17,6 +17,8 @@ export interface StoryboardScene {
   hasAction?: boolean;
   startFrame?: string;
   endFrame?: string;
+  startFrameDesc?: string;
+  endFrameDesc?: string;
 }
 
 export const useSceneManager = (scriptId: number | null, projectId?: number | null) => {
@@ -67,15 +69,17 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
               dialogue: vars.dialogue || '',
               duration: vars.duration || 3,
               imageUrl: item.image_ref || undefined,
-              videoUrl: vars.videoUrl || undefined,
+              videoUrl: item.video_url || vars.videoUrl || undefined,
               characters: vars.characters || [],
               props: vars.props || [],
               location: vars.location || '',
               shotType: vars.shotType || '',
               emotion: vars.emotion || '',
               hasAction: vars.hasAction || false,
-              startFrame: vars.startFrame || '',
-              endFrame: vars.endFrame || ''
+              startFrame: item.first_frame_url || undefined,
+              endFrame: item.last_frame_url || undefined,
+              startFrameDesc: vars.startFrame || undefined,
+              endFrameDesc: vars.endFrame || undefined
             };
           });
           

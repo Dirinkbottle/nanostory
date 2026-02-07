@@ -73,15 +73,14 @@ module.exports = (router) => {
       for (let i = 0; i < scenes.length; i++) {
         const scene = scenes[i];
         await execute(
-          `INSERT INTO storyboards (project_id, script_id, idx, prompt_template, variables_json, image_ref) 
-           VALUES (?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO storyboards (project_id, script_id, idx, prompt_template, variables_json) 
+           VALUES (?, ?, ?, ?, ?)`,
           [
             projectId,
             scriptId,
             i,
             scene.description || scene.prompt_template || '',
-            JSON.stringify(scene.variables || scene),
-            scene.image_ref || scene.imageUrl || null
+            JSON.stringify(scene.variables || scene)
           ]
         );
       }

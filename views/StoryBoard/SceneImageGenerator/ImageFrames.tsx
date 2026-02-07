@@ -5,6 +5,7 @@ import { Plus, RefreshCw, ZoomIn } from 'lucide-react';
 interface ImageFramesProps {
   startFrame?: string;
   endFrame?: string;
+  hasAction?: boolean;
   isGenerating: boolean;
   hasImages: boolean;
   onQuickGenerate: () => void;
@@ -16,6 +17,7 @@ interface ImageFramesProps {
 const ImageFrames: React.FC<ImageFramesProps> = ({
   startFrame,
   endFrame,
+  hasAction,
   isGenerating,
   hasImages,
   onQuickGenerate,
@@ -23,16 +25,18 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
   onPreview,
   error
 }) => {
+  const showEndFrame = hasAction;
+
   return (
     <>
       <div className="flex gap-2 flex-shrink-0">
-        {/* 首帧 */}
+        {/* 图片 / 首帧 */}
         <div className="w-20 h-14 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg flex items-center justify-center group transition-all duration-300 border border-slate-300 relative overflow-hidden">
           {startFrame ? (
             <>
               <img 
                 src={startFrame} 
-                alt="首帧" 
+                alt={hasAction ? "首帧" : "图片"}
                 className="w-full h-full object-cover rounded-lg cursor-pointer" 
                 onClick={() => onPreview(startFrame)}
               />
@@ -45,7 +49,9 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
                   <ZoomIn className="w-3 h-3 text-slate-700" />
                 </button>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5">首帧</div>
+              {hasAction && (
+                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5">首帧</div>
+              )}
             </>
           ) : isGenerating ? (
             <div className="flex flex-col items-center gap-1 text-blue-500">
@@ -58,51 +64,52 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
               className="flex flex-col items-center gap-1 text-slate-400 hover:text-blue-500 transition-colors cursor-pointer w-full h-full justify-center"
             >
               <Plus className="w-4 h-4" />
-              <span className="text-[10px]">首帧</span>
+              <span className="text-[10px]">{hasAction ? '首帧' : '生成'}</span>
             </div>
           )}
         </div>
 
-        {/* 尾帧 */}
-        <div className="w-20 h-14 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg flex items-center justify-center group transition-all duration-300 border border-slate-300 relative overflow-hidden">
-          {endFrame ? (
-            <>
-              <img 
-                src={endFrame} 
-                alt="尾帧" 
-                className="w-full h-full object-cover rounded-lg cursor-pointer" 
-                onClick={() => onPreview(endFrame)}
-              />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <button
+        {/* 尾帧 - 仅在有动作且首帧已存在时显示 */}
+        {showEndFrame && (
+          <div className="w-20 h-14 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg flex items-center justify-center group transition-all duration-300 border border-orange-300 relative overflow-hidden">
+            {endFrame ? (
+              <>
+                <img 
+                  src={endFrame} 
+                  alt="尾帧" 
+                  className="w-full h-full object-cover rounded-lg cursor-pointer" 
                   onClick={() => onPreview(endFrame)}
-                  className="p-1 bg-white/90 rounded-full hover:bg-white transition-colors"
-                  title="预览"
-                >
-                  <ZoomIn className="w-3 h-3 text-slate-700" />
-                </button>
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <button
+                    onClick={() => onPreview(endFrame)}
+                    className="p-1 bg-white/90 rounded-full hover:bg-white transition-colors"
+                    title="预览"
+                  >
+                    <ZoomIn className="w-3 h-3 text-slate-700" />
+                  </button>
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 bg-orange-500/70 text-white text-[10px] text-center py-0.5">尾帧</div>
+              </>
+            ) : isGenerating ? (
+              <div className="flex flex-col items-center gap-1 text-orange-500">
+                <Spinner size="sm" color="warning" />
+                <span className="text-[10px]">等待</span>
               </div>
-              <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5">尾帧</div>
-            </>
-          ) : isGenerating ? (
-            <div className="flex flex-col items-center gap-1 text-blue-500">
-              <Spinner size="sm" color="primary" />
-              <span className="text-[10px]">等待</span>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-1 text-slate-300 w-full h-full justify-center">
-              <Plus className="w-4 h-4" />
-              <span className="text-[10px]">尾帧</span>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="flex flex-col items-center gap-1 text-orange-300 w-full h-full justify-center cursor-default">
+                <span className="text-[10px]">尾帧</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 重新生成按钮 */}
         {hasImages && (
           <button
             onClick={onOpenGenerateModal}
             className="w-8 h-14 bg-slate-100 hover:bg-blue-100 rounded-lg flex items-center justify-center transition-colors border border-slate-300"
-            title="重新生成首尾帧"
+            title="重新生成"
           >
             <RefreshCw className="w-4 h-4 text-slate-600 hover:text-blue-600" />
           </button>

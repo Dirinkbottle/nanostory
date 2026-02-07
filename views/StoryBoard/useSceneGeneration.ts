@@ -8,9 +8,12 @@ interface UseSceneGenerationOptions {
   scriptId: number | null;
   scenes: StoryboardScene[];
   setScenes: Dispatch<SetStateAction<StoryboardScene[]>>;
+  imageModel: string;
+  textModel: string;
+  videoModel: string;
 }
 
-export function useSceneGeneration({ projectId, scriptId, scenes, setScenes }: UseSceneGenerationOptions) {
+export function useSceneGeneration({ projectId, scriptId, scenes, setScenes, imageModel, textModel, videoModel }: UseSceneGenerationOptions) {
   const { tasks, runTask, clearTask, isRunning } = useTaskRunner({ projectId: projectId || 0 });
 
   // 监听任务完成 → 更新 scene 状态 + 保存数据库
@@ -63,11 +66,36 @@ export function useSceneGeneration({ projectId, scriptId, scenes, setScenes }: U
   // 启动首尾帧生成 workflow
   const generateImage = async (id: number, prompt: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      await runTask(`img_${id}`, 'frame_generation', {
-        prompt,
-        width: 640,
-        height: 360
-      });
+      const scene = scenes.find(s => s.id === id);
+      if (!scene) {
+        return { success: false, error: '找不到分镜' };
+      }
+
+      // 根据是否有动作选择不同的工作流
+      if (scene.hasAction) {
+        // 有动作：生成首尾帧
+        console.log('[useSceneGeneration] 生成首尾帧（有动作）');
+        await runTask(`img_${id}`, 'frame_generation', {
+          storyboardId: id,
+          prompt,
+          imageModel,
+          textModel,
+          width: 640,
+          height: 360
+        });
+      } else {
+        // 无动作：只生成单帧
+        console.log('[useSceneGeneration] 生成单帧（无动作）');
+        await runTask(`img_${id}`, 'single_frame_generation', {
+          storyboardId: id,
+          description: prompt,
+          imageModel,
+          textModel,
+          width: 640,
+          height: 360
+        });
+      }
+      
       return { success: true };
     } catch (error: any) {
       console.error('图片生成失败:', error);
@@ -78,14 +106,19 @@ export function useSceneGeneration({ projectId, scriptId, scenes, setScenes }: U
   // 启动视频生成 workflow
   const generateVideo = async (id: number): Promise<{ success: boolean; error?: string }> => {
     const scene = scenes.find(s => s.id === id);
-    if (!scene || !scene.imageUrl) {
-      return { success: false, error: '请先生成图片' };
+    if (!scene) {
+      return { success: false, error: '找不到分镜' };
+    }
+    if (!videoModel) {
+      return { success: false, error: '请先选择视频生成模型' };
     }
     try {
-      const params = scene.hasAction && scene.startFrame && scene.endFrame
-        ? { prompt: scene.description, startFrame: scene.startFrame, endFrame: scene.endFrame, imageUrl: scene.imageUrl, duration: scene.duration || 3 }
-        : { prompt: scene.description, imageUrl: scene.imageUrl, duration: scene.duration || 2 };
-      await runTask(`vid_${id}`, 'scene_video', params);
+      await runTask(`vid_${id}`, 'scene_video', {
+        storyboardId: id,
+        videoModel,
+        textModel,
+        duration: scene.duration || (scene.hasAction ? 3 : 2)
+      });
       return { success: true };
     } catch (error: any) {
       console.error('视频生成失败:', error);

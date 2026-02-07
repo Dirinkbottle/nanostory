@@ -4,7 +4,7 @@
  * 
  * 输入参数:
  * @param {string} params.prompt - 统一的提示词字段
- * @param {string} params.modelName - 模型名称
+ * @param {string} params.textModel - 文本模型名称（统一字段名）
  * @param {number} params.maxTokens - 最大 token 数（可选，默认 500）
  * @param {number} params.temperature - 温度参数（可选，默认 0.7）
  * 
@@ -13,18 +13,24 @@
  */
 
 const { callAIModel } = require('../../../aiModelService');
-const { getTextModels } = require('../../../aiModelService');
 
 async function handleBaseTextModelCall(params, onProgress) {
   const {
     prompt,
-    modelName,
+    textModel: _textModel,
+    modelName: _legacyModelName,
     maxTokens = 500,
     temperature = 0.7
   } = params;
 
+  const modelName = _textModel || _legacyModelName;
+
   if (!prompt) {
     throw new Error('prompt 参数是必需的');
+  }
+
+  if (!modelName) {
+    throw new Error('textModel 参数是必需的');
   }
 
   console.log('[BaseTextModelCall] 开始调用文本模型:', {
@@ -35,17 +41,6 @@ async function handleBaseTextModelCall(params, onProgress) {
   });
 
   if (onProgress) onProgress(10);
-
-  // 获取可用的文本模型
-  let targetModel = modelName;
-  if (!targetModel) {
-    const textModels = await getTextModels();
-    if (!textModels || textModels.length === 0) {
-      throw new Error('没有可用的文本生成模型');
-    }
-    targetModel = textModels[0].name;
-    console.log('[BaseTextModelCall] 未指定模型，使用默认文本模型:', targetModel);
-  }
 
   if (onProgress) onProgress(20);
 
@@ -69,7 +64,7 @@ async function handleBaseTextModelCall(params, onProgress) {
     if (onProgress) onProgress(40);
 
     // 调用 AI 模型服务
-    const response = await callAIModel(targetModel, requestParams);
+    const response = await callAIModel(modelName, requestParams);
 
     if (onProgress) onProgress(90);
 

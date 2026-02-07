@@ -210,7 +210,8 @@ router.post('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
     query_url_template, query_method, query_headers_template,
     query_body_template, query_response_mapping,
     query_success_condition, query_fail_condition,
-    query_success_mapping, query_fail_mapping
+    query_success_mapping, query_fail_mapping,
+    custom_handler, custom_query_handler
   } = req.body;
   
   if (!name || !category || !provider || !price_config || !url_template || !headers_template || !response_mapping) {
@@ -226,8 +227,9 @@ router.post('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
         query_url_template, query_method, query_headers_template,
         query_body_template, query_response_mapping,
         query_success_condition, query_fail_condition,
-        query_success_mapping, query_fail_mapping
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        query_success_mapping, query_fail_mapping,
+        custom_handler, custom_query_handler
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name, category, provider, description, is_active ?? 1, api_key,
         JSON.stringify(price_config), request_method || 'POST', url_template,
@@ -239,7 +241,8 @@ router.post('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
         query_response_mapping ? JSON.stringify(query_response_mapping) : null,
         query_success_condition || null, query_fail_condition || null,
         query_success_mapping ? JSON.stringify(query_success_mapping) : null,
-        query_fail_mapping ? JSON.stringify(query_fail_mapping) : null
+        query_fail_mapping ? JSON.stringify(query_fail_mapping) : null,
+        custom_handler || null, custom_query_handler || null
       ]
     );
     
@@ -259,7 +262,8 @@ router.put('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) =
     query_url_template, query_method, query_headers_template,
     query_body_template, query_response_mapping,
     query_success_condition, query_fail_condition,
-    query_success_mapping, query_fail_mapping
+    query_success_mapping, query_fail_mapping,
+    custom_handler, custom_query_handler
   } = req.body;
   
   try {
@@ -276,7 +280,8 @@ router.put('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) =
         query_url_template = ?, query_method = ?, query_headers_template = ?,
         query_body_template = ?, query_response_mapping = ?,
         query_success_condition = ?, query_fail_condition = ?,
-        query_success_mapping = ?, query_fail_mapping = ?
+        query_success_mapping = ?, query_fail_mapping = ?,
+        custom_handler = ?, custom_query_handler = ?
       WHERE id = ?`,
       [
         name, category, provider, description, is_active, api_key,
@@ -290,6 +295,7 @@ router.put('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) =
         query_success_condition || null, query_fail_condition || null,
         query_success_mapping ? JSON.stringify(query_success_mapping) : null,
         query_fail_mapping ? JSON.stringify(query_fail_mapping) : null,
+        custom_handler || null, custom_query_handler || null,
         id
       ]
     );
@@ -319,21 +325,21 @@ router.delete('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res
 });
 
 router.post('/ai-models/smart-parse', authMiddleware, adminMiddleware, async (req, res) => {
-  const { apiDoc, modelName, customPrompt } = req.body;
+  const { apiDoc, textModel, customPrompt } = req.body;
   
-  if (!apiDoc || !modelName) {
+  if (!apiDoc || !textModel) {
     return res.status(400).json({ message: 'API文档和模型名称不能为空' });
   }
   
   try {
-    const engine = require('./nosyntask/engine');
+    const engine = require('./nosyntask/engine/index');
     const userId = req.user.id;
 
     // 启动 smart_parse 工作流（异步执行）
     const result = await engine.startWorkflow('smart_parse', {
       userId,
       projectId: null, // 管理后台操作，无项目关联
-      jobParams: { apiDoc, modelName, customPrompt }
+      jobParams: { apiDoc, textModel, customPrompt }
     });
 
     res.json({ 
@@ -429,6 +435,83 @@ router.post('/ai-models/:id/query', authMiddleware, adminMiddleware, async (req,
     res.status(500).json({ 
       success: false, 
       message: error.message || '查询失败' 
+    });
+  }
+});
+
+/**
+ * 模型调试 - 使用 base handler 直接测试（含完整 submit+poll 流程）
+ * TEXT  → baseTextModelCall
+ * IMAGE → imageGeneration
+ * VIDEO → baseVideoModelCall
+ * 
+ * 请求会阻塞直到 handler 完成（图片/视频可能需要数分钟）
+ */
+router.post('/ai-models/:id/test-handler', authMiddleware, adminMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { params } = req.body;
+
+  try {
+    const model = await queryOne('SELECT id, name, category FROM ai_model_configs WHERE id = ?', [id]);
+    if (!model) {
+      return res.status(404).json({ success: false, message: '模型不存在' });
+    }
+
+    const startTime = Date.now();
+    let result;
+
+    switch (model.category) {
+      case 'TEXT': {
+        const handleBaseTextModelCall = require('./nosyntask/tasks/base/baseTextModelCall');
+        result = await handleBaseTextModelCall({
+          prompt: params?.prompt || '你好，请简单介绍一下自己。',
+          textModel: model.name,
+          maxTokens: params?.maxTokens || 500,
+          temperature: params?.temperature || 0.7
+        });
+        break;
+      }
+      case 'IMAGE': {
+        const handleImageGeneration = require('./nosyntask/tasks/base/imageGeneration');
+        result = await handleImageGeneration({
+          prompt: params?.prompt || 'A cute cat sitting on a windowsill, watercolor style',
+          imageModel: model.name,
+          width: params?.width || 1024,
+          height: params?.height || 1024,
+          imageUrl: params?.imageUrl || undefined,
+          imageUrls: params?.imageUrls || undefined
+        });
+        break;
+      }
+      case 'VIDEO': {
+        const handleBaseVideoModelCall = require('./nosyntask/tasks/base/baseVideoModelCall');
+        result = await handleBaseVideoModelCall({
+          prompt: params?.prompt || 'A cat walking slowly',
+          videoModel: model.name,
+          duration: params?.duration || 5,
+          imageUrl: params?.imageUrl || undefined,
+          imageUrls: params?.imageUrls || undefined,
+          aspectRatio: params?.aspectRatio || undefined
+        });
+        break;
+      }
+      default:
+        return res.status(400).json({ success: false, message: `不支持的模型类别: ${model.category}` });
+    }
+
+    const elapsed = Date.now() - startTime;
+    res.json({
+      success: true,
+      category: model.category,
+      elapsed,
+      result
+    });
+  } catch (error) {
+    console.error('[Admin] Test handler error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || '测试失败',
+      error: error.message
     });
   }
 });
