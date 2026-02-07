@@ -85,6 +85,9 @@ class WorkflowQuery {
       if (job.input_params && typeof job.input_params === 'string') {
         try { job.input_params = JSON.parse(job.input_params); } catch(e) {}
       }
+      // 添加工作流名称
+      const definition = getWorkflowDefinition(job.workflow_type);
+      job.workflowName = definition?.name || job.workflow_type;
       return job;
     });
   }

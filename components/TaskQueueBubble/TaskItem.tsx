@@ -8,9 +8,9 @@ const WORKFLOW_TYPE_NAMES: Record<string, string> = {
   'storyboard_generation': '分镜生成',
   'scene_extraction': '场景提取',
   'character_extraction': '角色提取',
-  'frame_generation': '分镜首尾帧生成',
-  'single_frame_generation': '分镜单帧生成',
-  'scene_video': '分镜视频生成',
+  'frame_generation': '首尾帧生成',
+  'single_frame_generation': '单帧生成',
+  'scene_video': '视频生成',
   'character_views_generation': '角色三视图生成',
   'scene_image_generation': '场景图生成',
   'batch_frame_generation': '批量帧生成',
@@ -19,14 +19,55 @@ const WORKFLOW_TYPE_NAMES: Record<string, string> = {
   'script_and_characters': '剧本 + 角色提取',
 };
 
-// 获取任务显示名称
-const getTaskName = (job: WorkflowJob): string => {
-  // 优先使用后端返回的 workflowName
-  if (job.workflowName && job.workflowName !== job.workflow_type) {
-    return job.workflowName;
+// 解析 input_params
+const parseInputParams = (job: WorkflowJob): Record<string, any> => {
+  if (!job.input_params) return {};
+  if (typeof job.input_params === 'string') {
+    try {
+      return JSON.parse(job.input_params);
+    } catch {
+      return {};
+    }
   }
-  // 否则使用前端映射
-  return WORKFLOW_TYPE_NAMES[job.workflow_type] || job.workflow_type;
+  return job.input_params;
+};
+
+// 获取任务显示名称（包含详细信息）
+const getTaskName = (job: WorkflowJob): string => {
+  const baseName = job.workflowName && job.workflowName !== job.workflow_type
+    ? job.workflowName
+    : WORKFLOW_TYPE_NAMES[job.workflow_type] || job.workflow_type;
+  
+  const params = parseInputParams(job);
+  const parts: string[] = [];
+  
+  // 集数信息
+  if (params.episodeNumber) {
+    parts.push(`第${params.episodeNumber}集`);
+  }
+  
+  // 分镜序号信息
+  if (params.storyboardIndex || params.sceneIndex) {
+    const idx = params.storyboardIndex || params.sceneIndex;
+    parts.push(`第${idx}个分镜`);
+  }
+  
+  // 角色名称
+  if (params.characterName) {
+    parts.push(`「${params.characterName}」`);
+  }
+  
+  // 场景名称
+  if (params.sceneName) {
+    parts.push(`「${params.sceneName}」`);
+  }
+  
+  // 组合显示
+  if (parts.length > 0) {
+    return `${parts.join(' ')} ${baseName}`;
+  }
+  
+  return baseName;
 };
 
 interface TaskItemProps {
