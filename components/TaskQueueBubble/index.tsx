@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Spinner } from '@heroui/react';
-import { X, ChevronDown, RotateCcw, ListTodo } from 'lucide-react';
+import { X, RotateCcw, ListTodo } from 'lucide-react';
 import { getAuthToken } from '../../services/auth';
 import { useTaskQueue } from './useTaskQueue';
 import TaskItem from './TaskItem';
@@ -29,7 +29,6 @@ const getStatusLabel = (status: string) => {
 
 const TaskQueueBubble: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isHidden, setIsHidden] = useState(false);
 
   const {
     jobs,
@@ -40,17 +39,6 @@ const TaskQueueBubble: React.FC = () => {
 
   // 未登录不显示
   if (!getAuthToken()) return null;
-
-  // 隐藏模式：只显示一个小点
-  if (isHidden) {
-    return (
-      <button
-        onClick={() => setIsHidden(false)}
-        className="fixed bottom-4 right-4 z-50 w-3 h-3 rounded-full bg-blue-500 opacity-50 hover:opacity-100 hover:w-4 hover:h-4 transition-all"
-        title="显示任务队列"
-      />
-    );
-  }
 
   return (
     <>
@@ -84,22 +72,13 @@ const TaskQueueBubble: React.FC = () => {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setIsHidden(true)}
-                className="p-1 hover:bg-white/20 rounded transition-colors"
-                title="隐藏"
-              >
-                <ChevronDown className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="p-1 hover:bg-white/20 rounded transition-colors"
-                title="收起"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="p-1 hover:bg-white/20 rounded transition-colors"
+              title="收起"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
           {/* 任务列表 */}
