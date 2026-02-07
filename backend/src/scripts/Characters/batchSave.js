@@ -28,14 +28,9 @@ module.exports = (router) => {
         );
 
         if (existing) {
-          // 角色已存在，动态更新提供的字段
+          // 角色已存在，动态更新提供的字段（不更新 script_id，因为同一角色可能出现在多集）
           const updateFields = [];
           const updateValues = [];
-          
-          if (scriptId !== undefined) {
-            updateFields.push('script_id = ?');
-            updateValues.push(scriptId);
-          }
           if (charData.appearance !== undefined) {
             updateFields.push('appearance = ?');
             updateValues.push(charData.appearance);

@@ -7,22 +7,24 @@ export const useCharacterData = (projectId?: number | null, scriptId?: number | 
   const [isLoadingCharacters, setIsLoadingCharacters] = useState(false);
 
   useEffect(() => {
-    if (projectId && scriptId) {
+    if (projectId) {
       loadCharacters();
+    } else {
+      setDbCharacters([]);
     }
-  }, [projectId, scriptId]);
+  }, [projectId]);
 
   const loadCharacters = async () => {
-    if (!projectId || !scriptId) {
-      console.log('[ResourcePanel] 缺少 projectId 或 scriptId，跳过加载角色');
+    if (!projectId) {
+      console.log('[ResourcePanel] 缺少 projectId，跳过加载角色');
       return;
     }
     
     setIsLoadingCharacters(true);
     try {
       const token = getAuthToken();
-      // 强制传递 scriptId 给后端
-      const res = await fetch(`/api/characters/project/${projectId}?scriptId=${scriptId}`, {
+      // 获取项目所有角色（不按集数过滤，因为同一角色可能出现在多集）
+      const res = await fetch(`/api/characters/project/${projectId}`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
