@@ -15,6 +15,9 @@ const getEpisode = require('./ScriptStudio/getEpisode');
 const getAllScripts = require('./ScriptStudio/getAllScripts');
 const updateScript = require('./ScriptStudio/updateScript');
 const deleteScript = require('./ScriptStudio/deleteScript');
+const createScript = require('./ScriptStudio/createScript');
+const deleteEpisode = require('./ScriptStudio/deleteEpisode');
+const cleanOrphanResources = require('./ScriptStudio/cleanOrphanResources');
 
 const router = express.Router();
 
@@ -24,6 +27,9 @@ const router = express.Router();
 
 // 获取可用模型
 router.get('/models', getModels);
+
+// 手动创建剧本
+router.post('/create', authMiddleware, createScript);
 
 // 生成剧本
 router.post('/generate', authMiddleware, generateScript);
@@ -37,13 +43,19 @@ router.get('/project/:projectId', authMiddleware, getProjectScripts);
 // 获取指定集的剧本
 router.get('/project/:projectId/episode/:episodeNumber', authMiddleware, getEpisode);
 
+// 清理孤立资源（角色/场景）
+router.post('/clean-orphans', authMiddleware, cleanOrphanResources);
+
 // 获取所有剧本（旧接口）
 router.get('/', authMiddleware, getAllScripts);
 
 // 更新剧本
 router.put('/:id', authMiddleware, updateScript);
 
-// 删除剧本
+// 删除某集（分镜+剧本+查孤立资源）
+router.delete('/:id/episode', authMiddleware, deleteEpisode);
+
+// 删除剧本（旧接口，仅删剧本记录）
 router.delete('/:id', authMiddleware, deleteScript);
 
 module.exports = router;

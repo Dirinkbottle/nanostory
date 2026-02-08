@@ -12,8 +12,20 @@ const getStoryboards = require('./getStoryboards');
 const saveStoryboards = require('./saveStoryboards');
 const updateMedia = require('./updateMedia');
 const validateReadiness = require('./validateReadiness');
+const reorderStoryboards = require('./reorderStoryboards');
+const deleteStoryboard = require('./deleteStoryboard');
+const addStoryboard = require('./addStoryboard');
 
 const router = express.Router();
+
+// 手动添加单个分镜
+router.post('/add', authMiddleware, addStoryboard);
+
+// 分镜排序保存
+router.patch('/reorder', authMiddleware, reorderStoryboards);
+
+// 删除单个分镜
+router.delete('/scene/:storyboardId', authMiddleware, deleteStoryboard);
 
 // 分镜生成预检（检查资产完整性）
 router.get('/:storyboardId/validate', authMiddleware, validateReadiness);

@@ -31,6 +31,7 @@ module.exports = (router) => {
           personality: character.personality,
           description: character.description,
           style: style,
+          projectId: character.project_id,
           imageModel,  // 从请求体中获取用户选择的图片模型
           textModel    // 文本模型（用于生成提示词）
         }

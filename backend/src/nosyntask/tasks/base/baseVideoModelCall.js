@@ -64,7 +64,7 @@ async function handleBaseVideoModelCall(inputParams, onProgress) {
   // 视频生成通常耗时较长，轮询间隔和超时都比图片大
   const result = await submitAndPoll(modelName, submitParams, {
     intervalMs: 5000,
-    maxDurationMs: 600000,   // 10 分钟超时
+    maxDurationMs: 3600000,   // 10 分钟超时
     onProgress,
     progressStart: 20,
     progressEnd: 90,

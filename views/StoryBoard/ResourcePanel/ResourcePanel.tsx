@@ -114,7 +114,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     setIsSceneImageModalOpen(false);
   };
 
-  const handleGenerateSceneImage = async (sceneId: number, style: string, imageModelName: string) => {
+  const handleGenerateSceneImage = async (sceneId: number, imageModelName: string) => {
     try {
       const token = getAuthToken();
       const res = await fetch(`/api/scenes/${sceneId}/generate-image`, {
@@ -124,7 +124,6 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
-          style, 
           imageModel: imageModelName, 
           textModel,
           width: 1024, 

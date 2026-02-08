@@ -45,14 +45,10 @@ const ScriptPreview: React.FC<ScriptPreviewProps> = ({
       <Card className="bg-white border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden">
         <CardBody className="p-6 flex-1 flex flex-col overflow-hidden">
           {isEditing ? (
-            <Textarea
+            <textarea
               value={content}
-              onValueChange={onContentChange}
-              classNames={{
-                base: "flex-1 flex flex-col h-full",
-                inputWrapper: "flex-1 bg-white border border-slate-200 h-full",
-                input: "bg-white text-slate-800 font-medium h-full resize-none overflow-auto"
-              }}
+              onChange={(e) => onContentChange(e.target.value)}
+              className="flex-1 min-h-0 w-full bg-white text-slate-800 font-medium leading-relaxed text-base border border-slate-200 rounded-lg p-4 resize-none overflow-auto outline-none focus:border-blue-500 transition-colors"
             />
           ) : (
             <div className="flex-1 overflow-y-auto overflow-x-hidden">

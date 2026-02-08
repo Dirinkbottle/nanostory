@@ -121,6 +121,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     projectId: currentProjectId,
     imageModel,
     textModel,
+    scenes,
     onComplete: () => {
       console.log('[StoryBoard] 批量帧生成完成，重新加载分镜');
       if (currentScriptId) {
@@ -325,6 +326,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
             <SceneList
               scenes={scenes}
               selectedScene={selectedScene}
+              projectId={currentProjectId}
+              scriptId={currentScriptId}
               onSelectScene={setSelectedScene}
               onAddScene={addScene}
               onDeleteScene={deleteScene}

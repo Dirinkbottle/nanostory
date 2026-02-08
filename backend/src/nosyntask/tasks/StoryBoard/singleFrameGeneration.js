@@ -5,16 +5,18 @@
  * 1. 查询分镜数据，获取角色列表和场景名称
  * 2. 查询角色正面图 URL + 场景图 URL，拼接为 imageUrls 参考数组
  *    （多角色镜头阻止）
- * 3. 调用文本模型，根据镜头描述生成帧提示词
- * 4. 以 imageUrls + 提示词 调用图片模型生成单帧，保存到数据库
+ * 3. 如果有上一镜头尾帧（prevEndFrameUrl），加入参考图列表以保持连续性
+ * 4. 调用文本模型，根据镜头描述 + 上一镜头上下文生成帧提示词
+ * 5. 以 imageUrls + 提示词 调用图片模型生成单帧，保存到数据库
  * 
- * input:  { storyboardId, description, imageModel, textModel, width, height }
+ * input:  { storyboardId, description, imageModel, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene }
  * output: { firstFrameUrl, promptUsed, model }
  */
 
 const { execute, queryOne } = require('../../../dbHelper');
 const baseTextModelCall = require('../base/baseTextModelCall');
 const imageGeneration = require('../base/imageGeneration');
+const { requireVisualStyle } = require('../../../utils/getProjectStyle');
 
 /**
  * 从分镜数据中收集参考图 URL 数组（角色正面图 + 场景图）
@@ -63,7 +65,7 @@ async function collectReferenceImages(storyboard, variables) {
 }
 
 async function handleSingleFrameGeneration(inputParams, onProgress) {
-  const { storyboardId, description, imageModel, modelName: _legacy, textModel, width, height } = inputParams;
+  const { storyboardId, description, imageModel, modelName: _legacy, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene } = inputParams;
   const modelName = imageModel || _legacy;
 
   if (!storyboardId) {
@@ -86,6 +88,9 @@ async function handleSingleFrameGeneration(inputParams, onProgress) {
     throw new Error(`分镜 ${storyboardId} 不存在`);
   }
 
+  // 项目视觉风格（必填，未设置则报错）
+  const visualStyle = await requireVisualStyle(storyboard.project_id);
+
   let variables = {};
   try {
     variables = typeof storyboard.variables_json === 'string'
@@ -100,6 +105,16 @@ async function handleSingleFrameGeneration(inputParams, onProgress) {
   // 2. 收集参考图（角色正面图 + 场景图）
   if (onProgress) onProgress(10);
   const { imageUrls, characterName, location } = await collectReferenceImages(storyboard, variables);
+
+  // 2.5 加入上一镜头尾帧作为参考图（保持镜头间连续性）
+  if (!isFirstScene) {
+    if (prevEndFrameUrl) {
+      imageUrls.unshift(prevEndFrameUrl);
+      console.log('[SingleFrameGen] 加入上一镜头尾帧作为参考:', prevEndFrameUrl);
+    } else {
+      throw new Error('非首镜头缺少上一镜头的尾帧参考图，这会导致镜头间严重割裂。请先确保上一镜头已生成帧图片。');
+    }
+  }
   console.log('[SingleFrameGen] 参考图数组:', imageUrls);
 
   // 3. 生成帧提示词
@@ -112,7 +127,11 @@ async function handleSingleFrameGeneration(inputParams, onProgress) {
     const locInfo = location ? `场景: ${location}` : '无特定场景';
     const shotInfo = variables.shotType ? `镜头类型: ${variables.shotType}` : '';
     const emotionInfo = variables.emotion ? `情绪/氛围: ${variables.emotion}` : '';
-    const extraInfo = [charInfo, locInfo, shotInfo, emotionInfo].filter(Boolean).join('\n');
+    const styleInfo = visualStyle ? `视觉风格: ${visualStyle}` : '';
+    const prevContext = prevDescription
+      ? `上一个镜头描述：${prevDescription}\n注意：当前画面需要自然衔接上一个镜头的结束状态，保持角色、场景、光线的连续性。`
+      : '';
+    const extraInfo = [charInfo, locInfo, shotInfo, emotionInfo, styleInfo, prevContext].filter(Boolean).join('\n');
 
     const promptGenerationResult = await baseTextModelCall({
       prompt: `你是一个专业的图片生成提示词专家。
@@ -126,7 +145,9 @@ ${extraInfo}
 1. 提示词要详细描述画面内容、构图、光线、氛围
 2. 包含角色的动作状态和表情
 3. 镜头类型决定构图（如特写聚焦面部，远景展示全貌）
-4. 只输出提示词本身，不要其他解释
+4. 如果有上一镜头信息，确保画面与上一镜头自然衔接
+5. 如果有视觉风格要求，提示词必须体现该风格特征
+6. 只输出提示词本身，不要其他解释
 
 提示词：`,
       textModel,
@@ -137,7 +158,9 @@ ${extraInfo}
     promptUsed = promptGenerationResult.content || desc;
     console.log('[SingleFrameGen] 生成的提示词:', promptUsed.substring(0, 100) + '...');
   } else {
-    console.log('[SingleFrameGen] 无文本模型，使用原始描述作为提示词');
+    const prevHint = prevDescription ? `，承接上一镜头「${prevDescription}」的结束状态` : '';
+    promptUsed = `${desc}${prevHint}`;
+    console.log('[SingleFrameGen] 无文本模型，使用拼接提示词');
   }
 
   // 4. 生成首帧图片

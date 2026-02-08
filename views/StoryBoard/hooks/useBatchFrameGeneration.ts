@@ -6,12 +6,14 @@
 import { useState, useCallback } from 'react';
 import { useWorkflow } from '../../../hooks/useWorkflow';
 import { getAuthToken } from '../../../services/auth';
+import { validateBatchFrameReadiness, formatValidationMessage } from '../utils/validateFrameReadiness';
 
 interface UseBatchFrameGenerationProps {
   scriptId: number | null;
   projectId: number | null;
   imageModel: string;
   textModel: string;
+  scenes: { characters: string[]; location: string }[];
   onComplete?: () => void;
 }
 
@@ -20,6 +22,7 @@ export function useBatchFrameGeneration({
   projectId,
   imageModel,
   textModel,
+  scenes,
   onComplete
 }: UseBatchFrameGenerationProps) {
   const [jobId, setJobId] = useState<number | null>(null);
@@ -44,6 +47,19 @@ export function useBatchFrameGeneration({
     if (!imageModel) {
       alert('请先选择图片模型');
       return;
+    }
+
+    // 前置校验：检查所有分镜涉及的角色和场景是否完整
+    if (projectId && scenes.length > 0) {
+      try {
+        const validation = await validateBatchFrameReadiness(projectId, scenes, scriptId);
+        if (!validation.ready) {
+          alert(formatValidationMessage(validation));
+          return;
+        }
+      } catch (err) {
+        console.error('[useBatchFrameGen] 预检失败:', err);
+      }
     }
 
     try {
@@ -74,7 +90,7 @@ export function useBatchFrameGeneration({
       console.error('[useBatchFrameGen] 启动失败:', error);
       alert('启动批量生成失败，请检查网络连接');
     }
-  }, [scriptId, imageModel, projectId]);
+  }, [scriptId, imageModel, projectId, scenes]);
 
   return {
     startBatchGeneration,

@@ -6,6 +6,7 @@
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const { queryAll } = require('../../../dbHelper');
+const { getStoryStyle } = require('../../../utils/getProjectStyle');
 
 async function handleScriptGeneration(inputParams, onProgress) {
   const { title, description, style, length, textModel, modelName: _legacy, projectId, episodeNumber } = inputParams;
@@ -39,22 +40,30 @@ async function handleScriptGeneration(inputParams, onProgress) {
 
   if (onProgress) onProgress(20);
 
+  // 查询项目级叙事风格和约束
+  const { storyStyle: projectStoryStyle, storyConstraints } = await getStoryStyle(projectId);
+  if (!projectStoryStyle) {
+    throw new Error('该项目尚未设置叙事风格。请先在「工程设置」中填写叙事风格（如热血少年漫、悬疑推理等），再生成剧本。');
+  }
+  const effectiveStyle = projectStoryStyle;
+  const constraintLine = storyConstraints ? `\n【创作约束】${storyConstraints}` : '';
+
   // 构建用户提示词
   let userPrompt;
   if (targetEpisode === 1) {
-    userPrompt = `请根据以下信息创作一个${length || '短篇'}的${style || '电影感'}风格视频剧本（第1集）：
+    userPrompt = `请根据以下信息创作一个${length || '短篇'}的${effectiveStyle}风格视频剧本（第1集）：
 标题：${title || '未命名'}
-故事概述：${description || ''}
+故事概述：${description || ''}${constraintLine}
 
 要求：
 1. 分成多个场景，每个场景独立完整
 2. 每个场景包含画面描述和对白
 3. 适合视频化呈现
-4. 作为第1集，需要做好人物和世界观的铺垫`;
+4. 作为第1集，需要做好人物和世界观的铺垫${storyConstraints ? '\n5. 严格遵守创作约束中的限制条件' : ''}`;
   } else {
     userPrompt = `请根据以下信息继续创作视频剧本的第${targetEpisode}集：
 本集标题：${title || `第${targetEpisode}集`}
-${previousEpisodesContext}
+${previousEpisodesContext}${constraintLine}
 ${description ? `\n【用户期望的故事走向】\n${description}\n（请参考此走向发展剧情，但必须与前面的剧情保持连贯）\n` : ''}
 要求：
 1. 【重要】必须延续前面集数的人物设定、剧情发展和叙事风格
@@ -63,7 +72,7 @@ ${description ? `\n【用户期望的故事走向】\n${description}\n（请参�
 4. 每个场景包含画面描述和对白
 5. 适合视频化呈现
 6. 这是第${targetEpisode}集，需要承接前集剧情并推进故事发展
-7. 保持角色性格和说话风格的一致性`;
+7. 保持角色性格和说话风格的一致性${storyConstraints ? '\n8. 严格遵守创作约束中的限制条件' : ''}`;
   }
 
   if (onProgress) onProgress(30);

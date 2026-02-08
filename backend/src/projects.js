@@ -1,8 +1,15 @@
 const express = require('express');
 const { queryOne, queryAll, execute, getLastInsertId } = require('./dbHelper');
 const { authMiddleware } = require('./middleware');
+const { VISUAL_STYLE_PRESETS } = require('./utils/getProjectStyle');
 
 const router = express.Router();
+
+// 获取视觉风格预设列表
+router.get('/style-presets', authMiddleware, (req, res) => {
+  const presets = Object.entries(VISUAL_STYLE_PRESETS).map(([label, prompt]) => ({ label, prompt }));
+  res.json({ presets });
+});
 
 // 获取所有工程
 router.get('/', authMiddleware, async (req, res) => {

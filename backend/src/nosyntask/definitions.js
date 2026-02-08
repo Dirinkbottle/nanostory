@@ -285,7 +285,7 @@ const WORKFLOW_DEFINITIONS = {
         handler: handleCharacterViewsGeneration,
         buildInput: createBuildInput([
           'characterId', 'characterName', 'appearance', 'personality',
-          'description', 'style', 'imageModel', 'textModel',
+          'description', 'style', 'projectId', 'imageModel', 'textModel',
           { key: 'width', defaultValue: 512 },
           { key: 'height', defaultValue: 768 }
         ])

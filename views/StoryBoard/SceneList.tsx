@@ -8,6 +8,8 @@ import { TaskState } from '../../hooks/useTaskRunner';
 interface SceneListProps {
   scenes: StoryboardScene[];
   selectedScene: number | null;
+  projectId?: number | null;
+  scriptId?: number | null;
   onSelectScene: (id: number) => void;
   onMoveScene: (id: number, direction: 'up' | 'down') => void;
   onDeleteScene: (id: number) => void;
@@ -28,6 +30,8 @@ interface SceneListProps {
 const SceneList: React.FC<SceneListProps> = ({
   scenes,
   selectedScene,
+  projectId,
+  scriptId,
   onSelectScene,
   onMoveScene,
   onDeleteScene,
@@ -174,6 +178,8 @@ const SceneList: React.FC<SceneListProps> = ({
               isSelected={selectedScene === scene.id}
               isFirst={index === 0}
               isLast={index === scenes.length - 1}
+              projectId={projectId}
+              scriptId={scriptId}
               onSelect={onSelectScene}
               onMoveUp={onMoveScene}
               onMoveDown={onMoveScene}

@@ -184,7 +184,6 @@ export function useScriptGeneration({
     episodeNumber: number,
     title: string,
     description: string,
-    style: string,
     length: string,
     nextEpisode: number,
     textModel: string
@@ -232,7 +231,6 @@ export function useScriptGeneration({
           episodeNumber: episodeNumber || nextEpisode,
           title: title || `第${episodeNumber || nextEpisode}集`, 
           description, 
-          style, 
           length,
           textModel
         })

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Chip, Select, SelectItem } from '@heroui/react';
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Chip } from '@heroui/react';
 import { MapPin, Wand2, Loader2 } from 'lucide-react';
 import { getAuthToken } from '../../../services/auth';
 
@@ -20,7 +20,7 @@ interface SceneDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   scene: Scene | null;
-  onGenerateImage?: (sceneId: number, style: string, imageModel: string) => Promise<void>;
+  onGenerateImage?: (sceneId: number, imageModel: string) => Promise<void>;
   isGenerating?: boolean;
   imageModel?: string;
 }
@@ -33,7 +33,6 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
   isGenerating = false,
   imageModel = ''
 }) => {
-  const [selectedStyle, setSelectedStyle] = useState('写实风格');
   const [generating, setGenerating] = useState(false);
 
   if (!scene) return null;
@@ -43,7 +42,7 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
     
     setGenerating(true);
     try {
-      await onGenerateImage(scene.id, selectedStyle, imageModel);
+      await onGenerateImage(scene.id, imageModel);
     } catch (error) {
       console.error('生成场景图片失败:', error);
     } finally {
@@ -180,21 +179,6 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
                       生成场景图片
                     </h4>
                     <div className="space-y-3">
-                      <Select
-                        label="风格"
-                        placeholder="选择风格"
-                        selectedKeys={[selectedStyle]}
-                        onChange={(e) => setSelectedStyle(e.target.value)}
-                        size="sm"
-                        className="max-w-xs"
-                      >
-                        <SelectItem key="写实风格" value="写实风格">写实风格</SelectItem>
-                        <SelectItem key="动漫风格" value="动漫风格">动漫风格</SelectItem>
-                        <SelectItem key="赛博朋克" value="赛博朋克">赛博朋克</SelectItem>
-                        <SelectItem key="奇幻风格" value="奇幻风格">奇幻风格</SelectItem>
-                        <SelectItem key="水彩画" value="水彩画">水彩画</SelectItem>
-                      </Select>
-                      
                       {imageModel ? (
                         <p className="text-sm text-slate-500">使用图片模型：<span className="font-medium text-slate-700">{imageModel}</span></p>
                       ) : (

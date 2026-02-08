@@ -112,14 +112,22 @@ export function useScriptManagement() {
     }
   };
 
-  // 删除剧本
-  const handleDeleteScript = async (): Promise<{ success: boolean; message: string }> => {
+  // 删除某集（分镜+剧本+返回孤立资源）
+  interface OrphanResource { id: number; name: string; image_url?: string; }
+  interface DeleteEpisodeResult {
+    success: boolean;
+    message: string;
+    orphanCharacters?: OrphanResource[];
+    orphanScenes?: OrphanResource[];
+  }
+
+  const handleDeleteScript = async (): Promise<DeleteEpisodeResult> => {
     if (!scriptId) return { success: false, message: '没有可删除的剧本' };
 
     try {
       setLoading(true);
       const token = getAuthToken();
-      const res = await fetch(`/api/scripts/${scriptId}`, {
+      const res = await fetch(`/api/scripts/${scriptId}/episode`, {
         method: 'DELETE',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -131,12 +139,67 @@ export function useScriptManagement() {
         setScriptId(null);
         setTitle('');
         setContent('');
-        return { success: true, message: '剧本删除成功！' };
+        return {
+          success: true,
+          message: data.message || '剧本删除成功！',
+          orphanCharacters: data.orphanCharacters || [],
+          orphanScenes: data.orphanScenes || []
+        };
       } else {
         return { success: false, message: data.message || '删除失败' };
       }
     } catch (error: any) {
       return { success: false, message: error.message || '删除失败' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 清理孤立角色/场景
+  const handleCleanOrphans = async (characterIds: number[], sceneIds: number[]): Promise<boolean> => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/scripts/clean-orphans', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ characterIds, sceneIds })
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  // 手动创建剧本
+  const handleCreateScript = async (projectId: number, scriptTitle: string, scriptContent: string, episodeNumber: number) => {
+    try {
+      setLoading(true);
+      const token = getAuthToken();
+      const res = await fetch('/api/scripts/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          projectId,
+          title: scriptTitle || `第${episodeNumber}集`,
+          content: scriptContent,
+          episodeNumber
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await loadProjectScript(projectId, data.episodeNumber);
+        return { success: true, message: data.message || '剧本保存成功' };
+      } else {
+        return { success: false, message: data.message || '保存失败' };
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message || '保存失败' };
     } finally {
       setLoading(false);
     }
@@ -161,6 +224,8 @@ export function useScriptManagement() {
     loadProjectScript,
     handleEpisodeChange,
     handleSaveScript,
-    handleDeleteScript
+    handleCreateScript,
+    handleDeleteScript,
+    handleCleanOrphans
   };
 }

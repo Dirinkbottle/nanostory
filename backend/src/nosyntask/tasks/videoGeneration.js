@@ -22,7 +22,7 @@ async function handleVideoGeneration(inputParams, onProgress) {
     duration: duration || 5
   }, {
     intervalMs: 5000,
-    maxDurationMs: 600000,
+    maxDurationMs: 3600000,
     logTag: 'VideoGen'
   });
 

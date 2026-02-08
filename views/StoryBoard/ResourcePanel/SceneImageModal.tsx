@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Select, SelectItem } from '@heroui/react';
+import React from 'react';
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from '@heroui/react';
 import { Image as ImageIcon, Wand2 } from 'lucide-react';
 import { Scene } from './useSceneData';
 
@@ -8,18 +8,9 @@ interface SceneImageModalProps {
   onClose: () => void;
   scene: Scene | null;
   isGenerating: boolean;
-  onGenerate: (sceneId: number, style: string, imageModel: string) => void;
+  onGenerate: (sceneId: number, imageModel: string) => void;
   imageModel: string;
 }
-
-const STYLE_OPTIONS = [
-  { value: '写实风格', label: '写实风格' },
-  { value: '动漫风格', label: '动漫风格' },
-  { value: '水彩风格', label: '水彩风格' },
-  { value: '油画风格', label: '油画风格' },
-  { value: '赛博朋克', label: '赛博朋克' },
-  { value: '蒸汽朋克', label: '蒸汽朋克' }
-];
 
 const SceneImageModal: React.FC<SceneImageModalProps> = ({
   isOpen,
@@ -29,11 +20,9 @@ const SceneImageModal: React.FC<SceneImageModalProps> = ({
   onGenerate,
   imageModel
 }) => {
-  const [selectedStyle, setSelectedStyle] = useState('写实风格');
-
   const handleGenerate = () => {
     if (scene && imageModel) {
-      onGenerate(scene.id, selectedStyle, imageModel);
+      onGenerate(scene.id, imageModel);
     }
   };
 
@@ -92,24 +81,6 @@ const SceneImageModal: React.FC<SceneImageModalProps> = ({
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* 风格选择 */}
-              <div className="mb-4">
-                <Select
-                  label="图片风格"
-                  placeholder="选择图片风格"
-                  selectedKeys={[selectedStyle]}
-                  onChange={(e) => setSelectedStyle(e.target.value)}
-                  isDisabled={isGenerating}
-                  className="mb-4"
-                >
-                  {STYLE_OPTIONS.map((style) => (
-                    <SelectItem key={style.value} value={style.value}>
-                      {style.label}
-                    </SelectItem>
-                  ))}
-                </Select>
               </div>
 
               {/* 模型信息 */}

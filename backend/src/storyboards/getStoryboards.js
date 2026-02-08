@@ -49,7 +49,8 @@ async function getStoryboards(req, res) {
         
         return {
           ...sb,
-          variables
+          variables,
+          id: sb.id
         };
       });
 

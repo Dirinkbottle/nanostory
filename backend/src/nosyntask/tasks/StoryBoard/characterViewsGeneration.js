@@ -22,47 +22,56 @@
 
 const handleImageGeneration = require('../base/imageGeneration');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
+const { requireVisualStyle } = require('../../../utils/getProjectStyle');
 
 /**
  * 使用 AI 生成视图提示词
  */
-async function generateViewPrompt(view, characterName, appearance, personality, description, style, textModel) {
-  const viewDescriptions = {
-    front: '正面视图，角色面向镜头，全身或半身像',
-    side: '侧面视图，角色侧身90度，展示侧面轮廓',
-    back: '背面视图，角色背对镜头，展示背部细节'
+async function generateViewPrompt(view, characterName, appearance, description, style, textModel) {
+  const viewConfig = {
+    front: {
+      desc: '正面视图',
+      pose: 'facing the viewer, standing straight, arms slightly away from body, natural relaxed T-pose',
+      angle: 'front view'
+    },
+    side: {
+      desc: '侧面视图',
+      pose: 'turned 90 degrees to the side, standing straight, showing full side profile silhouette',
+      angle: 'side view, profile'
+    },
+    back: {
+      desc: '背面视图',
+      pose: 'facing away from the viewer, standing straight, showing back details of hair and clothing',
+      angle: 'back view, rear view'
+    }
   };
 
-  const viewDesc = viewDescriptions[view] || viewDescriptions.front;
+  const cfg = viewConfig[view] || viewConfig.front;
 
-  console.log(`[CharacterViews] 使用 AI 生成${viewDesc}提示词...`);
+  console.log(`[CharacterViews] 使用 AI 生成${cfg.desc}提示词...`);
 
-  // 构建完整的提示词
-  const fullPrompt = `你是一个专业的图片生成提示词专家。你的任务是根据角色信息生成高质量的图片生成提示词（用于 Stable Diffusion、Midjourney 等 AI 绘图工具）。
+  const fullPrompt = `你是一个专业的角色设计图提示词专家。你的任务是生成用于 AI 绘图的角色三视图参考图提示词。
 
-要求：
-1. 提示词必须用英文输出
-2. 使用逗号分隔的关键词格式
-3. 包含：角色特征、视角、风格、画质描述
-4. 避免使用否定词（如 no, without 等）
-5. 简洁明确，突出重点特征
-6. 长度控制在 100-150 个单词
-
-示例格式：
-character name, detailed appearance, specific pose, art style, high quality, detailed, professional lighting
+核心要求（必须严格遵守）：
+1. 提示词必须用英文输出，逗号分隔的关键词格式
+2. 必须包含：character reference sheet, plain white background, solid white background
+3. 必须包含：full body, standing pose, even soft lighting, flat lighting
+4. 必须包含角色的外貌特征（服装、发型、体型、配饰等）
+5. 绝对不要加入任何场景、背景元素、故事情节
+6. 不要加入情绪表情，保持中性自然表情
+7. 长度控制在 80-120 个单词
 
 ---
 
-请为以下角色生成${viewDesc}的图片提示词：
+请为以下角色生成「${cfg.desc}」的提示词：
 
 角色名称：${characterName || '未命名角色'}
 外貌特征：${appearance || '无'}
-性格特点：${personality || '无'}
-详细描述：${description || '无'}
+角色描述：${description || '无'}
 风格要求：${style || '动漫风格'}
-视图类型：${viewDesc}
+视角要求：${cfg.angle}, ${cfg.pose}
 
-请直接输出英文提示词，不要包含任何解释或其他内容。`;
+请直接输出英文提示词，不要包含任何解释。`;
 
   // 调用基础文本模型
   const response = await handleBaseTextModelCall({
@@ -103,7 +112,7 @@ character name, detailed appearance, specific pose, art style, high quality, det
     .replace(/,\s*,/g, ',') // 移除重复逗号
     .trim();
 
-  console.log(`[CharacterViews] ✅ ${viewDesc}提示词生成完成:`, prompt.substring(0, 100) + '...');
+  console.log(`[CharacterViews] ✅ ${cfg.desc}提示词生成完成:`, prompt.substring(0, 100) + '...');
 
   return prompt;
 }
@@ -118,7 +127,8 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     appearance = '',
     personality = '',
     description = '',
-    style = '动漫风格',
+    style: inputStyle = '动漫风格',
+    projectId,
     imageModel: _imageModel, modelName: _legacyModel,
     textModel: _textModel, textModelName: _legacyTextModel,
     width = 512,
@@ -128,11 +138,14 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
   const imageModel = _imageModel || _legacyModel;
   const textModel = _textModel || _legacyTextModel || null;
 
+  // 项目视觉风格（必填，未设置则报错）
+  const style = await requireVisualStyle(projectId);
+
   console.log('[CharacterViews] 开始生成三视图:', {
     characterId,
     characterName,
     imageModel,
-    style
+    style: style.substring(0, 60) + (style.length > 60 ? '...' : '')
   });
 
   if (!imageModel) {
@@ -148,7 +161,7 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
 
   // 生成正面视图
   console.log('[CharacterViews] 生成正面视图...');
-  const frontPrompt = await generateViewPrompt('front', characterName, appearance, personality, description, style, textModel);
+  const frontPrompt = await generateViewPrompt('front', characterName, appearance, description, style, textModel);
   const frontResult = await handleImageGeneration({
     prompt: frontPrompt,
     imageModel: imageModel,
@@ -188,7 +201,7 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
 
   // 生成侧面视图（带正面参考图）
   console.log('[CharacterViews] 生成侧面视图...');
-  const sidePrompt = await generateViewPrompt('side', characterName, appearance, personality, description, style, textModel);
+  const sidePrompt = await generateViewPrompt('side', characterName, appearance, description, style, textModel);
   const sideGenParams = {
     prompt: sidePrompt,
     imageModel: imageModel,
@@ -230,7 +243,7 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
 
   // 生成背面视图（带正面+侧面参考图）
   console.log('[CharacterViews] 生成背面视图...');
-  const backPrompt = await generateViewPrompt('back', characterName, appearance, personality, description, style, textModel);
+  const backPrompt = await generateViewPrompt('back', characterName, appearance, description, style, textModel);
   const backGenParams = {
     prompt: backPrompt,
     imageModel: imageModel,

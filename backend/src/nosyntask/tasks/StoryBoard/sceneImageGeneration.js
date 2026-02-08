@@ -23,6 +23,8 @@
 
 const handleImageGeneration = require('../base/imageGeneration');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
+const { queryOne } = require('../../../dbHelper');
+const { requireVisualStyle } = require('../../../utils/getProjectStyle');
 
 /**
  * 使用 AI 生成场景图片提示词
@@ -115,7 +117,7 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
     environment, 
     lighting, 
     mood, 
-    style, 
+    style: inputStyle, 
     imageModel, modelName: _legacyModel,
     textModel, textModelName: _legacyTextModel,
     width = 1024,
@@ -125,10 +127,18 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
   const resolvedImageModel = imageModel || _legacyModel;
   const resolvedTextModel = textModel || _legacyTextModel || null;
 
+  // 项目视觉风格（必填，未设置则报错）
+  let projectId = null;
+  if (sceneId) {
+    const scene = await queryOne('SELECT project_id FROM scenes WHERE id = ?', [sceneId]);
+    projectId = scene?.project_id;
+  }
+  const style = await requireVisualStyle(projectId);
+
   console.log('[SceneImageGen] 开始生成场景图片:', {
     sceneId,
     sceneName,
-    style,
+    style: style.substring(0, 60) + (style.length > 60 ? '...' : ''),
     imageModel: resolvedImageModel,
     dimensions: `${width}x${height}`
   });

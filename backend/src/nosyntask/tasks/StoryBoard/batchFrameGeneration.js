@@ -1,17 +1,23 @@
 /**
- * 批量分镜帧生成处理器
- * 一键生成一集所有分镜的首帧/首尾帧图片（并发池模式）
+ * 批量分镜帧生成处理器（串行链式模式）
+ * 一键生成一集所有分镜的首帧/首尾帧图片
+ * 
+ * 为保持镜头间连续性，必须串行生成：
+ * 每个镜头的首帧需要上一镜头的尾帧作为参考图，提示词也需要上一镜头描述作为上下文。
  * 
  * 逻辑：
- * 1. 查询 scriptId 下所有分镜
- * 2. 过滤出需要生成的分镜（跳过已有帧的，除非 overwriteFrames=true）
- * 3. 以并发池方式同时生成最多 maxConcurrency 个分镜
+ * 1. 查询 scriptId 下所有分镜（按 idx 排序）
+ * 2. 串行遍历每个分镜：
+ *    - 跳过已有帧的（除非 overwriteFrames=true），但仍然取其尾帧传递给下一个
  *    - hasAction=true  → 调用 frameGeneration（首尾帧）
  *    - hasAction=false → 调用 singleFrameGeneration（单帧）
- * 4. 每完成一个立即保存到数据库（子 handler 自带保存）
- * 5. 某个失败 → 记录错误，不影响其他并发任务
+ *    - 传入 prevEndFrameUrl + prevDescription 保持连续性
+ * 3. 每个镜头完成后，取其“最终帧”传给下一个：
+ *    - 动作镜头 → last_frame_url
+ *    - 静态镜头 → first_frame_url
+ * 4. 某个失败 → 记录错误，链条中断（后续镜头将缺少参考图）
  * 
- * input:  { scriptId, imageModel, textModel, overwriteFrames, width, height, maxConcurrency }
+ * input:  { scriptId, imageModel, textModel, overwriteFrames, width, height }
  * output: { total, completed, skipped, failed, results[] }
  */
 
@@ -19,39 +25,23 @@ const { queryAll } = require('../../../dbHelper');
 const handleFrameGeneration = require('./frameGeneration');
 const handleSingleFrameGeneration = require('./singleFrameGeneration');
 
-// ============================================================
-// 并发池：同时运行最多 limit 个 async 任务
-// ============================================================
-async function runPool(tasks, limit, onTaskDone) {
-  const results = new Array(tasks.length);
-  let nextIndex = 0;
-  let doneCount = 0;
-
-  return new Promise((resolve, reject) => {
-    function runNext() {
-      if (doneCount === tasks.length) {
-        return resolve(results);
-      }
-      while (nextIndex < tasks.length && (nextIndex - doneCount) < limit) {
-        const idx = nextIndex++;
-        tasks[idx]()
-          .then(res => { results[idx] = res; })
-          .catch(err => { results[idx] = err; })
-          .finally(() => {
-            doneCount++;
-            if (onTaskDone) onTaskDone(doneCount, tasks.length);
-            runNext();
-          });
-      }
-    }
-    runNext();
-  });
+/**
+ * 获取分镜的“最终帧” URL
+ * - 动作镜头（hasAction=true）→ 尾帧 last_frame_url
+ * - 静态镜头（hasAction=false）→ 首帧 first_frame_url
+ */
+function getFinalFrameUrl(sb, vars) {
+  const hasAction = vars.hasAction || false;
+  if (hasAction && sb.last_frame_url) {
+    return sb.last_frame_url;
+  }
+  return sb.first_frame_url || null;
 }
 
 async function handleBatchFrameGeneration(inputParams, onProgress) {
   const {
     scriptId, imageModel, textModel, overwriteFrames = false,
-    width, height, maxConcurrency = 5
+    width, height
   } = inputParams;
 
   if (!scriptId) {
@@ -61,10 +51,9 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
     throw new Error('imageModel 参数是必需的');
   }
 
-  const concurrency = Math.min(Math.max(Number(maxConcurrency) || 5, 1), 100);
-  console.log(`[BatchFrameGen] 开始批量生成，scriptId: ${scriptId}, 覆盖: ${overwriteFrames}, 并发: ${concurrency}`);
+  console.log(`[BatchFrameGen] 开始批量串行生成，scriptId: ${scriptId}, 覆盖: ${overwriteFrames}`);
 
-  // 1. 查询所有分镜
+  // 1. 查询所有分镜（按顺序）
   const storyboards = await queryAll(
     'SELECT id, prompt_template, variables_json, first_frame_url, last_frame_url FROM storyboards WHERE script_id = ? ORDER BY idx ASC',
     [scriptId]
@@ -80,10 +69,13 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
   let failed = 0;
   const results = [];
 
-  // 2. 构建任务列表：跳过不需要生成的，其余包装成 async 函数
-  const taskFns = [];
-  const taskMeta = []; // 保持与 taskFns 一一对应的元信息
+  // 链式传递的上一镜头信息
+  let prevEndFrameUrl = null;
+  let prevDescription = null;
 
+  if (onProgress) onProgress(5);
+
+  // 2. 串行遍历每个分镜
   for (let i = 0; i < storyboards.length; i++) {
     const sb = storyboards[i];
     const vars = typeof sb.variables_json === 'string'
@@ -91,81 +83,78 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
       : (sb.variables_json || {});
     const hasAction = vars.hasAction || false;
     const hasExistingFrame = !!sb.first_frame_url;
+    const description = sb.prompt_template || '';
+    const isFirstScene = (i === 0);
 
-    // 跳过
+    // 跳过已有帧的分镜（但仍然要取其最终帧传递给下一个）
     if (!overwriteFrames && hasExistingFrame) {
-      console.log(`[BatchFrameGen] [${i + 1}/${total}] 分镜 ${sb.id} 已有帧图片，跳过`);
+      console.log(`[BatchFrameGen] [${i + 1}/${total}] 分镜 ${sb.id} 已有帧图片，跳过（传递尾帧给下一镜头）`);
+      prevEndFrameUrl = getFinalFrameUrl(sb, vars);
+      prevDescription = description;
       skipped++;
       results.push({ storyboardId: sb.id, status: 'skipped' });
       continue;
     }
 
-    const description = sb.prompt_template || '';
-    const idx = i;
-
-    // 包装成 async 函数放入池
-    taskFns.push(async () => {
+    try {
+      let res;
       if (hasAction) {
-        console.log(`[BatchFrameGen] [${idx + 1}/${total}] 分镜 ${sb.id} 有动作，生成首尾帧...`);
-        return await handleFrameGeneration({
+        console.log(`[BatchFrameGen] [${i + 1}/${total}] 分镜 ${sb.id} 有动作，生成首尾帧...`);
+        res = await handleFrameGeneration({
           storyboardId: sb.id,
           prompt: description,
           imageModel,
           textModel,
           width: width || 1024,
-          height: height || 576
+          height: height || 576,
+          prevEndFrameUrl,
+          prevDescription,
+          isFirstScene
         }, null);
+        // 动作镜头的最终帧 = 尾帧
+        prevEndFrameUrl = res.endFrame || res.startFrame;
       } else {
-        console.log(`[BatchFrameGen] [${idx + 1}/${total}] 分镜 ${sb.id} 无动作，生成单帧...`);
-        return await handleSingleFrameGeneration({
+        console.log(`[BatchFrameGen] [${i + 1}/${total}] 分镜 ${sb.id} 无动作，生成单帧...`);
+        res = await handleSingleFrameGeneration({
           storyboardId: sb.id,
           description,
           imageModel,
           textModel,
           width: width || 1024,
-          height: height || 576
+          height: height || 576,
+          prevEndFrameUrl,
+          prevDescription,
+          isFirstScene
         }, null);
+        // 静态镜头的最终帧 = 首帧
+        prevEndFrameUrl = res.firstFrameUrl;
       }
-    });
 
-    taskMeta.push({ storyboardId: sb.id, index: idx, hasAction });
-  }
-
-  console.log(`[BatchFrameGen] 需要生成: ${taskFns.length}, 跳过: ${skipped}, 并发: ${concurrency}`);
-
-  if (onProgress) onProgress(5);
-
-  // 3. 并发池执行
-  if (taskFns.length > 0) {
-    const poolResults = await runPool(taskFns, concurrency, (done, taskTotal) => {
-      // 进度：5% ~ 95%
-      const pct = 5 + Math.floor((done / taskTotal) * 90);
-      if (onProgress) onProgress(pct);
-    });
-
-    // 4. 收集结果
-    for (let i = 0; i < poolResults.length; i++) {
-      const meta = taskMeta[i];
-      const res = poolResults[i];
-      if (res instanceof Error) {
-        console.error(`[BatchFrameGen] 分镜 ${meta.storyboardId} 生成失败:`, res.message);
-        failed++;
-        results.push({ storyboardId: meta.storyboardId, status: 'failed', error: res.message });
-      } else {
-        console.log(`[BatchFrameGen] 分镜 ${meta.storyboardId} 生成成功`);
-        completed++;
-        results.push({
-          storyboardId: meta.storyboardId,
-          status: 'completed',
-          type: meta.hasAction ? 'frame' : 'single_frame',
-          ...res
-        });
-      }
+      prevDescription = description;
+      completed++;
+      console.log(`[BatchFrameGen] 分镜 ${sb.id} 生成成功`);
+      results.push({
+        storyboardId: sb.id,
+        status: 'completed',
+        type: hasAction ? 'frame' : 'single_frame',
+        ...res
+      });
+    } catch (err) {
+      console.error(`[BatchFrameGen] 分镜 ${sb.id} 生成失败:`, err.message);
+      failed++;
+      results.push({ storyboardId: sb.id, status: 'failed', error: err.message });
+      // 失败后立即中断：后续镜头缺少参考图，继续生成无意义
+      console.error(`[BatchFrameGen] 链条中断，跳过剩余 ${total - i - 1} 个镜头`);
+      break;
     }
+
+    // 进度：5% ~ 95%
+    const pct = 5 + Math.floor(((i + 1) / total) * 90);
+    if (onProgress) onProgress(pct);
   }
 
   if (onProgress) onProgress(100);
-  console.log(`[BatchFrameGen] 批量生成完成: 总计=${total}, 成功=${completed}, 跳过=${skipped}, 失败=${failed}`);
+  console.log(`[BatchFrameGen] 批量串行生成完成: 总计=${total}, 成功=${completed}, 跳过=${skipped}, 失败=${failed}`);
 
   return {
     total,
