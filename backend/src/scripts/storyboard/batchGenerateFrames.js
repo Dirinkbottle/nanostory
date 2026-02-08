@@ -5,6 +5,7 @@
 
 const { authMiddleware } = require('../../middleware');
 const workflowEngine = require('../../nosyntask/engine');
+const { queryOne } = require('../../dbHelper');
 
 module.exports = (router) => {
   router.post('/batch-generate-frames/:scriptId', authMiddleware, async (req, res) => {
@@ -22,11 +23,16 @@ module.exports = (router) => {
 
       console.log(`[BatchGenerateFrames] 用户 ${userId} 请求批量生成，scriptId=${scriptId}, 覆盖=${overwriteFrames}`);
 
+      // 获取剧本信息（集数）
+      const script = await queryOne('SELECT episode_number FROM scripts WHERE id = ?', [scriptId]);
+      const episodeNumber = script?.episode_number || null;
+
       const { jobId, tasks } = await workflowEngine.startWorkflow('batch_frame_generation', {
         userId,
         projectId: projectId || null,
         jobParams: {
           scriptId: Number(scriptId),
+          episodeNumber,
           imageModel,
           textModel: textModel || null,
           overwriteFrames: !!overwriteFrames

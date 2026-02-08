@@ -5,6 +5,7 @@
 
 const { authMiddleware } = require('../../middleware');
 const workflowEngine = require('../../nosyntask/engine');
+const { queryOne } = require('../../dbHelper');
 
 module.exports = (router) => {
   router.post('/batch-generate-videos/:scriptId', authMiddleware, async (req, res) => {
@@ -22,11 +23,16 @@ module.exports = (router) => {
 
       console.log(`[BatchGenerateVideos] 用户 ${userId} 请求批量生成视频，scriptId=${scriptId}, 覆盖=${overwriteVideos}`);
 
+      // 获取剧本信息（集数）
+      const script = await queryOne('SELECT episode_number FROM scripts WHERE id = ?', [scriptId]);
+      const episodeNumber = script?.episode_number || null;
+
       const { jobId, tasks } = await workflowEngine.startWorkflow('batch_scene_video_generation', {
         userId,
         projectId: projectId || null,
         jobParams: {
           scriptId: Number(scriptId),
+          episodeNumber,
           videoModel,
           textModel: textModel || null,
           duration: duration || null,
