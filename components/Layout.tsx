@@ -43,7 +43,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-lg font-black tracking-wider uppercase text-blue-600">
-                    Animata
+                    NANOSTORY
                   </span>
                   <span className="text-[10px] text-slate-400 font-medium tracking-widest">AI Video Studio</span>
                 </div>

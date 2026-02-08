@@ -56,7 +56,7 @@ const Auth: React.FC = () => {
             </div>
             <div>
               <h1 className="text-3xl font-black tracking-tight text-slate-800">
-                Animata
+                NANOSTORY
               </h1>
               <p className="text-sm text-slate-500 mt-2 font-medium">
                 AI 驱动的视频创作平台
