@@ -61,13 +61,16 @@ const getTaskName = (job: WorkflowJob): string => {
   if (params.sceneName) {
     parts.push(`「${params.sceneName}」`);
   }
+
+  // 重新生成标记
+  const prefix = params.isRegenerate ? '重新' : '';
   
   // 组合显示
   if (parts.length > 0) {
-    return `${parts.join(' ')} ${baseName}`;
+    return `${parts.join(' ')} ${prefix}${baseName}`;
   }
   
-  return baseName;
+  return `${prefix}${baseName}`;
 };
 
 interface TaskItemProps {

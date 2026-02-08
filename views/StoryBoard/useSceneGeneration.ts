@@ -75,7 +75,8 @@ export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes,
 
       const extraParams = {
         episodeNumber,
-        storyboardIndex: sceneIdx + 1
+        storyboardIndex: sceneIdx + 1,
+        isRegenerate: !!(scene.startFrame || scene.imageUrl)
       };
 
       // 根据是否有动作选择不同的工作流
@@ -129,7 +130,8 @@ export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes,
         textModel,
         duration: scene.duration || (scene.hasAction ? 3 : 2),
         episodeNumber,
-        storyboardIndex: sceneIdx + 1
+        storyboardIndex: sceneIdx + 1,
+        isRegenerate: !!scene.videoUrl
       });
       return { success: true };
     } catch (error: any) {
