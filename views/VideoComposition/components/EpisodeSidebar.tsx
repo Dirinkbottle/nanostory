@@ -2,15 +2,16 @@
  * 左侧边栏：集列表 + 可折叠分镜视频列表
  */
 
-import React from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button, Chip } from '@heroui/react';
-import { ChevronDown, ChevronRight, Film, Play, Plus, ListVideo } from 'lucide-react';
+import { ChevronDown, ChevronRight, Film, Play, Plus, ListVideo, Download } from 'lucide-react';
 import type { EpisodeGroup, CompositionClip } from '../types';
 
 interface EpisodeSidebarProps {
   episodes: EpisodeGroup[];
   selectedEpisode: number | null;
   loading: boolean;
+  projectName: string;
   onSelectEpisode: (episodeNumber: number) => void;
   onToggleEpisode: (episodeNumber: number) => void;
   onPreviewClip: (clip: CompositionClip) => void;
@@ -22,6 +23,7 @@ const EpisodeSidebar: React.FC<EpisodeSidebarProps> = ({
   episodes,
   selectedEpisode,
   loading,
+  projectName,
   onSelectEpisode,
   onToggleEpisode,
   onPreviewClip,
@@ -68,6 +70,7 @@ const EpisodeSidebar: React.FC<EpisodeSidebarProps> = ({
             key={episode.scriptId}
             episode={episode}
             isSelected={selectedEpisode === episode.episodeNumber}
+            projectName={projectName}
             onSelect={() => onSelectEpisode(episode.episodeNumber)}
             onToggle={() => onToggleEpisode(episode.episodeNumber)}
             onPreviewClip={onPreviewClip}
@@ -83,6 +86,7 @@ const EpisodeSidebar: React.FC<EpisodeSidebarProps> = ({
 interface EpisodeItemProps {
   episode: EpisodeGroup;
   isSelected: boolean;
+  projectName: string;
   onSelect: () => void;
   onToggle: () => void;
   onPreviewClip: (clip: CompositionClip) => void;
@@ -93,6 +97,7 @@ interface EpisodeItemProps {
 const EpisodeItem: React.FC<EpisodeItemProps> = ({
   episode,
   isSelected,
+  projectName,
   onSelect,
   onToggle,
   onPreviewClip,
@@ -153,6 +158,7 @@ const EpisodeItem: React.FC<EpisodeItemProps> = ({
                 key={clip.id}
                 clip={clip}
                 index={idx}
+                projectName={projectName}
                 onPreview={() => onPreviewClip(clip)}
                 onAdd={() => onAddClipToTimeline(clip)}
               />
@@ -167,32 +173,105 @@ const EpisodeItem: React.FC<EpisodeItemProps> = ({
 interface ClipItemProps {
   clip: CompositionClip;
   index: number;
+  projectName: string;
   onPreview: () => void;
   onAdd: () => void;
 }
 
-const ClipItem: React.FC<ClipItemProps> = ({ clip, index, onPreview, onAdd }) => {
+const ClipItem: React.FC<ClipItemProps> = ({ clip, index, projectName, onPreview, onAdd }) => {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = useCallback(async () => {
+    if (!clip.videoUrl || downloading) return;
+    setContextMenu(null);
+    setDownloading(true);
+    try {
+      const res = await fetch(clip.videoUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const name = projectName || '分镜';
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `${name}_第${clip.episodeNumber}集_片段${index + 1}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('下载失败:', err);
+    } finally {
+      setDownloading(false);
+    }
+  }, [clip.videoUrl, clip.episodeNumber, index, projectName, downloading]);
+
+  // 点击外部关闭菜单
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+    };
+    const handleScroll = () => setContextMenu(null);
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('scroll', handleScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [contextMenu]);
+
   return (
-    <div
-      className="flex items-center gap-2 px-4 pl-10 py-1.5 cursor-pointer transition-colors group hover:bg-slate-50 text-slate-600"
-      onClick={onPreview}
-    >
-      <Play className="w-3 h-3 flex-shrink-0 text-slate-400 group-hover:text-blue-500" />
-      <span className="text-xs font-medium flex-shrink-0">#{index + 1}</span>
-      <span className="text-xs truncate flex-1 opacity-80">
-        {clip.description.substring(0, 30) || clip.dialogue.substring(0, 30) || '无描述'}
-      </span>
-      <Button
-        isIconOnly
-        size="sm"
-        variant="light"
-        className="opacity-0 group-hover:opacity-100 text-blue-500 min-w-5 w-5 h-5"
-        onPress={onAdd}
-        title="添加到时间线"
+    <>
+      <div
+        className="flex items-center gap-2 px-4 pl-10 py-1.5 cursor-pointer transition-colors group hover:bg-slate-50 text-slate-600"
+        onClick={onPreview}
+        onContextMenu={handleContextMenu}
       >
-        <Plus className="w-3 h-3" />
-      </Button>
-    </div>
+        <Play className="w-3 h-3 flex-shrink-0 text-slate-400 group-hover:text-blue-500" />
+        <span className="text-xs font-medium flex-shrink-0">#{index + 1}</span>
+        <span className="text-xs truncate flex-1 opacity-80">
+          {clip.description.substring(0, 30) || clip.dialogue.substring(0, 30) || '无描述'}
+        </span>
+        <Button
+          isIconOnly
+          size="sm"
+          variant="light"
+          className="opacity-0 group-hover:opacity-100 text-blue-500 min-w-5 w-5 h-5"
+          onPress={onAdd}
+          title="添加到时间线"
+        >
+          <Plus className="w-3 h-3" />
+        </Button>
+      </div>
+
+      {/* 右键菜单 */}
+      {contextMenu && (
+        <div
+          ref={menuRef}
+          className="fixed z-50 bg-white rounded-lg shadow-lg border border-slate-200 py-1 min-w-[160px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleDownload}
+            disabled={!clip.videoUrl || downloading}
+          >
+            <Download className={`w-4 h-4 ${downloading ? 'animate-pulse' : ''}`} />
+            <span>{downloading ? '下载中...' : '下载分镜视频'}</span>
+          </button>
+        </div>
+      )}
+    </>
   );
 };
 

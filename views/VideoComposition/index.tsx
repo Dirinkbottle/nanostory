@@ -24,9 +24,10 @@ import type { CompositionClip } from './types';
 
 interface VideoCompositionProps {
   projectId: number | null;
+  projectName?: string;
 }
 
-const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId }) => {
+const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectName }) => {
   const compositionData = useCompositionData(projectId);
   const timeline = useTimeline(compositionData.currentClips);
   const subtitles = useSubtitles();
@@ -80,6 +81,7 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId }) => {
           episodes={compositionData.episodes}
           selectedEpisode={compositionData.selectedEpisode}
           loading={compositionData.loading}
+          projectName={projectName || ''}
           onSelectEpisode={compositionData.setSelectedEpisode}
           onToggleEpisode={compositionData.toggleEpisode}
           onPreviewClip={handlePreviewClip}

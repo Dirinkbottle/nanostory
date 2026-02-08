@@ -223,7 +223,7 @@ const ScriptStudio: React.FC = () => {
       {/* 内容区域 */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'composition' ? (
-          <VideoComposition projectId={selectedProject?.id || null} />
+          <VideoComposition projectId={selectedProject?.id || null} projectName={selectedProject?.name || ''} />
         ) : activeTab === 'script' ? (
           <div className="h-full flex">
             {/* 左侧：创作区 */}
