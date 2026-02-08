@@ -6,6 +6,7 @@ import { StoryboardScene } from './useSceneManager';
 interface UseSceneGenerationOptions {
   projectId: number | null;
   scriptId: number | null;
+  episodeNumber: number;
   scenes: StoryboardScene[];
   setScenes: Dispatch<SetStateAction<StoryboardScene[]>>;
   imageModel: string;
@@ -13,7 +14,7 @@ interface UseSceneGenerationOptions {
   videoModel: string;
 }
 
-export function useSceneGeneration({ projectId, scriptId, scenes, setScenes, imageModel, textModel, videoModel }: UseSceneGenerationOptions) {
+export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes, setScenes, imageModel, textModel, videoModel }: UseSceneGenerationOptions) {
   const { tasks, runTask, clearTask, isRunning } = useTaskRunner({ projectId: projectId || 0 });
 
   // 监听任务完成 → 更新 scene 状态 + 保存数据库
@@ -66,10 +67,16 @@ export function useSceneGeneration({ projectId, scriptId, scenes, setScenes, ima
   // 启动首尾帧生成 workflow
   const generateImage = async (id: number, prompt: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const scene = scenes.find(s => s.id === id);
+      const sceneIdx = scenes.findIndex(s => s.id === id);
+      const scene = sceneIdx >= 0 ? scenes[sceneIdx] : null;
       if (!scene) {
         return { success: false, error: '找不到分镜' };
       }
+
+      const extraParams = {
+        episodeNumber,
+        storyboardIndex: sceneIdx + 1
+      };
 
       // 根据是否有动作选择不同的工作流
       if (scene.hasAction) {
@@ -81,7 +88,8 @@ export function useSceneGeneration({ projectId, scriptId, scenes, setScenes, ima
           imageModel,
           textModel,
           width: 640,
-          height: 360
+          height: 360,
+          ...extraParams
         });
       } else {
         // 无动作：只生成单帧
@@ -92,7 +100,8 @@ export function useSceneGeneration({ projectId, scriptId, scenes, setScenes, ima
           imageModel,
           textModel,
           width: 640,
-          height: 360
+          height: 360,
+          ...extraParams
         });
       }
       
@@ -105,7 +114,8 @@ export function useSceneGeneration({ projectId, scriptId, scenes, setScenes, ima
 
   // 启动视频生成 workflow
   const generateVideo = async (id: number): Promise<{ success: boolean; error?: string }> => {
-    const scene = scenes.find(s => s.id === id);
+    const sceneIdx = scenes.findIndex(s => s.id === id);
+    const scene = sceneIdx >= 0 ? scenes[sceneIdx] : null;
     if (!scene) {
       return { success: false, error: '找不到分镜' };
     }
@@ -117,7 +127,9 @@ export function useSceneGeneration({ projectId, scriptId, scenes, setScenes, ima
         storyboardId: id,
         videoModel,
         textModel,
-        duration: scene.duration || (scene.hasAction ? 3 : 2)
+        duration: scene.duration || (scene.hasAction ? 3 : 2),
+        episodeNumber,
+        storyboardIndex: sceneIdx + 1
       });
       return { success: true };
     } catch (error: any) {

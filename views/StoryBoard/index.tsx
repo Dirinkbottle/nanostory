@@ -86,6 +86,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   const { generateImage, generateVideo, tasks } = useSceneGeneration({
     projectId: currentProjectId,
     scriptId: currentScriptId,
+    episodeNumber: currentEpisode,
     scenes,
     setScenes,
     imageModel,
