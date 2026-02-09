@@ -48,7 +48,7 @@ async function runPool(tasks, limit, onTaskDone) {
 async function handleBatchSceneVideoGeneration(inputParams, onProgress) {
   const {
     scriptId, videoModel, textModel, duration,
-    overwriteVideos = false, maxConcurrency = 20
+    overwriteVideos = false, maxConcurrency = 20, think
   } = inputParams;
 
   if (!scriptId) {
@@ -106,7 +106,8 @@ async function handleBatchSceneVideoGeneration(inputParams, onProgress) {
         storyboardId: sb.id,
         videoModel,
         textModel,
-        duration
+        duration,
+        think
       }, null);
     });
 

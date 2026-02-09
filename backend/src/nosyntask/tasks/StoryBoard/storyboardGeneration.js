@@ -11,7 +11,7 @@ const handleRepairJsonResponse = require('./repairJsonResponse');
 const { stripThinkTags, extractCodeBlock, extractJSON, stripInvisible } = require('../../../utils/washBody');
 
 async function handleStoryboardGeneration(inputParams, onProgress) {
-  const { scriptContent, scriptTitle, textModel: modelName } = inputParams;
+  const { scriptContent, scriptTitle, textModel: modelName, think } = inputParams;
 
   if (!scriptContent || scriptContent.trim() === '') {
     throw new Error('剧本内容为空，无法生成分镜');
@@ -100,15 +100,15 @@ ${scriptContent}
 
    b) **强度量化**：每个环境效果必须标注强度等级
       - 使用明确的强度词：微弱/轻微/中等/强烈/猛烈
-      - 错误示例：❌ "闪电在乌云中若隐若现" → 视频模型会生成猛烈闪电
-      - 正确示例：✅ "极远处乌云中偶尔有一丝微弱的电光闪烁（非常微弱，仅是云层内部的微光，没有雷声）"
+      - 错误示例： "闪电在乌云中若隐若现" → 视频模型会生成猛烈闪电
+      - 正确示例： "极远处乌云中偶尔有一丝微弱的电光闪烁（非常微弱，仅是云层内部的微光，没有雷声）"
       - 特别注意："若隐若现""隐约""淡淡的"这类含蓄修辞必须转换为明确的强度描述
 
    c) **室内外环境隔离**：
       - 室外环境效果不能直接"穿越"到室内
       - 室内镜头描述外部天气时，必须明确说明是"透过窗户/门缝感受到的"，并且强度大幅衰减
-      - 错误示例：❌ "庙内，风雪灌入" → 视频模型会在室内生成暴风雪
-      - 正确示例：✅ "庙内，少量细小雪粒从破损的窗棂缝隙中被风带入，在火光中可见零星飘落的雪花"
+      - 错误示例： "庙内，风雪灌入" → 视频模型会在室内生成暴风雪
+      - 正确示例： "庙内，少量细小雪粒从破损的窗棂缝隙中被风带入，在火光中可见零星飘落的雪花"
       - 室内不可能出现：室外级别的暴风雪、直接的闪电光照、大面积降雨
 
    d) **物理交互合理性**：
@@ -125,7 +125,14 @@ ${scriptContent}
 - hasAction: 是否有动作（true/false）
 - startFrame: 首帧描述（仅当hasAction=true时，描述动作开始瞬间的画面）
 - endFrame: 尾帧描述（仅当hasAction=true时，描述动作完成瞬间的画面）
-- endState: 【必填】镜头结束时的完整状态快照，包括：角色姿势（站/坐/蹲/躺等）、肢体位置、身体朝向、面部表情、所处位置（房间哪个区域）、手中物品、场景环境状态（门开/关、灯亮/灭等）。无角色镜头只描述场景状态。下一个镜头的起始状态必须与此一致。
+- endState: 【必填】镜头结束时的完整状态快照。下一个镜头的起始状态必须与此一致。
+  · 有角色的镜头【必须】包含以下信息（缺一不可）：
+    ① 位置：角色在场景中的具体方位（如「庙内中央偏左」「门口右侧」「窗边」，需描述与场景地标的相对关系）
+    ② 朝向：角色面朝/背对的方向（如「面朝庙门方向」「背对窗户，侧身朝向篝火」）
+    ③ 姿势：身体姿态（站/坐/蹲/躺/跑等）+ 肢体位置 + 手中物品
+    ④ 表情：面部表情状态
+    ⑤ 时空方位：当前时间段（如「深夜」「黄昏」）及角色所处空间与周围环境的关系（如「篝火映照下」「月光从窗外透入」）
+  · 无角色镜头只描述场景环境状态（门开/关、灯亮/灭、天气变化等）+ 时空方位
 - dialogue: 对白内容（如果有）
 - duration: 建议时长（秒）
 - characters: 出现的角色数组（**最多1个元素**，如["主角"]或[]，禁止出现2个以上角色）
@@ -147,18 +154,19 @@ ${scriptContent}
 
 只输出 JSON 数组，不要其他内容。示例（注意每个镜头最多1个角色，endState必须精确，相邻镜头状态必须衔接）：
 [
-  {"order": 1, "shotType": "远景", "description": "暴风雪持续肆虐的深夜（风雪全程不停，强度：猛烈），破败的山神庙孤立在荒山中，庙顶积雪厚重，枯树在强风中剧烈摇摆，极远处乌云深处偶尔闪过一丝微弱电光（强度：极微弱，仅云层内部微光，无雷声）", "hasAction": false, "endState": "山神庙外景，暴风雪持续，庙门半掩，无人，远处云层微弱电光", "dialogue": "", "duration": 2, "characters": [], "location": "山神庙外", "emotion": "萧瑟", "cameraMovement": "static"},
-  {"order": 2, "shotType": "全景", "description": "山神庙内部昏暗，中央篝火微弱摇曳（火光强度：微弱，持续燃烧），林冲裹着破旧棉袄侧卧在供桌旁稻草堆上，花枪靠墙。少量细小雪粒从破损窗棂缝隙被风带入（室内风雪强度：极轻微，仅零星雪粒飘落），庙外暴风雪的呼啸声隐约可闻", "hasAction": false, "endState": "林冲侧卧在稻草堆上，面朝供桌方向，双眼微闭，花枪靠墙，篝火微弱燃烧，窗缝偶有雪粒飘入", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "凄凉", "cameraMovement": "push_in"},
-  {"order": 3, "shotType": "特写", "description": "林冲耳朵特写，篝火微光映照（持续），他猛然睁眼侧耳倾听，庙外隐约传来马蹄声（强度：微弱，被风雪声遮盖大半）", "hasAction": true, "startFrame": "林冲侧卧姿态，耳朵特写，双眼微闭，篝火微光映照", "endFrame": "林冲双眼圆睁，眉头紧锁，侧耳凝听", "endState": "林冲侧卧在稻草堆上，双眼圆睁警觉，身体仍保持侧卧但肌肉紧绷", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "警觉", "cameraMovement": "static"},
-  {"order": 4, "shotType": "近景", "description": "林冲从稻草堆上猛然翻身坐起，一手撑地一手去够墙边的花枪，篝火因动作带起的气流微微晃动（轻微晃动，不熄灭）", "hasAction": true, "startFrame": "林冲侧卧在稻草堆上，双眼圆睁警觉", "endFrame": "林冲坐起身，右手已握住花枪枪杆", "endState": "林冲坐在稻草堆上，右手握住花枪，左手撑地，上身前倾，面朝庙门方向，表情警惕", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "紧张", "cameraMovement": "track_right + tilt_up"},
-  {"order": 5, "shotType": "中景", "description": "林冲握枪站起，双脚分开站稳，花枪斜指地面，身体微前倾做戒备姿态，篝火在身后持续燃烧（持续），将他的影子投射在残破墙面上", "hasAction": true, "startFrame": "林冲坐在稻草堆上，右手握枪，篝火微光", "endFrame": "林冲站立，双脚分开，花枪斜指地面，戒备姿态，身后篝火映出长影", "endState": "林冲站立于庙内中央，双脚与肩同宽，右手握花枪斜指地面，左手微抬护身，身体微前倾，目光锐利注视庙门方向，篝火持续燃烧", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "肃杀", "cameraMovement": "crane_up + pull_out"}
+  {"order": 1, "shotType": "远景", "description": "暴风雪持续肆虐的深夜（风雪全程不停，强度：猛烈），破败的山神庙孤立在荒山中，庙顶积雪厚重，枯树在强风中剧烈摇摆，极远处乌云深处偶尔闪过一丝微弱电光（强度：极微弱，仅云层内部微光，无雷声）", "hasAction": false, "endState": "【时空】深夜，山神庙外景，暴风雪持续肆虐；庙门半掩，庙前空地无人，远处云层偶现微弱电光", "dialogue": "", "duration": 2, "characters": [], "location": "山神庙外", "emotion": "萧瑟", "cameraMovement": "static"},
+  {"order": 2, "shotType": "全景", "description": "山神庙内部昏暗，中央篝火微弱摇曳（火光强度：微弱，持续燃烧），林冲裹着破旧棉袄侧卧在供桌旁稻草堆上，花枪靠墙。少量细小雪粒从破损窗棂缝隙被风带入（室内风雪强度：极轻微，仅零星雪粒飘落），庙外暴风雪的呼啸声隐约可闻", "hasAction": false, "endState": "【位置】庙内供桌旁稻草堆上（靠近东墙）【朝向】面朝供桌方向（身体朝西）【姿势】侧卧，双腿微曲，花枪靠墙于右手可及处【表情】双眼微闭，面容疲惫【时空】深夜，篝火微弱映照，窗缝偶有雪粒飘入", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "凄凉", "cameraMovement": "push_in"},
+  {"order": 3, "shotType": "特写", "description": "林冲耳朵特写，篝火微光映照（持续），他猛然睁眼侧耳倾听，庙外隐约传来马蹄声（强度：微弱，被风雪声遮盖大半）", "hasAction": true, "startFrame": "林冲侧卧姿态，耳朵特写，双眼微闭，篝火微光映照", "endFrame": "林冲双眼圆睁，眉头紧锁，侧耳凝听", "endState": "【位置】庙内供桌旁稻草堆上（靠近东墙）【朝向】面朝供桌方向，头微转向庙门方向侧耳【姿势】侧卧，肌肉紧绷，双手未动【表情】双眼圆睁，眉头紧锁，警觉【时空】深夜，篝火微光映照耳廓", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "警觉", "cameraMovement": "static"},
+  {"order": 4, "shotType": "近景", "description": "林冲从稻草堆上猛然翻身坐起，一手撑地一手去够墙边的花枪，篝火因动作带起的气流微微晃动（轻微晃动，不熄灭）", "hasAction": true, "startFrame": "林冲侧卧在稻草堆上，双眼圆睁警觉", "endFrame": "林冲坐起身，右手已握住花枪枪杆", "endState": "【位置】庙内稻草堆上（供桌旁，靠近东墙）【朝向】上身转向庙门方向（朝南）【姿势】坐姿，右手握花枪枪杆，左手撑地，上身前倾【表情】警惕，双眼紧盯庙门方向【时空】深夜，篝火因气流微微晃动", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "紧张", "cameraMovement": "track_right + tilt_up"},
+  {"order": 5, "shotType": "中景", "description": "林冲握枪站起，双脚分开站稳，花枪斜指地面，身体微前倾做戒备姿态，篝火在身后持续燃烧（持续），将他的影子投射在残破墙面上", "hasAction": true, "startFrame": "林冲坐在稻草堆上，右手握枪，篝火微光", "endFrame": "林冲站立，双脚分开，花枪斜指地面，戒备姿态，身后篝火映出长影", "endState": "【位置】庙内中央偏南（距庙门约三步）【朝向】面朝庙门方向（正南），身体微前倾【姿势】站立，双脚与肩同宽，右手握花枪斜指地面，左手微抬护身【表情】目光锐利，注视庙门方向【时空】深夜，身后篝火持续燃烧，将长影投射在北墙上", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "肃杀", "cameraMovement": "crane_up + pull_out"}
 ]`;
 
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
     textModel: modelName,
     maxTokens: 8192,
-    temperature: 0.3
+    temperature: 0.3,
+    think
   }, onProgress);
 
   if (onProgress) onProgress(80);

@@ -23,6 +23,12 @@ module.exports = {
     description: '文本生成模型名称（剧本、分镜、提示词生成等）',
     category: 'model'
   },
+  think: {
+    from: 'think',
+    defaultValue: false,
+    description: '是否启用模型深度思考模式（bool）。由 customHandler 根据此标志拼接对应厂商的 thinking 参数到请求体中',
+    category: 'model'
+  },
   imageModel: {
     from: 'imageModel',
     defaultValue: null,
@@ -45,12 +51,7 @@ module.exports = {
   // ================================================================
   // 模型标识
   // ================================================================
-  reasoning_effort: {
-    from: 'reasoning_effort',
-    defaultValue: null,
-    description: '这是最核心的参数。值越低（如 none, minimal），模型思考越少，响应越快；值越高（如 high, xhigh），思考越深入，响应可能越慢。设置为 none可基本关闭深度思考',
-    category: 'model'
-  },
+  
 
   // ================================================================
   //  通用标识

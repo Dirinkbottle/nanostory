@@ -6,6 +6,7 @@
  */
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
+const handleRepairJsonResponse = require('./repairJsonResponse');
 const { stripThinkTags, extractCodeBlock, extractJSON, stripInvisible, safeParseJSON } = require('../../../utils/washBody');
 
 async function handleSceneExtraction(inputParams, onProgress) {
@@ -122,6 +123,41 @@ ${contentForAnalysis}
     if (parsed === null) {
       const extracted = extractJSON(jsonStr);
       if (extracted) parsed = safeParseJSON(extracted);
+    }
+
+    if (parsed === null) {
+      // 4. jsonrepair 库修复
+      console.log('[SceneExtraction] 直接解析失败，使用 jsonrepair 修复...');
+      try {
+        const { jsonrepair } = await import('jsonrepair');
+        const repaired = jsonrepair(jsonStr);
+        parsed = JSON.parse(repaired);
+        console.log('[SceneExtraction] ✅ jsonrepair 修复成功');
+      } catch (repairLibError) {
+        console.error('[SceneExtraction] ❌ jsonrepair 修复失败:', repairLibError.message);
+
+        // 5. 最后手段：调用 AI 修复
+        console.log('[SceneExtraction] 🔧 调用 AI 修复任务...');
+        try {
+          const repairResult = await handleRepairJsonResponse({
+            incompleteJson: jsonStr,
+            originalPrompt: fullPrompt,
+            textModel: modelName
+          }, (progress) => {
+            if (onProgress) onProgress(70 + progress * 0.1);
+          });
+
+          if (repairResult.success && repairResult.repairedJson) {
+            parsed = repairResult.repairedJson;
+            console.log('[SceneExtraction] ✅ AI 修复成功');
+          } else {
+            throw new Error('AI 修复也失败: ' + (repairResult.error || 'unknown'));
+          }
+        } catch (aiRepairError) {
+          console.error('[SceneExtraction] ❌ AI 修复失败:', aiRepairError);
+          throw new Error('JSON 解析失败，jsonrepair 和 AI 修复均失败');
+        }
+      }
     }
 
     if (parsed === null) {

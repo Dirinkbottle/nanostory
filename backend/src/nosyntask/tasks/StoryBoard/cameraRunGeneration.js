@@ -20,7 +20,7 @@ const { queryOne, queryAll, execute } = require('../../../dbHelper');
 const { requireVisualStyle } = require('../../../utils/getProjectStyle');
 
 async function handleCameraRunGeneration(inputParams, onProgress) {
-  const { storyboardId, textModel } = inputParams;
+  const { storyboardId, textModel, think } = inputParams;
 
   if (!storyboardId) throw new Error('缺少必要参数: storyboardId');
   if (!textModel) throw new Error('textModel 参数是必需的');
@@ -229,7 +229,8 @@ ${frameRefInfo}
     prompt: fullPrompt,
     textModel,
     maxTokens: 600,
-    temperature: 0.6
+    temperature: 0.6,
+    think
   });
 
   const cameraRunPrompt = (result.content || '').trim();

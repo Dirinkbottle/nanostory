@@ -172,6 +172,7 @@ router.get('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
               query_body_template, query_response_mapping,
               query_success_condition, query_fail_condition,
               query_success_mapping, query_fail_mapping,
+              custom_handler, custom_query_handler,
               created_at, updated_at 
        FROM ai_model_configs ORDER BY id DESC`
     );

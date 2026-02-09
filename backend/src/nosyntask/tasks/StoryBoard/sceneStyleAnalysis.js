@@ -6,6 +6,7 @@
  * output: { referenceImageUrl, styleDescription, relatedScenes }
  */
 
+const { think } = require('../../config/workflow_fieldtable');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 
 async function handleSceneStyleAnalysis(inputParams, onProgress) {

@@ -224,59 +224,58 @@ async function generateFramePrompt(opts) {
     ? `【本镜头目标结束状态】\n${endState}\n（尾帧画面必须准确呈现上述结束状态）`
     : '';
 
-  // 首尾帧差异化描述：必须让 AI 理解这是动作的两个截然不同的瞬间
+  // 每帧只描述一个冻结瞬间，不提及另一帧的存在
   let frameHint;
-  let actionDiffConstraint;
   if (frameType === 'start') {
-    frameHint = `【首帧 - 动作起始瞬间】
-这是动作开始的第一个瞬间。请从分镜描述中提取动作的起点状态：
-- 角色的初始姿势、位置、朝向是什么？
-- 动作还没有发生，角色处于蓄力/准备状态
-- 例如：如果描述是"角色从椅子上站起来走向门口"，首帧应该是"角色坐在椅子上，双手撑着扶手，身体微微前倾准备起身"`;
-    actionDiffConstraint = '';
+    frameHint = `【画面定格要求】
+请描述一个完全静止的瞬间画面（frozen moment），如同按下暂停键截取的一帧：
+- 从分镜描述中提取动作发生之前的静止状态
+- 明确角色此刻的姿势、位置、朝向、表情
+- 只描述这一个瞬间的画面，不要暗示任何即将发生的动作或运动趋势
+- 例如：分镜描述"角色从椅子上站起来走向门口" → 提示词只描述"角色正坐在椅子上，双手自然放在扶手上，目光平视前方"`;
   } else {
-    frameHint = `【尾帧 - 动作完成瞬间】
-这是动作完成后的最终瞬间。请从分镜描述中提取动作的终点状态：
-- 角色的最终姿势、位置、朝向是什么？
-- 动作已经完全结束，角色处于动作完成后的状态
-- 例如：如果描述是"角色从椅子上站起来走向门口"，尾帧应该是"角色站在门口，一只手搭在门把手上，身体面向门外"
+    frameHint = `【画面定格要求】
+请描述一个完全静止的瞬间画面（frozen moment），如同按下暂停键截取的一帧：
+- 从分镜描述中提取动作完成之后的静止状态
+- 明确角色此刻的姿势、位置、朝向、表情
+- 只描述这一个瞬间的画面，不要回顾任何之前的动作过程
+- 例如：分镜描述"角色从椅子上站起来走向门口" → 提示词只描述"角色站在门口，右手搭在门把手上，身体面向门外，表情平静"
 
 【关于参考图的说明】
-你会收到参考图，其中第一张是该动作的首帧（起始状态）。你的任务是：
-- 从首帧参考图中提取角色外貌（发型、服装、体型等）和场景环境信息，确保尾帧与首帧保持一致
-- 根据分镜描述中的动作幅度，合理调整角色的姿势变化（大动作如奔跑/跳跃需要明显的位置和姿势变化；小动作如拿杯子/点头只需要手臂或头部的细微变化）
-- 绝对禁止复制、拼接、并排展示首帧画面，画面中只能有一个视角的一个画面`;
-    actionDiffConstraint = `【关键：尾帧必须体现动作完成状态 - 严禁复制首帧】
-- 画面中只能出现一个场景、一个视角，绝对不能出现分屏、拼接、左右对比、多视角并排
-- 根据动作幅度合理体现首尾帧差异：大动作（奔跑、战斗、跳跃）需要位置和姿势的大幅变化；小动作（拿起物品、转头、挥手）只需局部肢体变化，整体构图可以相近
-- 保持同一场景、同一角色，动作状态体现从"起始"到"完成"的变化
-- 首帧仅用于参考角色外貌和场景风格，不要在画面中重现首帧的构图`;
+参考图用于提取角色外貌（发型、服装、体型）和场景环境信息，确保画面中的角色和场景与参考图一致。
+不要复制或拼接参考图的构图，只参考其中的视觉元素。`;
   }
 
   const prevContext = (frameType === 'start' && prevDescription)
     ? `上一个镜头描述：${prevDescription}\n注意：当前画面需要自然衍接上一个镜头的结束状态，保持角色、场景、光线的连续性。`
     : '';
 
-  const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, frameDescBlock, dialogueBlock, prevEndStateBlock, endStateBlock, charConstraint, actionDiffConstraint, prevContext].filter(Boolean).join('\n');
+  const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, frameDescBlock, dialogueBlock, prevEndStateBlock, endStateBlock, charConstraint, prevContext].filter(Boolean).join('\n');
 
-  const promptRequest = `你是一个专业的图片生成提示词专家。你需要为动作镜头的首尾帧分别生成差异明显的提示词。
+  const promptRequest = `你是一个专业的图片生成提示词专家。你的任务是描述一个完全静止的画面瞬间。
 
-请根据以下分镜描述，生成一个适合图片生成的详细提示词：
+【核心规则】
+- 你要生成的提示词描述的是一张静态图片，不是动画、不是视频、不是分镜对比
+- 画面中只有一个场景、一个视角、一个时间点
+- 绝对不能在提示词中出现以下概念：before/after、transition、sequence、comparison、split、side by side、multiple panels、diptych、collage
+- 不要使用暗示运动过程的动词（如 rising, turning, reaching），只用描述静止姿态的词（如 seated, standing, holding）
+
+请根据以下信息，生成这个${frameType === 'start' ? '瞬间' : '瞬间'}的图片提示词：
 
 分镜描述：${description}
 ${extraInfo}
 ${frameHint}
 
 要求：
-1. 【最重要】仔细分析分镜描述中的动作，提取该动作在${frameType === 'start' ? '起始' : '完成'}时刻的具体画面
-2. 必须明确描述角色的具体姿势（站/坐/跑/蹲等）、肢体位置、身体朝向
+1. 【最重要】提取分镜描述中动作${frameType === 'start' ? '发生前' : '完成后'}的一个静止姿态，用静态语言描述
+2. 明确描述角色此刻的具体姿势（seated/standing/crouching/lying 等）、肢体位置、身体朝向
 3. 【细节保留】角色的每一个外貌细节都必须原样写入提示词：发色、发型、瞳色、服装款式、服装颜色、配饰等，不得省略或概括。例如"黑色双马尾、红色水手服、蓝色百褶裙"必须逐项写出，不能简化为"a girl in school uniform"
 4. 【细节保留】场景的每一个环境细节都必须原样写入提示词：建筑结构、物品摆设、光源方向、色调等，不得省略
 5. 镜头类型决定构图（如特写聚焦面部，远景展示全貌）
-6. 如果有上一镜头信息，确保画面与上一镜头自然衍接
+6. 如果有上一镜头信息，确保画面与上一镜头自然衔接
 7. 如果有视觉风格要求，提示词必须体现该风格特征
 8. 严格遵守角色约束：有角色时与参考图一致，无角色时绝对不能出现人物
-9. 【尾帧专用】如果这是尾帧提示词，必须在提示词开头加上 "single image, single scene, one unified viewpoint," 并在末尾加上 ", NOT split screen, NOT side by side, NOT collage, NOT multiple panels, NOT diptych"
+9. 提示词开头必须加 "single image, single scene, one unified viewpoint,"，末尾必须加 ", one single frame, NOT split screen, NOT side by side, NOT comparison, NOT multiple panels"
 10. 只输出英文提示词，不要其他解释
 
 提示词：`;
@@ -426,11 +425,6 @@ async function handleFrameGeneration(inputParams, onProgress) {
   if (textModel) {
     console.log('[FrameGen] 使用文本模型生成尾帧提示词...');
     endPrompt = await generateFramePrompt({ textModel, description, frameType: 'end', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: null, endState: variables.endState });
-    // 强制追加反拼接关键词（防止图片模型将首帧参考图复制/拼接到尾帧中）
-    const antiCollage = 'single image, single scene, one unified viewpoint, NOT split screen, NOT side by side, NOT collage, NOT multiple panels, NOT diptych, NOT before and after';
-    if (!endPrompt.includes('NOT split screen')) {
-      endPrompt = `single image, single scene, one unified viewpoint, ${endPrompt}, ${antiCollage}`;
-    }
     console.log('[FrameGen] 尾帧提示词:', endPrompt.substring(0, 100) + '...');
   } else {
     endPrompt = `${description}，画面结束时刻，动作完成状态，延续前一帧的场景和角色`;

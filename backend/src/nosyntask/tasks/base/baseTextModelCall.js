@@ -23,7 +23,8 @@ async function handleBaseTextModelCall(params, onProgress) {
     messages,
     textModel: modelName,
     maxTokens = 500,
-    temperature = 0.7
+    temperature = 0.7,
+    think
   } = params;
 
   // 自动派生文本参数
@@ -55,7 +56,8 @@ async function handleBaseTextModelCall(params, onProgress) {
       message: derived.message,
       messages: derived.messages,
       maxTokens,
-      temperature
+      temperature,
+      think
     };
 
     console.log('[BaseTextModelCall] 调用 AI 模型...');

@@ -75,7 +75,8 @@ const WORKFLOW_DEFINITIONS = {
         targetType: 'storyboard',
         handler: handleStoryboardGeneration,
         buildInput: createBuildInput([
-          'scriptContent', 'scriptTitle', 'textModel'
+          'scriptContent', 'scriptTitle', 'textModel',
+          { key: 'think', defaultValue: true }
         ])
       },
       {
@@ -237,6 +238,7 @@ const WORKFLOW_DEFINITIONS = {
         buildInput: createBuildInput([
           'scriptId', 'videoModel', 'textModel', 'duration',
           'overwriteVideos',
+          { key: 'think', defaultValue: true },
           { key: 'maxConcurrency', defaultValue: 3 }
         ])
       }
@@ -274,7 +276,8 @@ const WORKFLOW_DEFINITIONS = {
         targetType: 'storyboard',
         handler: handleCameraRunGeneration,
         buildInput: createBuildInput([
-          'storyboardId', 'textModel'
+          'storyboardId', 'textModel',
+          { key: 'think', defaultValue: true }
         ])
       }
     ]

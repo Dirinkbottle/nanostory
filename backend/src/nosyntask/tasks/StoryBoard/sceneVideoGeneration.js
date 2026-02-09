@@ -23,7 +23,7 @@ const { requireVisualStyle } = require('../../../utils/getProjectStyle');
 const handleCameraRunGeneration = require('./cameraRunGeneration');
 
 async function handleSceneVideoGeneration(inputParams, onProgress) {
-  const { storyboardId, videoModel: modelName, textModel, duration } = inputParams;
+  const { storyboardId, videoModel: modelName, textModel, duration, think } = inputParams;
 
   if (!storyboardId) {
     throw new Error('缺少必要参数: storyboardId');
@@ -143,7 +143,7 @@ async function handleSceneVideoGeneration(inputParams, onProgress) {
     try {
       console.log('[SceneVideoGen] 调用精细运镜生成...');
       const cameraResult = await handleCameraRunGeneration(
-        { storyboardId, textModel },
+        { storyboardId, textModel, think },
         (p) => { if (onProgress) onProgress(10 + p * 0.1); }
       );
       cameraRunPrompt = cameraResult.cameraRunPrompt || '';

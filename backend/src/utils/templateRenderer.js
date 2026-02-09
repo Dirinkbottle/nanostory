@@ -3,6 +3,9 @@
  * 支持嵌套 JSON 结构和路径访问
  */
 
+const { deriveImageParams } = require('./deriveImageParams');
+const { deriveTextParams } = require('./deriveTextParams');
+
 /**
  * 渲染模板字符串，替换 {{key}} 占位符
  * 统一处理所有 {{}} 包裹的占位符，不区分是否有引号
@@ -191,6 +194,29 @@ function renderWithFallback(type, template, runtimeParams, fallbackParams, label
 
   // 合并参数：runtimeParams 覆盖 fallbackParams（包括 _REMOVE_ 标识符）
   const mergedData = { ...(fallbackParams || {}), ...(runtimeParams || {}) };
+
+  // 自动派生缺失字段（多传不会报错，模板只用它引用的占位符）
+  // 图片/视频参数派生：imageUrl ↔ imageUrls ↔ startFrame ↔ endFrame
+  const imgDerived = deriveImageParams({
+    imageUrl: mergedData.imageUrl,
+    imageUrls: mergedData.imageUrls,
+    startFrame: mergedData.startFrame,
+    endFrame: mergedData.endFrame
+  });
+  if (imgDerived.imageUrl && !mergedData.imageUrl)     mergedData.imageUrl = imgDerived.imageUrl;
+  if (imgDerived.imageUrls && !mergedData.imageUrls)   mergedData.imageUrls = imgDerived.imageUrls;
+  if (imgDerived.startFrame && !mergedData.startFrame) mergedData.startFrame = imgDerived.startFrame;
+  if (imgDerived.endFrame && !mergedData.endFrame)     mergedData.endFrame = imgDerived.endFrame;
+
+  // 文本参数派生：prompt ↔ message ↔ messages
+  const txtDerived = deriveTextParams({
+    prompt: mergedData.prompt,
+    message: mergedData.message,
+    messages: mergedData.messages
+  });
+  if (txtDerived.prompt && !mergedData.prompt)     mergedData.prompt = txtDerived.prompt;
+  if (txtDerived.message && !mergedData.message)   mergedData.message = txtDerived.message;
+  if (txtDerived.messages && !mergedData.messages) mergedData.messages = txtDerived.messages;
 
   // 渲染前校验：扫描原始模板中的 {{key}}，检查 mergedData 是否全部覆盖
   const required = findUnrenderedPlaceholders(template);
