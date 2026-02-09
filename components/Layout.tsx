@@ -82,7 +82,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 }`}
               >
                 <Package className="w-4 h-4 mr-2" />
-                资源管理
+                资产管理
               </Button>
             </NavbarItem>
 

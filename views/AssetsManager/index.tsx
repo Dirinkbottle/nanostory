@@ -225,7 +225,7 @@ const AssetsManager: React.FC = () => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 头部 */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-800">资源管理</h1>
+          <h1 className="text-2xl font-bold text-slate-800">资产管理</h1>
           <Button
             className="bg-blue-600 text-white hover:bg-blue-700 font-semibold"
             startContent={<Plus className="w-4 h-4" />}
@@ -237,7 +237,7 @@ const AssetsManager: React.FC = () => {
 
         {/* 搜索 */}
         <Input
-          placeholder="搜索资源..."
+          placeholder="搜索资产..."
           value={searchQuery}
           onValueChange={setSearchQuery}
           startContent={<Search className="w-4 h-4 text-slate-400" />}
