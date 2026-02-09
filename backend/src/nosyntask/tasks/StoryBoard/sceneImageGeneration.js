@@ -29,8 +29,13 @@ const { requireVisualStyle } = require('../../../utils/getProjectStyle');
 /**
  * 使用 AI 生成场景图片提示词
  */
-async function generateScenePrompt(sceneName, description, environment, lighting, mood, style, textModelName) {
+async function generateScenePrompt(sceneName, description, environment, lighting, mood, style, textModelName, styleDescription) {
   console.log('[SceneImageGen] 使用 AI 生成场景图片提示词...');
+
+  // 风格一致性描述（来自关联场景分析）
+  const styleConsistencyLine = styleDescription 
+    ? `\n\n【重要 - 风格一致性要求】\n以下是与本场景关联的场景的视觉风格描述，你生成的提示词必须保持一致的视觉风格：\n${styleDescription}`
+    : '';
 
   const fullPrompt = `你是一个专业的图片生成提示词专家。你的任务是根据场景信息生成高质量的场景图片生成提示词（用于 Stable Diffusion、Midjourney 等 AI 绘图工具）。
 
@@ -38,10 +43,13 @@ async function generateScenePrompt(sceneName, description, environment, lighting
 1. 提示词必须用英文输出
 2. 使用逗号分隔的关键词格式
 3. 包含：场景环境、光照效果、氛围、构图、画质描述
-4. 避免使用否定词（如 no, without 等）
+4. 除了排除人物的否定词外，尽量避免使用其他否定词（如 without 等）
 5. 简洁明确，突出场景特征
 6. 长度控制在 100-150 个单词
 7. 重点描述环境细节、光影效果、氛围营造
+8. 如果有风格一致性要求，必须严格遵守，确保建筑风格、色调、时代感等保持一致
+9. 【严格禁止】这是纯场景/环境图，画面中绝对不能出现任何人物、角色、人影、剪影、行人或任何人体部分。只描述建筑、自然环境、物品、光影等非人物元素
+10. 在提示词开头加上 "empty scene, no people, no characters, no figures, uninhabited,"
 
 示例格式：
 scene description, environment details, lighting conditions, mood and atmosphere, composition, art style, high quality, detailed, cinematic
@@ -55,7 +63,7 @@ scene description, environment details, lighting conditions, mood and atmosphere
 环境描述：${environment || '无'}
 光照描述：${lighting || '无'}
 氛围描述：${mood || '无'}
-风格要求：${style || '写实风格'}
+风格要求：${style || '写实风格'}${styleConsistencyLine}
 
 请直接输出英文提示词，不要包含任何解释或其他内容。`;
 
@@ -118,14 +126,14 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
     lighting, 
     mood, 
     style: inputStyle, 
-    imageModel, modelName: _legacyModel,
-    textModel, textModelName: _legacyTextModel,
+    imageModel: resolvedImageModel,
+    textModel: resolvedTextModel,
     width = 1024,
-    height = 576
+    height = 576,
+    referenceImageUrl,
+    styleDescription
   } = inputParams;
 
-  const resolvedImageModel = imageModel || _legacyModel;
-  const resolvedTextModel = textModel || _legacyTextModel || null;
 
   // 项目视觉风格（必填，未设置则报错）
   let projectId = null;
@@ -140,7 +148,9 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
     sceneName,
     style: style.substring(0, 60) + (style.length > 60 ? '...' : ''),
     imageModel: resolvedImageModel,
-    dimensions: `${width}x${height}`
+    dimensions: `${width}x${height}`,
+    hasReferenceImage: !!referenceImageUrl,
+    hasStyleDescription: !!styleDescription
   });
 
   // 参数验证
@@ -172,19 +182,26 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
     lighting,
     mood,
     style,
-    resolvedTextModel
+    resolvedTextModel,
+    styleDescription
   );
 
   if (onProgress) onProgress(30);
 
   // 步骤2：生成场景图片
   console.log('[SceneImageGen] 生成场景图片...');
-  const imageResult = await handleImageGeneration({
+  const imageParams = {
     prompt: scenePrompt,
     imageModel: resolvedImageModel,
     width,
     height
-  }, (progress) => {
+  };
+  // 如果有关联场景的参考图，传入作为风格参考（deriveImageParams 会自动派生 imageUrls）
+  if (referenceImageUrl) {
+    imageParams.imageUrl = referenceImageUrl;
+    console.log('[SceneImageGen] 使用参考图:', referenceImageUrl);
+  }
+  const imageResult = await handleImageGeneration(imageParams, (progress) => {
     if (onProgress) onProgress(30 + progress * 0.6); // 30% -> 90%
   });
 
@@ -199,8 +216,16 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
 
   if (onProgress) onProgress(90);
 
+  // 持久化场景图片到 MinIO
+  const { downloadAndStore } = require('../../../utils/fileStorage');
+  const persistedImageUrl = await downloadAndStore(
+    imageUrl,
+    `images/scenes/${sceneId}/scene`,
+    { fallbackExt: '.png' }
+  );
+
   // 步骤3：保存图片 URL 到数据库
-  if (sceneId && imageUrl) {
+  if (sceneId && persistedImageUrl) {
     const { execute } = require('../../../dbHelper');
     await execute(
       `UPDATE scenes 
@@ -209,7 +234,7 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
            generation_status = 'completed', 
            updated_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
-      [imageUrl, scenePrompt, sceneId]
+      [persistedImageUrl, scenePrompt, sceneId]
     );
     console.log('[SceneImageGen] ✅ 场景图片已保存到数据库');
   }
@@ -217,7 +242,7 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
   if (onProgress) onProgress(100);
 
   return {
-    imageUrl,
+    imageUrl: persistedImageUrl,
     sceneId,
     prompt: scenePrompt,
     imageModel: resolvedImageModel,

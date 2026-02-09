@@ -10,14 +10,12 @@ const create = require('./create');
 const update = require('./update');
 const deleteCharacter = require('./delete');
 const generateViews = require('./generateViews');
-const extractFromStoryboard = require('./extractFromStoryboard');
 
 // 注册路由（顺序很重要！具体路由在前，通用路由在后）
 getAll(router);
 getByProject(router);
 batchSave(router);
 generateViews(router);
-extractFromStoryboard(router);
 create(router);
 update(router);
 deleteCharacter(router);

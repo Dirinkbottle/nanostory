@@ -15,51 +15,50 @@
  */
 
 const { submitAndPoll } = require('../pollUtils');
+const { deriveImageParams } = require('../../../utils/deriveImageParams');
 
 async function handleBaseVideoModelCall(inputParams, onProgress) {
   const {
     prompt,
-    videoModel: _videoModel,
-    modelName: _legacyModelName,
+    videoModel: modelName,
     duration = 5,
     imageUrl,
     imageUrls,
+    startFrame,
+    endFrame,
     aspectRatio
   } = inputParams;
-
-  const modelName = _videoModel || _legacyModelName;
 
   if (!modelName) {
     throw new Error('videoModel 参数是必需的');
   }
 
+  // 自动派生图片相关参数
+  const derived = deriveImageParams({ imageUrl, imageUrls, startFrame, endFrame });
+
   console.log('[BaseVideoModelCall] 开始调用视频模型:', {
     modelName,
     promptLength: prompt?.length || 0,
     duration,
-    hasImage: !!imageUrl,
+    hasImage: !!derived.imageUrl,
+    hasStartFrame: !!derived.startFrame,
+    hasEndFrame: !!derived.endFrame,
     aspectRatio: aspectRatio || '未指定'
   });
 
   if (onProgress) onProgress(10);
 
-  // 构建提交参数，匹配视频生成 API 接口格式
+  // 构建提交参数
   const submitParams = {
     prompt: prompt || '',
     duration,
   };
 
-  // 统一协议：imageUrl(单张string) 和 imageUrls(数组string[])
-  // 模板中用 {{imageUrl}} 和 {{imageUrls}} 分别匹配
-  if (imageUrl) {
-    submitParams.imageUrl = imageUrl;
-  }
-  if (imageUrls) {
-    submitParams.imageUrls = imageUrls;
-  }
-  if (aspectRatio) {
-    submitParams.aspectRatio = aspectRatio;
-  }
+  if (derived.imageUrl)   submitParams.imageUrl = derived.imageUrl;
+  if (derived.imageUrls)  submitParams.imageUrls = derived.imageUrls;
+  if (derived.startFrame) submitParams.startFrame = derived.startFrame;
+  if (derived.endFrame)   submitParams.endFrame = derived.endFrame;
+  if (aspectRatio)        submitParams.aspectRatio = aspectRatio;
 
   // 视频生成通常耗时较长，轮询间隔和超时都比图片大
   const result = await submitAndPoll(modelName, submitParams, {

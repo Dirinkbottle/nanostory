@@ -5,7 +5,8 @@ const {
   renderJsonTemplate,
   extractValueByPath,
   mapResponse,
-  mergeParams
+  mergeParams,
+  renderWithFallback
 } = require('./utils/templateRenderer');
 const { getHandler } = require('./customHandlers');
 
@@ -49,16 +50,11 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
       ? JSON.parse(model.response_mapping)
       : model.response_mapping;
     
-    // 合并默认参数和传入参数
-    const mergedParams = { ...defaultParams, ...params };
-    
     // API Key 优先级：1. 数据库配置 2. 函数参数 3. 环境变量
     if (!apiKey) {
-      // 优先使用数据库中的 api_key
       if (model.api_key) {
         apiKey = model.api_key;
       } else {
-        // 从环境变量获取
         const envKey = `${model.provider.toUpperCase()}_API_KEY`;
         apiKey = process.env[envKey];
         
@@ -68,14 +64,16 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
       }
     }
     
-    // 添加 apiKey 到参数中
-    mergedParams.apiKey = apiKey;
+    // 运行时参数（用户传入 + apiKey，优先级高）
+    const runtimeParams = { ...params, apiKey };
+    // 兼容旧逻辑：合并参数供 custom_handler 使用
+    const mergedParams = { ...defaultParams, ...runtimeParams };
     
-    // 渲染 URL
-    const url = renderTemplate(model.url_template, mergedParams);
+    // 两轮渲染 URL（第一轮 runtimeParams，第二轮 defaultParams 兜底）
+    const url = renderWithFallback('string', model.url_template, runtimeParams, defaultParams, 'url');
     
-    // 使用 renderJsonTemplate 渲染 Headers（支持嵌套对象）
-    const headers = renderJsonTemplate(headersTemplate, mergedParams);
+    // 两轮渲染 Headers
+    const headers = renderWithFallback('json', headersTemplate, runtimeParams, defaultParams, 'headers');
     
     // 构建请求选项
     const requestOptions = {
@@ -83,9 +81,9 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
       headers
     };
     
-    // 如果有 body 模板，使用 renderJsonTemplate 渲染（支持嵌套对象）
+    // 两轮渲染 Body
     if (bodyTemplate && (model.request_method === 'POST' || model.request_method === 'PUT')) {
-      const renderedBody = renderJsonTemplate(bodyTemplate, mergedParams);
+      const renderedBody = renderWithFallback('json', bodyTemplate, runtimeParams, defaultParams, 'body');
       
       // 根据 Content-Type 决定序列化方式
       const contentType = headers['Content-Type'] || headers['content-type'] || '';
@@ -293,28 +291,36 @@ async function queryAIModel(modelName, params = {}, apiKey = null) {
       }
     }
 
-    const mergedParams = { ...params, apiKey };
+    // 运行时参数（查询映射字段 + apiKey）
+    const runtimeParams = { ...params, apiKey };
+    // 兼容旧逻辑
+    const mergedParams = { ...runtimeParams };
 
-    // 渲染查询 URL
-    const url = renderTemplate(model.query_url_template, mergedParams);
+    // 解析 default_params 作为兜底
+    const defaultParams = model.default_params
+      ? (typeof model.default_params === 'string' ? JSON.parse(model.default_params) : model.default_params)
+      : {};
 
-    // 渲染查询 Headers
+    // 两轮渲染查询 URL
+    const url = renderWithFallback('string', model.query_url_template, runtimeParams, defaultParams, 'query_url');
+
+    // 两轮渲染查询 Headers
     const queryHeadersTemplate = model.query_headers_template
       ? (typeof model.query_headers_template === 'string' ? JSON.parse(model.query_headers_template) : model.query_headers_template)
       : {};
-    const headers = renderJsonTemplate(queryHeadersTemplate, mergedParams);
+    const headers = renderWithFallback('json', queryHeadersTemplate, runtimeParams, defaultParams, 'query_headers');
 
     // 构建请求
     const queryMethod = model.query_method || 'GET';
     const requestOptions = { method: queryMethod, headers };
 
-    // 渲染查询 Body（根据 Content-Type 选择编码方式）
+    // 两轮渲染查询 Body
     const queryBodyTemplate = model.query_body_template
       ? (typeof model.query_body_template === 'string' ? JSON.parse(model.query_body_template) : model.query_body_template)
       : null;
 
     if (queryBodyTemplate && queryMethod !== 'GET') {
-      const renderedBody = renderJsonTemplate(queryBodyTemplate, mergedParams);
+      const renderedBody = renderWithFallback('json', queryBodyTemplate, runtimeParams, defaultParams, 'query_body');
       const contentType = headers['Content-Type'] || headers['content-type'] || '';
 
       if (contentType.includes('application/x-www-form-urlencoded')) {

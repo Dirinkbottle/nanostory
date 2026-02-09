@@ -1,4 +1,4 @@
-const { queryOne } = require('../../dbHelper');
+const { queryOne, queryAll } = require('../../dbHelper');
 const { authMiddleware } = require('../../middleware');
 
 // POST /:id/generate-image - 生成场景图片
@@ -18,12 +18,42 @@ module.exports = (router) => {
         return res.status(404).json({ message: '场景不存在' });
       }
 
+      // 检查是否已有进行中的生成任务
+      const activeJob = await queryOne(
+        `SELECT id FROM workflow_jobs 
+         WHERE user_id = ? AND workflow_type = 'scene_image_generation' 
+           AND status IN ('pending', 'running')
+           AND JSON_EXTRACT(input_params, '$.sceneId') = ?`,
+        [userId, id]
+      );
+      if (activeJob) {
+        return res.status(409).json({ 
+          message: '该场景已有进行中的生成任务',
+          jobId: activeJob.id
+        });
+      }
+
       // 参数验证：确保必要字段完整
       if (!scene.name && !scene.description && !scene.environment) {
         return res.status(400).json({ 
           message: '场景信息不足，至少需要提供场景名称、描述或环境描述之一' 
         });
       }
+
+      // 查询同项目所有场景（用于风格一致性分析）
+      const allScenes = await queryAll(
+        'SELECT id, name, description, environment, lighting, mood, image_url, generation_prompt FROM scenes WHERE project_id = ? AND user_id = ?',
+        [scene.project_id, userId]
+      );
+      const sceneSummaries = allScenes.map(s => ({
+        id: s.id,
+        name: s.name,
+        description: s.description || '',
+        environment: s.environment || '',
+        hasImage: !!s.image_url,
+        imageUrl: s.image_url || null,
+        generationPrompt: s.generation_prompt || null
+      }));
 
       // 启动异步工作流生成场景图片
       const engine = require('../../nosyntask/engine/index');
@@ -32,11 +62,13 @@ module.exports = (router) => {
         projectId: scene.project_id,
         jobParams: {
           sceneId: id,
+          projectId: scene.project_id,
           sceneName: scene.name,
           description: scene.description,
           environment: scene.environment,
           lighting: scene.lighting,
           mood: scene.mood,
+          allScenes: sceneSummaries,
           imageModel,
           textModel,
           width: width || 1024,

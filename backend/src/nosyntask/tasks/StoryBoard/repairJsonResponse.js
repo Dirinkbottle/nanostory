@@ -7,10 +7,10 @@
  */
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
+const { stripThinkTags, extractCodeBlock } = require('../../../utils/washBody');
 
 async function handleRepairJsonResponse(inputParams, onProgress) {
-  const { incompleteJson, originalPrompt, textModel, modelName: _legacy } = inputParams;
-  const modelName = textModel || _legacy;
+  const { incompleteJson, originalPrompt, textModel: modelName } = inputParams;
 
   if (!modelName) {
     throw new Error('textModel 参数是必需的');
@@ -76,17 +76,9 @@ ${incompleteJson}
 
   console.log('[RepairJson] AI 修复响应长度:', repairedContent.length);
 
-  // 清理响应内容
-  repairedContent = repairedContent.trim();
-  
-  // 移除可能的 markdown 代码块标记
-  if (repairedContent.startsWith('```json')) {
-    repairedContent = repairedContent.replace(/^```json\s*\n?/, '').replace(/\n?```\s*$/, '');
-  } else if (repairedContent.startsWith('```')) {
-    repairedContent = repairedContent.replace(/^```\s*\n?/, '').replace(/\n?```\s*$/, '');
-  }
-
-  repairedContent = repairedContent.trim();
+  // 统一清洗：去 think 标签 + 提取代码块
+  repairedContent = stripThinkTags(repairedContent);
+  repairedContent = extractCodeBlock(repairedContent);
 
   // 验证修复后的 JSON
   let repairedJson;

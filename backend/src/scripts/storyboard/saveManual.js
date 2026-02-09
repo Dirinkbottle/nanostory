@@ -47,6 +47,14 @@ module.exports = (router) => {
         );
       }
 
+      // 建立分镜与角色/场景的强ID关联
+      try {
+        const { linkAllForScript } = require('../../resourceLinks');
+        await linkAllForScript(scriptId, projectId);
+      } catch (linkError) {
+        console.error('[Save Storyboards] 资源关联失败（不影响分镜）:', linkError.message);
+      }
+
       res.json({
         message: '分镜保存成功',
         count: items.length

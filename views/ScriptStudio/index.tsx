@@ -13,6 +13,7 @@ import EpisodeSelectModal from './EpisodeSelectModal';
 import EpisodeSelector from './EpisodeSelector';
 import LoadingScreen from './LoadingScreen';
 import StoryBoard from '../StoryBoard';
+import SimpleStoryBoard from '../SimpleStoryBoard';
 import VideoComposition from '../VideoComposition';
 import AIModelConfigModal from '../../components/AIModelConfigModal';
 import { useAIModels } from '../../hooks/useAIModels';
@@ -295,24 +296,45 @@ const ScriptStudio: React.FC = () => {
             </div>
           </div>
         ) : (
-          <StoryBoard 
-            scriptId={scriptId}
-            projectId={selectedProject?.id || null}
-            episodeNumber={currentEpisode}
-            scripts={scripts}
-            textModel={aiModels.selected.text}
-            imageModel={aiModels.selected.image}
-            videoModel={aiModels.selected.video}
-            onEpisodeChange={(ep, sid) => {
-              setCurrentEpisode(ep);
-              const targetScript = scripts.find(s => s.id === sid);
-              if (targetScript) {
-                setScriptId(sid);
-                setContent(targetScript.content);
-                setTitle(targetScript.title);
-              }
-            }}
-          />
+          localStorage.getItem('userRole') === 'admin' ? (
+            <StoryBoard 
+              scriptId={scriptId}
+              projectId={selectedProject?.id || null}
+              episodeNumber={currentEpisode}
+              scripts={scripts}
+              textModel={aiModels.selected.text}
+              imageModel={aiModels.selected.image}
+              videoModel={aiModels.selected.video}
+              onEpisodeChange={(ep, sid) => {
+                setCurrentEpisode(ep);
+                const targetScript = scripts.find(s => s.id === sid);
+                if (targetScript) {
+                  setScriptId(sid);
+                  setContent(targetScript.content);
+                  setTitle(targetScript.title);
+                }
+              }}
+            />
+          ) : (
+            <SimpleStoryBoard
+              scriptId={scriptId}
+              projectId={selectedProject?.id || null}
+              episodeNumber={currentEpisode}
+              scripts={scripts}
+              textModel={aiModels.selected.text}
+              imageModel={aiModels.selected.image}
+              videoModel={aiModels.selected.video}
+              onEpisodeChange={(ep, sid) => {
+                setCurrentEpisode(ep);
+                const targetScript = scripts.find(s => s.id === sid);
+                if (targetScript) {
+                  setScriptId(sid);
+                  setContent(targetScript.content);
+                  setTitle(targetScript.title);
+                }
+              }}
+            />
+          )
         )}
       </div>
 

@@ -5,10 +5,11 @@
  */
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
+const { washForJSON } = require('../../../utils/washBody');
 
 async function handleSmartParse(inputParams, onProgress) {
-  const { apiDoc, textModel, modelName: _legacy, customPrompt } = inputParams;
-  const selectedModel = textModel || _legacy || 'DeepSeek Chat';
+  const { apiDoc, textModel, customPrompt } = inputParams;
+  const selectedModel = textModel || 'DeepSeek Chat';
 
   const systemInstruction = `你是 AI 模型配置工程师。你的唯一任务是：将用户提供的 API 文档转换为一个标准 JSON 配置对象。
 
@@ -67,7 +68,7 @@ async function handleSmartParse(inputParams, onProgress) {
 （是* = 异步模型必填，同步模型不需要）
 
 ### 占位符字典
-{{apiKey}} API密钥 | {{prompt}} 提示词 | {{messages}} 消息数组 | {{model}} 模型名 | {{maxTokens}} 最大Token | {{temperature}} 温度 | {{imageUrl}} 图片URL | {{width}} 宽 | {{height}} 高 | {{aspectRatio}} 宽高比 | {{duration}} 时长 | {{taskId}} 任务ID | {{style}} 风格
+{{apiKey}} API密钥 | {{prompt}} 提示词 | {{messages}} 消息数组 | {{model}} 模型名 | {{maxTokens}} 最大Token | {{temperature}} 温度 | {{imageUrl}} 单张图片URL(string) | {{imageUrls}} 图片URL数组(string[]) | {{startFrame}} 首帧图片URL | {{endFrame}} 尾帧图片URL | {{width}} 宽(像素) | {{height}} 高(像素) | {{aspectRatio}} 宽高比 | {{duration}} 时长(秒) | {{taskId}} 任务ID | {{style}} 风格
 
 ## 完整示例
 
@@ -149,7 +150,7 @@ async function handleSmartParse(inputParams, onProgress) {
 }
 
 ### 示例 3：异步视频模型（VIDEO），查询用 POST + Body
-特点：与示例 2 的区别是查询接口用 POST 方法并需要 Body，且成功映射提取的是 video_url。
+特点：与示例 2 的区别是查询接口用 POST 方法并需要 Body，且成功映射提取的是 video_url。支持 imageUrl（单张参考图）、startFrame/endFrame（首尾帧）。
 {
   "name": "Sora 视频生成",
   "category": "VIDEO",
@@ -166,6 +167,8 @@ async function handleSmartParse(inputParams, onProgress) {
   "body_template": {
     "prompt": "{{prompt}}",
     "image_url": "{{imageUrl}}",
+    "start_frame": "{{startFrame}}",
+    "end_frame": "{{endFrame}}",
     "duration": "{{duration}}",
     "aspect_ratio": "{{aspectRatio}}"
   },
@@ -218,33 +221,10 @@ ${userMessage}`;
 
   if (onProgress) onProgress(80);
 
-  // 解析 JSON
-  let parsedConfig;
-  let content = result.content.trim();
-
-  // 移除 <think> 标签
-  content = content.replace(/<think>[\s\S]*?<\/think>/g, '');
-
-  // 清洗 markdown 代码块
-  if (content.includes('```')) {
-    content = content.replace(/^```json\s*/m, '').replace(/^```\s*/m, '').replace(/```$/m, '');
-  }
-
-  // 提取 JSON 对象
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    let jsonStr = jsonMatch[0];
-    try {
-      parsedConfig = JSON.parse(jsonStr);
-    } catch (firstError) {
-      jsonStr = jsonStr
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n');
-      parsedConfig = JSON.parse(jsonStr);
-    }
-  } else {
-    parsedConfig = JSON.parse(content);
+  // 清洗 + 解析 JSON
+  const parsedConfig = washForJSON(result.content);
+  if (!parsedConfig) {
+    throw new Error('AI 返回内容无法解析为 JSON');
   }
 
   if (onProgress) onProgress(95);

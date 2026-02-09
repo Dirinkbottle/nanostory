@@ -5,7 +5,7 @@
  * body: { scriptId: number, order: [{ id: number, idx: number }] }
  */
 
-const { queryOne, execute } = require('../dbHelper');
+const { queryOne, execute } = require('../../dbHelper');
 
 async function reorderStoryboards(req, res) {
   const userId = req.user.id;

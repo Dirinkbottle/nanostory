@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@heroui/react';
-import { Wand2, RefreshCw, Upload, Users, MapPin } from 'lucide-react';
+import { Wand2, RefreshCw, Upload } from 'lucide-react';
 import { useSceneManager } from './useSceneManager';
 import { useAutoStoryboard } from './useAutoStoryboard';
 import { useSceneGeneration } from './useSceneGeneration';
-import { useCharacterExtraction } from './hooks/useCharacterExtraction';
-import { useSceneExtraction } from './hooks/useSceneExtraction';
 import { useFrameGeneration } from './hooks/useFrameGeneration';
 import { useBatchFrameGeneration } from './hooks/useBatchFrameGeneration';
 import { useBatchSceneVideoGeneration } from './hooks/useBatchSceneVideoGeneration';
@@ -94,27 +92,6 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     videoModel
   });
 
-  // 6. 角色提取
-  const characterExtraction = useCharacterExtraction({
-    projectId: currentProjectId,
-    scriptId: currentScriptId,
-    scenes,
-    isActive: true,
-    onCompleted: () => {
-      console.log('[StoryBoard] 角色提取完成');
-    }
-  });
-
-  // 7. 场景提取
-  const sceneExtraction = useSceneExtraction({
-    projectId: currentProjectId,
-    scriptId: currentScriptId,
-    scenes,
-    isActive: true,
-    onCompleted: () => {
-      console.log('[StoryBoard] 场景提取完成');
-    }
-  });
 
   // 8. 批量帧生成
   const batchFrameGen = useBatchFrameGeneration({
@@ -275,28 +252,6 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           </Button>
           <Button
             size="sm"
-            variant="flat"
-            className="bg-purple-50 text-purple-600 font-medium"
-            startContent={<Users className="w-4 h-4" />}
-            onPress={() => characterExtraction.startExtraction(textModel)}
-            isLoading={characterExtraction.isExtracting}
-            isDisabled={!currentProjectId || scenes.length === 0 || characterExtraction.isExtracting}
-          >
-            {characterExtraction.isExtracting ? '提取中...' : '提取角色'}
-          </Button>
-          <Button
-            size="sm"
-            variant="flat"
-            className="bg-green-50 text-green-600 font-medium"
-            startContent={<MapPin className="w-4 h-4" />}
-            onPress={() => sceneExtraction.startExtraction(textModel)}
-            isLoading={sceneExtraction.isExtracting}
-            isDisabled={!currentProjectId || scenes.length === 0 || sceneExtraction.isExtracting}
-          >
-            {sceneExtraction.isExtracting ? '提取中...' : '提取场景'}
-          </Button>
-          <Button
-            size="sm"
             className="bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold"
             startContent={<Wand2 className="w-4 h-4" />}
             onPress={autoStoryboard.handleAutoGenerateClick}
@@ -337,6 +292,9 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
               onReorderScenes={reorderScenes}
               onGenerateImage={generateImage}
               onGenerateVideo={generateVideo}
+              onUpdateScene={(id, updates) => {
+                setScenes(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+              }}
               tasks={tasks}
               onBatchGenerate={(overwrite) => batchFrameGen.startBatchGeneration(overwrite)}
               isBatchGenerating={batchFrameGen.isGenerating}

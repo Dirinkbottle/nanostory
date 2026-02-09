@@ -13,7 +13,7 @@ interface UseBatchFrameGenerationProps {
   projectId: number | null;
   imageModel: string;
   textModel: string;
-  scenes: { characters: string[]; location: string }[];
+  scenes: { id?: number; characters: string[]; location: string }[];
   onComplete?: () => void;
 }
 

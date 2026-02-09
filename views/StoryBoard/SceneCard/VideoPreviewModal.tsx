@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Spinner } from '@heroui/react';
-import { Play, Film } from 'lucide-react';
+import { Play, Film, X } from 'lucide-react';
 import { StoryboardScene } from '../useSceneManager';
 
 interface VideoPreviewModalProps {
@@ -8,6 +8,7 @@ interface VideoPreviewModalProps {
   index: number;
   isGeneratingVideo: boolean;
   onGenerateVideo: () => void;
+  onDeleteVideo?: () => void;
   showVideoPreview: boolean;
   setShowVideoPreview: (show: boolean) => void;
   isModal?: boolean;
@@ -18,6 +19,7 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
   index,
   isGeneratingVideo,
   onGenerateVideo,
+  onDeleteVideo,
   showVideoPreview,
   setShowVideoPreview,
   isModal = false
@@ -98,6 +100,20 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
       <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded font-bold">
         视频
       </div>
+      {onDeleteVideo && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (window.confirm('确定要删除该分镜的视频吗？视频文件将从存储桶中永久删除，此操作不可撤销。')) {
+              onDeleteVideo();
+            }
+          }}
+          className="absolute top-1 right-1 p-0.5 bg-red-500/80 rounded-full hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+          title="删除视频"
+        >
+          <X className="w-3 h-3 text-white" />
+        </button>
+      )}
     </div>
   );
 };

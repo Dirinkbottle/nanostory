@@ -7,16 +7,19 @@
  */
 
 const { submitAndPoll } = require('../pollUtils');
+const { deriveImageParams } = require('../../../utils/deriveImageParams');
 
 async function handleImageGeneration(inputParams, onProgress) {
-  const { prompt, imageModel: _imageModel, modelName: _legacyModelName, width, height, imageUrl, imageUrls } = inputParams;
-  const modelName = _imageModel || _legacyModelName;
+  const { prompt, imageModel: modelName, width, height, imageUrl, imageUrls, startFrame, endFrame } = inputParams;
 
   if (!modelName) {
     throw new Error('imageModel 参数是必需的');
   }
 
   if (onProgress) onProgress(10);
+
+  // 自动派生图片相关参数
+  const derived = deriveImageParams({ imageUrl, imageUrls, startFrame, endFrame });
 
   // 构建提交参数
   const submitParams = {
@@ -25,14 +28,10 @@ async function handleImageGeneration(inputParams, onProgress) {
     height: height || 1024
   };
 
-  // 统一协议：imageUrl(单张string) 和 imageUrls(数组string[])
-  // 模板中用 {{imageUrl}} 和 {{imageUrls}} 分别匹配
-  if (imageUrl) {
-    submitParams.imageUrl = imageUrl;
-  }
-  if (imageUrls) {
-    submitParams.imageUrls = imageUrls;
-  }
+  if (derived.imageUrl)   submitParams.imageUrl = derived.imageUrl;
+  if (derived.imageUrls)  submitParams.imageUrls = derived.imageUrls;
+  if (derived.startFrame) submitParams.startFrame = derived.startFrame;
+  if (derived.endFrame)   submitParams.endFrame = derived.endFrame;
 
   const result = await submitAndPoll(modelName, submitParams, {
     intervalMs: 3000,

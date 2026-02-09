@@ -22,9 +22,6 @@ const SceneCardMetadata: React.FC<SceneCardMetadataProps> = ({ scene }) => {
             📍 {scene.location}
           </Chip>
         )}
-        <Chip size="sm" variant="flat" className="bg-green-100 text-green-700 text-xs font-medium">
-          ⏱️ {scene.duration}s
-        </Chip>
         {scene.emotion && (
           <Chip size="sm" variant="flat" className="bg-pink-100 text-pink-700 text-xs font-medium">
             💫 {scene.emotion}
@@ -66,14 +63,21 @@ const SceneCardMetadata: React.FC<SceneCardMetadataProps> = ({ scene }) => {
         <div>
           <span className="text-xs font-semibold text-slate-500 mb-2 block">角色</span>
           <div className="flex flex-wrap gap-2">
-            {scene.characters.map((char, idx) => (
-              <div key={idx} className="flex items-center gap-2 bg-blue-50 rounded-lg px-2 py-1 border border-blue-200">
-                <div className="w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center text-xs">
-                  👤
+            {scene.characters.map((char, idx) => {
+              const linked = scene.linkedCharacters?.find(lc => lc.name === char);
+              return (
+                <div key={idx} className="flex items-center gap-2 bg-blue-50 rounded-lg px-2 py-1 border border-blue-200">
+                  {linked?.image_url ? (
+                    <img src={linked.image_url} alt={char} className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center text-xs">
+                      👤
+                    </div>
+                  )}
+                  <span className="text-xs font-medium text-blue-700">{char}</span>
                 </div>
-                <span className="text-xs font-medium text-blue-700">{char}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

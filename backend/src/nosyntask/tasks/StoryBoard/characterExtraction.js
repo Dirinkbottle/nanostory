@@ -6,10 +6,10 @@
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const db = require('../../../db');
+const { stripThinkTags, extractCodeBlock, extractJSON, stripInvisible, safeParseJSON } = require('../../../utils/washBody');
 
 async function handleCharacterExtraction(inputParams, onProgress) {
-  const { scenes, scriptContent, textModel, modelName: _legacy, projectId, scriptId, userId } = inputParams;
-  const modelName = textModel || _legacy;
+  const { scenes, scriptContent, textModel: modelName, projectId, scriptId, userId } = inputParams;
 
   if (!modelName) {
     throw new Error('textModel 参数是必需的');
@@ -81,67 +81,33 @@ ${contentForAnalysis}
 
   if (onProgress) onProgress(70);
 
-  // 解析 AI 返回的 JSON（使用与 storyboardGeneration 相同的逻辑）
+  // 解析 AI 返回的 JSON
   let characters = [];
   try {
-    let jsonStr = result.content;
-    
-    console.log('[CharacterExtraction] 响应长度:', jsonStr.length, '字符');
-    console.log('[CharacterExtraction] 原始响应 (前200字符):', jsonStr.substring(0, 200));
-    
-    // 1. 移除 <think> 标签
-    jsonStr = jsonStr.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-    
-    // 2. 处理 markdown 代码块
-    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1].trim();
-      console.log('[CharacterExtraction] 提取代码块后长度:', jsonStr.length, '字符');
+    console.log('[CharacterExtraction] 响应长度:', result.content.length, '字符');
+
+    // 1. 统一清洗
+    let jsonStr = stripThinkTags(result.content);
+    jsonStr = extractCodeBlock(jsonStr);
+    jsonStr = stripInvisible(jsonStr).trim();
+
+    // 2. 尝试解析
+    let parsed = safeParseJSON(jsonStr);
+
+    // 3. 如果整体失败，提取 JSON 片段再试
+    if (parsed === null) {
+      const extracted = extractJSON(jsonStr);
+      if (extracted) parsed = safeParseJSON(extracted);
     }
-    
-    // 3. 移除前导/尾随空白
-    jsonStr = jsonStr.trim();
-    
-    // 4. 先尝试直接解析
-    let needsFix = false;
-    try {
-      characters = JSON.parse(jsonStr);
-    } catch (e) {
-      needsFix = true;
-      console.log('[CharacterExtraction] JSON 解析失败，尝试修复格式错误...');
+
+    if (parsed === null) {
+      throw new Error('JSON 解析失败');
     }
-    
-    // 5. 如果失败，尝试修复格式错误
-    if (needsFix) {
-      const lines = jsonStr.split('\n');
-      const fixedLines = lines.map(line => {
-        return line.replace(
-          /"(\w+)":\s*([^"\d\[\{tfn][^,\}]*?)([,\}])/g,
-          (match, key, value, end) => {
-            const trimmedValue = value.trim();
-            if (trimmedValue !== 'true' && 
-                trimmedValue !== 'false' && 
-                trimmedValue !== 'null') {
-              console.log('[CharacterExtraction] 修复字段:', key);
-              return `"${key}": "${trimmedValue}"${end}`;
-            }
-            return match;
-          }
-        );
-      });
-      jsonStr = fixedLines.join('\n');
-      console.log('[CharacterExtraction] 格式修复完成，重新尝试解析...');
-      
-      characters = JSON.parse(jsonStr);
-    }
-    
-    console.log('[CharacterExtraction] 成功解析，共', characters.length, '个角色');
-    
+
     // 确保返回数组
-    if (!Array.isArray(characters)) {
-      characters = characters.characters || [characters];
-    }
-    
+    characters = Array.isArray(parsed) ? parsed : (parsed.characters || [parsed]);
+    console.log('[CharacterExtraction] 成功解析，共', characters.length, '个角色');
+
   } catch (parseError) {
     console.error('[CharacterExtraction] 解析角色 JSON 失败:', parseError);
     console.error('[CharacterExtraction] 完整响应内容:', result.content);

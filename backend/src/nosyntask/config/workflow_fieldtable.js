@@ -43,6 +43,16 @@ module.exports = {
   },
 
   // ================================================================
+  // 模型标识
+  // ================================================================
+  reasoning_effort: {
+    from: 'reasoning_effort',
+    defaultValue: null,
+    description: '这是最核心的参数。值越低（如 none, minimal），模型思考越少，响应越快；值越高（如 high, xhigh），思考越深入，响应可能越慢。设置为 none可基本关闭深度思考',
+    category: 'model'
+  },
+
+  // ================================================================
   //  通用标识
   // ================================================================
   projectId: {
@@ -160,6 +170,24 @@ module.exports = {
     from: 'scenes',
     defaultValue: null,
     description: '场景列表（用于提取任务）',
+    category: 'scene'
+  },
+  allScenes: {
+    from: 'allScenes',
+    defaultValue: [],
+    description: '同项目所有场景摘要（用于风格一致性分析）',
+    category: 'scene'
+  },
+  referenceImageUrl: {
+    from: 'referenceImageUrl',
+    defaultValue: null,
+    description: '风格参考图URL（由关联场景分析步骤输出）',
+    category: 'scene'
+  },
+  styleDescription: {
+    from: 'styleDescription',
+    defaultValue: null,
+    description: '风格一致性描述（由关联场景分析步骤输出）',
     category: 'scene'
   },
 

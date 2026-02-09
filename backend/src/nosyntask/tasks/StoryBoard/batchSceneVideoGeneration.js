@@ -97,14 +97,6 @@ async function handleBatchSceneVideoGeneration(inputParams, onProgress) {
       continue;
     }
 
-    // 检查是否有首帧（生成视频的必要条件）
-    if (!sb.first_frame_url) {
-      console.log(`[BatchSceneVideoGen] [${i + 1}/${total}] 分镜 ${sb.id} 缺少首帧，跳过`);
-      skipped++;
-      results.push({ storyboardId: sb.id, status: 'skipped', reason: '缺少首帧' });
-      continue;
-    }
-
     const idx = i;
 
     // 包装成 async 函数放入池

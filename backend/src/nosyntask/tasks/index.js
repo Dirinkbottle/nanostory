@@ -18,7 +18,9 @@ const handleSceneImageGeneration = require('./StoryBoard/sceneImageGeneration');
 const handleBaseTextModelCall = require('./base/baseTextModelCall');
 const handleBatchFrameGeneration = require('./StoryBoard/batchFrameGeneration');
 const handleBatchSceneVideoGeneration = require('./StoryBoard/batchSceneVideoGeneration');
+const handleSceneStyleAnalysis = require('./StoryBoard/sceneStyleAnalysis');
 const handleBaseVideoModelCall = require('./base/baseVideoModelCall');
+const handleCameraRunGeneration = require('./StoryBoard/cameraRunGeneration');
 
 module.exports = {
   handleScriptGeneration,
@@ -36,5 +38,7 @@ module.exports = {
   handleBaseTextModelCall,
   handleBatchFrameGeneration,
   handleBatchSceneVideoGeneration,
-  handleBaseVideoModelCall
+  handleBaseVideoModelCall,
+  handleSceneStyleAnalysis,
+  handleCameraRunGeneration
 };

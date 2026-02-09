@@ -13,7 +13,8 @@
  * output: { firstFrameUrl, promptUsed, model }
  */
 
-const { execute, queryOne } = require('../../../dbHelper');
+const { execute, queryOne, queryAll } = require('../../../dbHelper');
+const { downloadAndStore } = require('../../../utils/fileStorage');
 const baseTextModelCall = require('../base/baseTextModelCall');
 const imageGeneration = require('../base/imageGeneration');
 const { requireVisualStyle } = require('../../../utils/getProjectStyle');
@@ -22,51 +23,102 @@ const { requireVisualStyle } = require('../../../utils/getProjectStyle');
  * 从分镜数据中收集参考图 URL 数组（角色正面图 + 场景图）
  */
 async function collectReferenceImages(storyboard, variables) {
-  const projectId = storyboard.project_id;
+  const storyboardId = storyboard.id;
   const characterNames = variables.characters || [];
   const location = variables.location || '';
+  const shotType = variables.shotType || '';
   const imageUrls = [];
+
+  function assertNonEmptyString(value, fieldName, entityLabel) {
+    if (typeof value !== 'string' || value.trim() === '') {
+      throw new Error(`${entityLabel}字段不完整: ${fieldName} 不能为空`);
+    }
+  }
 
   // 校验：多角色镜头阻止
   if (characterNames.length > 1) {
     throw new Error(`当前仅支持单角色镜头，该镜头包含 ${characterNames.length} 个角色: ${characterNames.join('、')}。请拆分镜头或手动处理。`);
   }
 
+  if (!location || String(location).trim() === '') {
+    throw new Error('该镜头未指定场景：帧生成要求必须提供场景 location');
+  }
+
+  // 通过关联表查询角色（含三视图 URL）
   let characterName = null;
+  let characterInfo = null;
   if (characterNames.length === 1) {
     characterName = characterNames[0];
-    const character = await queryOne(
-      'SELECT image_url FROM characters WHERE project_id = ? AND name = ?',
-      [projectId, characterName]
+    const linkedChar = await queryOne(
+      `SELECT c.name, c.description, c.appearance, c.personality,
+              c.image_url, c.front_view_url, c.side_view_url, c.back_view_url
+       FROM storyboard_characters sc
+       JOIN characters c ON sc.character_id = c.id
+       WHERE sc.storyboard_id = ? AND c.name = ?`,
+      [storyboardId, characterName]
     );
-    if (character && character.image_url) {
-      imageUrls.push(character.image_url);
-      console.log(`[SingleFrameGen] 角色「${characterName}」正面图:`, character.image_url);
-    } else {
-      console.warn(`[SingleFrameGen] 角色「${characterName}」没有正面图，跳过`);
+    if (!linkedChar) {
+      throw new Error(`角色「${characterName}」未与该分镜建立关联。请先运行智能分镜生成以建立资源关联。`);
+    }
+    assertNonEmptyString(linkedChar.description, 'description', `角色「${characterName}」`);
+    assertNonEmptyString(linkedChar.appearance, 'appearance', `角色「${characterName}」`);
+    assertNonEmptyString(linkedChar.personality, 'personality', `角色「${characterName}」`);
+    assertNonEmptyString(linkedChar.image_url, 'image_url', `角色「${characterName}」`);
+
+    characterInfo = {
+      name: linkedChar.name,
+      appearance: linkedChar.appearance,
+      description: linkedChar.description,
+      personality: linkedChar.personality
+    };
+
+    imageUrls.push(linkedChar.image_url);
+    console.log(`[SingleFrameGen] 关联角色「${characterName}」正面图:`, linkedChar.image_url);
+
+    // 根据镜头类型智能加入额外视图参考图
+    const shotLower = shotType.toLowerCase();
+    if (linkedChar.side_view_url && (shotLower.includes('侧') || shotLower.includes('side'))) {
+      imageUrls.push(linkedChar.side_view_url);
+      console.log(`[SingleFrameGen] 侧面镜头，加入侧面视图参考:`, linkedChar.side_view_url);
+    }
+    if (linkedChar.back_view_url && (shotLower.includes('背') || shotLower.includes('back') || shotLower.includes('rear'))) {
+      imageUrls.push(linkedChar.back_view_url);
+      console.log(`[SingleFrameGen] 背面镜头，加入背面视图参考:`, linkedChar.back_view_url);
     }
   }
 
-  // 查询场景图
-  if (location) {
-    const scene = await queryOne(
-      'SELECT image_url FROM scenes WHERE project_id = ? AND name = ?',
-      [projectId, location]
-    );
-    if (scene && scene.image_url) {
-      imageUrls.push(scene.image_url);
-      console.log(`[SingleFrameGen] 场景「${location}」图片:`, scene.image_url);
-    } else {
-      console.warn(`[SingleFrameGen] 场景「${location}」没有图片，跳过`);
-    }
+  // 通过关联表查询场景
+  const linkedScene = await queryOne(
+    `SELECT s.name, s.description, s.environment, s.lighting, s.mood, s.image_url
+     FROM storyboard_scenes ss
+     JOIN scenes s ON ss.scene_id = s.id
+     WHERE ss.storyboard_id = ? AND s.name = ?`,
+    [storyboardId, location]
+  );
+  if (!linkedScene) {
+    throw new Error(`场景「${location}」未与该分镜建立关联。请先运行智能分镜生成以建立资源关联。`);
   }
+  assertNonEmptyString(linkedScene.description, 'description', `场景「${location}」`);
+  assertNonEmptyString(linkedScene.environment, 'environment', `场景「${location}」`);
+  assertNonEmptyString(linkedScene.lighting, 'lighting', `场景「${location}」`);
+  assertNonEmptyString(linkedScene.mood, 'mood', `场景「${location}」`);
+  assertNonEmptyString(linkedScene.image_url, 'image_url', `场景「${location}」`);
+  imageUrls.push(linkedScene.image_url);
+  console.log(`[SingleFrameGen] 关联场景「${location}」图片:`, linkedScene.image_url);
 
-  return { imageUrls, characterName, location };
+  const sceneInfo = {
+    name: linkedScene.name,
+    description: linkedScene.description,
+    environment: linkedScene.environment,
+    lighting: linkedScene.lighting,
+    mood: linkedScene.mood
+  };
+
+  return { imageUrls, characterName, characterInfo, location, sceneInfo };
 }
 
 async function handleSingleFrameGeneration(inputParams, onProgress) {
-  const { storyboardId, description, imageModel, modelName: _legacy, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene } = inputParams;
-  const modelName = imageModel || _legacy;
+  const { storyboardId, description, imageModel: modelName, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene } = inputParams;
 
   if (!storyboardId) {
     throw new Error('缺少必要参数: storyboardId');
@@ -104,15 +156,54 @@ async function handleSingleFrameGeneration(inputParams, onProgress) {
 
   // 2. 收集参考图（角色正面图 + 场景图）
   if (onProgress) onProgress(10);
-  const { imageUrls, characterName, location } = await collectReferenceImages(storyboard, variables);
+  const { imageUrls, characterName, characterInfo, location, sceneInfo } = await collectReferenceImages(storyboard, variables);
 
-  // 2.5 加入上一镜头尾帧作为参考图（保持镜头间连续性）
-  if (!isFirstScene) {
-    if (prevEndFrameUrl) {
-      imageUrls.unshift(prevEndFrameUrl);
-      console.log('[SingleFrameGen] 加入上一镜头尾帧作为参考:', prevEndFrameUrl);
+  // 2.5 自动查询上一镜头的尾帧（如果调用方没有传入）
+  let resolvedPrevEndFrameUrl = prevEndFrameUrl || null;
+  let resolvedPrevDescription = prevDescription || null;
+  let resolvedIsFirstScene = isFirstScene;
+
+  if (resolvedIsFirstScene === undefined || resolvedIsFirstScene === null) {
+    const scriptId = storyboard.script_id;
+    const currentIdx = storyboard.idx;
+    if (scriptId != null && currentIdx != null && currentIdx > 0) {
+      resolvedIsFirstScene = false;
     } else {
-      throw new Error('非首镜头缺少上一镜头的尾帧参考图，这会导致镜头间严重割裂。请先确保上一镜头已生成帧图片。');
+      resolvedIsFirstScene = true;
+    }
+  }
+
+  if (!resolvedIsFirstScene && !resolvedPrevEndFrameUrl) {
+    const scriptId = storyboard.script_id;
+    const currentIdx = storyboard.idx;
+    if (scriptId != null && currentIdx != null) {
+      const prevSb = await queryOne(
+        'SELECT id, prompt_template, variables_json, first_frame_url, last_frame_url FROM storyboards WHERE script_id = ? AND idx = ?',
+        [scriptId, currentIdx - 1]
+      );
+      if (prevSb) {
+        let prevVars = {};
+        try {
+          prevVars = typeof prevSb.variables_json === 'string'
+            ? JSON.parse(prevSb.variables_json || '{}')
+            : (prevSb.variables_json || {});
+        } catch (e) { prevVars = {}; }
+        const prevHasAction = prevVars.hasAction || false;
+        resolvedPrevEndFrameUrl = (prevHasAction && prevSb.last_frame_url)
+          ? prevSb.last_frame_url
+          : (prevSb.first_frame_url || null);
+        resolvedPrevDescription = prevSb.prompt_template || null;
+        console.log('[SingleFrameGen] 自动查询到上一镜头尾帧:', resolvedPrevEndFrameUrl);
+      }
+    }
+  }
+
+  if (!resolvedIsFirstScene) {
+    if (resolvedPrevEndFrameUrl) {
+      imageUrls.unshift(resolvedPrevEndFrameUrl);
+      console.log('[SingleFrameGen] 加入上一镜头尾帧作为参考:', resolvedPrevEndFrameUrl);
+    } else {
+      throw new Error('非首镜头缺少上一镜头的尾帧参考图（上一镜头未生成帧图片），无法保证镜头连续性。请先确保上一镜头已生成帧图片。');
     }
   }
   console.log('[SingleFrameGen] 参考图数组:', imageUrls);
@@ -123,15 +214,43 @@ async function handleSingleFrameGeneration(inputParams, onProgress) {
 
   if (textModel) {
     console.log('[SingleFrameGen] 使用文本模型生成帧提示词...');
-    const charInfo = characterName ? `主要角色: ${characterName}` : '无特定角色';
-    const locInfo = location ? `场景: ${location}` : '无特定场景';
+
+    // 角色信息：有角色时提供详细外貌，无角色时明确排除
+    let charBlock;
+    let charConstraint;
+    if (characterInfo) {
+      charBlock = `【角色信息】
+角色名称: ${characterInfo.name}
+外貌特征: ${characterInfo.appearance}
+角色描述: ${characterInfo.description}
+（已提供角色参考图，画面中的角色必须与参考图完全一致）`;
+      charConstraint = `- 角色外貌、服装、发型必须与参考图完全一致，不得自行创造角色形象
+- 严禁出现参考图中不存在的额外人物
+- 角色身体结构必须正常：头部在肩膀上方，四肢正常连接，禁止畸变`;
+    } else {
+      charBlock = '【无角色镜头】这个镜头没有任何角色参与';
+      charConstraint = `- 画面中绝对不能出现任何人物、人影或人形轮廓
+- 仅描述场景环境、自然元素、物体`;
+    }
+
+    // 场景信息
+    const sceneBlock = sceneInfo
+      ? `【场景信息】
+场景名称: ${sceneInfo.name}
+场景描述: ${sceneInfo.description}
+环境: ${sceneInfo.environment}
+光照: ${sceneInfo.lighting}
+氛围: ${sceneInfo.mood}
+（已提供场景参考图，画面场景必须与参考图一致）`
+      : '';
+
     const shotInfo = variables.shotType ? `镜头类型: ${variables.shotType}` : '';
     const emotionInfo = variables.emotion ? `情绪/氛围: ${variables.emotion}` : '';
     const styleInfo = visualStyle ? `视觉风格: ${visualStyle}` : '';
-    const prevContext = prevDescription
-      ? `上一个镜头描述：${prevDescription}\n注意：当前画面需要自然衔接上一个镜头的结束状态，保持角色、场景、光线的连续性。`
+    const prevContext = resolvedPrevDescription
+      ? `上一个镜头描述：${resolvedPrevDescription}\n注意：当前画面需要自然衔接上一个镜头的结束状态，保持角色、场景、光线的连续性。`
       : '';
-    const extraInfo = [charInfo, locInfo, shotInfo, emotionInfo, styleInfo, prevContext].filter(Boolean).join('\n');
+    const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, charConstraint, prevContext].filter(Boolean).join('\n');
 
     const promptGenerationResult = await baseTextModelCall({
       prompt: `你是一个专业的图片生成提示词专家。
@@ -143,11 +262,13 @@ ${extraInfo}
 
 要求：
 1. 提示词要详细描述画面内容、构图、光线、氛围
-2. 包含角色的动作状态和表情
-3. 镜头类型决定构图（如特写聚焦面部，远景展示全貌）
-4. 如果有上一镜头信息，确保画面与上一镜头自然衔接
-5. 如果有视觉风格要求，提示词必须体现该风格特征
-6. 只输出提示词本身，不要其他解释
+2. 【细节保留】角色的每一个外貌细节都必须原样写入提示词：发色、发型、瞳色、服装款式、服装颜色、配饰等，不得省略或概括。例如"黑色双马尾、红色水手服、蓝色百褶裙"必须逐项写出，不能简化为"a girl in school uniform"
+3. 【细节保留】场景的每一个环境细节都必须原样写入提示词：建筑结构、物品摆设、光源方向、色调等，不得省略
+4. 镜头类型决定构图（如特写聚焦面部，远景展示全貌）
+5. 如果有上一镜头信息，确保画面与上一镜头自然衔接
+6. 如果有视觉风格要求，提示词必须体现该风格特征
+7. 严格遵守角色约束：有角色时与参考图一致，无角色时绝对不能出现人物
+8. 只输出英文提示词，不要其他解释
 
 提示词：`,
       textModel,
@@ -158,7 +279,7 @@ ${extraInfo}
     promptUsed = promptGenerationResult.content || desc;
     console.log('[SingleFrameGen] 生成的提示词:', promptUsed.substring(0, 100) + '...');
   } else {
-    const prevHint = prevDescription ? `，承接上一镜头「${prevDescription}」的结束状态` : '';
+    const prevHint = resolvedPrevDescription ? `，承接上一镜头「${resolvedPrevDescription}」的结束状态` : '';
     promptUsed = `${desc}${prevHint}`;
     console.log('[SingleFrameGen] 无文本模型，使用拼接提示词');
   }
@@ -178,20 +299,27 @@ ${extraInfo}
   const firstFrameUrl = imageResult.image_url;
   console.log('[SingleFrameGen] 首帧生成完成:', firstFrameUrl);
 
+  // 持久化首帧到 MinIO
+  const persistedUrl = await downloadAndStore(
+    firstFrameUrl,
+    `images/frames/${storyboardId}/first_frame`,
+    { fallbackExt: '.png' }
+  );
+
   // 保存到数据库
   if (onProgress) onProgress(90);
   console.log('[SingleFrameGen] 保存首帧到数据库...');
 
   await execute(
     'UPDATE storyboards SET first_frame_url = ? WHERE id = ?',
-    [firstFrameUrl, storyboardId]
+    [persistedUrl, storyboardId]
   );
 
   if (onProgress) onProgress(100);
   console.log('[SingleFrameGen] 单帧生成完成');
 
   return {
-    firstFrameUrl,
+    firstFrameUrl: persistedUrl,
     promptUsed,
     model: imageResult.model || modelName
   };

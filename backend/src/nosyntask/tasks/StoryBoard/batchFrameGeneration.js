@@ -21,7 +21,7 @@
  * output: { total, completed, skipped, failed, results[] }
  */
 
-const { queryAll } = require('../../../dbHelper');
+const { queryAll, execute } = require('../../../dbHelper');
 const handleFrameGeneration = require('./frameGeneration');
 const handleSingleFrameGeneration = require('./singleFrameGeneration');
 
@@ -52,6 +52,16 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
   }
 
   console.log(`[BatchFrameGen] 开始批量串行生成，scriptId: ${scriptId}, 覆盖: ${overwriteFrames}`);
+
+  // 0. 覆盖模式：先批量清除所有分镜的首尾帧，让前端立即看到帧被清除
+  if (overwriteFrames) {
+    console.log('[BatchFrameGen] 覆盖模式：清除所有已有首尾帧...');
+    await execute(
+      'UPDATE storyboards SET first_frame_url = NULL, last_frame_url = NULL WHERE script_id = ?',
+      [scriptId]
+    );
+    console.log('[BatchFrameGen] 已清除所有首尾帧');
+  }
 
   // 1. 查询所有分镜（按顺序）
   const storyboards = await queryAll(

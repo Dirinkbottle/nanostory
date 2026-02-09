@@ -26,7 +26,9 @@ const {
   handleCharacterViewsGeneration,
   handleSceneImageGeneration,
   handleBatchFrameGeneration,
-  handleBatchSceneVideoGeneration
+  handleBatchSceneVideoGeneration,
+  handleSceneStyleAnalysis,
+  handleCameraRunGeneration
 } = require('./tasks');
 
 const { createBuildInput } = require('./buildInputFactory');
@@ -63,10 +65,10 @@ const WORKFLOW_DEFINITIONS = {
   },
 
   /**
-   * 分镜生成
+   * 智能分镜（分镜生成 → 角色提取 → 场景提取）
    */
   storyboard_generation: {
-    name: '分镜生成',
+    name: '智能分镜',
     steps: [
       {
         type: 'storyboard_generation',
@@ -75,53 +77,28 @@ const WORKFLOW_DEFINITIONS = {
         buildInput: createBuildInput([
           'scriptContent', 'scriptTitle', 'textModel'
         ])
-      }
-    ]
-  },
-
-  /**
-   * 场景提取（手动触发）
-   */
-  scene_extraction: {
-    name: '场景提取',
-    steps: [
+      },
+      {
+        type: 'character_extraction',
+        targetType: 'characters',
+        handler: handleCharacterExtraction,
+        buildInput: createBuildInput([
+          { key: 'scenes', from: ctx => ctx.previousResults[0]?.scenes || [] },
+          'scriptContent', 'projectId', 'scriptId', 'userId', 'textModel'
+        ])
+      },
       {
         type: 'scene_extraction',
         targetType: 'scenes',
         handler: handleSceneExtraction,
         buildInput: createBuildInput([
-          'scenes', 'scriptContent', 'projectId', 'scriptId',
-          'userId', 'textModel'
+          { key: 'scenes', from: ctx => ctx.previousResults[0]?.scenes || [] },
+          'scriptContent', 'projectId', 'scriptId', 'userId', 'textModel'
         ])
       }
     ]
   },
 
-  /**
-   * 剧本 -> 角色提取
-   */
-  script_and_characters: {
-    name: '剧本生成 + 角色提取',
-    steps: [
-      {
-        type: 'script',
-        targetType: 'script',
-        handler: handleScriptGeneration,
-        buildInput: createBuildInput([
-          'title', 'description', 'style', 'length', 'textModel'
-        ])
-      },
-      {
-        type: 'character_extract',
-        targetType: 'character',
-        handler: handleCharacterExtraction,
-        buildInput: createBuildInput([
-          { key: 'scriptContent', from: ctx => ctx.previousResults[0]?.content || '' },
-          'textModel'
-        ])
-      }
-    ]
-  },
 
   /**
    * 智能解析 API 文档（管理后台用）
@@ -195,23 +172,6 @@ const WORKFLOW_DEFINITIONS = {
     ]
   },
 
-  /**
-   * 角色提取（从分镜或剧本中提取角色）
-   */
-  character_extraction: {
-    name: '角色提取',
-    steps: [
-      {
-        type: 'character_extraction',
-        targetType: 'characters',
-        handler: handleCharacterExtraction,
-        buildInput: createBuildInput([
-          'scenes', 'scriptContent', 'projectId', 'scriptId',
-          'userId', 'textModel'
-        ])
-      }
-    ]
-  },
 
   /**
    * 场景图片生成
@@ -219,6 +179,14 @@ const WORKFLOW_DEFINITIONS = {
   scene_image_generation: {
     name: '场景图片生成',
     steps: [
+      {
+        type: 'scene_style_analysis',
+        targetType: 'scene',
+        handler: handleSceneStyleAnalysis,
+        buildInput: createBuildInput([
+          'sceneName', 'description', 'environment', 'allScenes', 'textModel'
+        ])
+      },
       {
         type: 'scene_image_generation',
         targetType: 'scene',
@@ -228,7 +196,9 @@ const WORKFLOW_DEFINITIONS = {
           'lighting', 'mood', 'style',
           'imageModel', 'textModel',
           { key: 'width', defaultValue: 1024 },
-          { key: 'height', defaultValue: 576 }
+          { key: 'height', defaultValue: 576 },
+          { key: 'referenceImageUrl', from: ctx => ctx.previousResults[0]?.referenceImageUrl || null },
+          { key: 'styleDescription', from: ctx => ctx.previousResults[0]?.styleDescription || null }
         ])
       }
     ]
@@ -288,6 +258,23 @@ const WORKFLOW_DEFINITIONS = {
           'description', 'style', 'projectId', 'imageModel', 'textModel',
           { key: 'width', defaultValue: 512 },
           { key: 'height', defaultValue: 768 }
+        ])
+      }
+    ]
+  },
+
+  /**
+   * 精细运镜提示词生成（单个分镜）
+   */
+  camera_run_generation: {
+    name: '精细运镜生成',
+    steps: [
+      {
+        type: 'camera_run_generation',
+        targetType: 'storyboard',
+        handler: handleCameraRunGeneration,
+        buildInput: createBuildInput([
+          'storyboardId', 'textModel'
         ])
       }
     ]

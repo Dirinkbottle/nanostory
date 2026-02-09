@@ -5,9 +5,7 @@ import { WorkflowJob } from '../../hooks/useWorkflow';
 // 任务类型中文映射
 const WORKFLOW_TYPE_NAMES: Record<string, string> = {
   'script_only': '剧本生成',
-  'storyboard_generation': '分镜生成',
-  'scene_extraction': '场景提取',
-  'character_extraction': '角色提取',
+  'storyboard_generation': '智能分镜',
   'frame_generation': '首尾帧生成',
   'single_frame_generation': '单帧生成',
   'scene_video': '视频生成',
@@ -16,7 +14,6 @@ const WORKFLOW_TYPE_NAMES: Record<string, string> = {
   'batch_frame_generation': '批量帧生成',
   'batch_scene_video_generation': '批量视频生成',
   'smart_parse': 'AI 智能解析',
-  'script_and_characters': '剧本 + 角色提取',
 };
 
 // 解析 input_params

@@ -11,6 +11,7 @@ interface SceneImageGeneratorProps {
   hasAction?: boolean;
   sceneDescription: string;
   onGenerate: (prompt: string) => Promise<{ success: boolean; error?: string }>;
+  onDeleteFrames?: () => void;
 }
 
 const SceneImageGenerator: React.FC<SceneImageGeneratorProps> = ({
@@ -19,7 +20,8 @@ const SceneImageGenerator: React.FC<SceneImageGeneratorProps> = ({
   endFrame,
   hasAction,
   sceneDescription,
-  onGenerate
+  onGenerate,
+  onDeleteFrames
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -27,7 +29,7 @@ const SceneImageGenerator: React.FC<SceneImageGeneratorProps> = ({
   const [prompt, setPrompt] = useState(sceneDescription);
   const [error, setError] = useState<string | null>(null);
 
-  const hasImages = startFrame || endFrame;
+  const hasImages = !!(startFrame || endFrame);
   const { isGenerating, setIsGenerating, addGeneratingId, removeGeneratingId } = useGeneratingState(sceneId, hasImages);
 
   const handleOpenGenerateModal = () => {
@@ -83,6 +85,7 @@ const SceneImageGenerator: React.FC<SceneImageGeneratorProps> = ({
         onQuickGenerate={handleQuickGenerate}
         onOpenGenerateModal={handleOpenGenerateModal}
         onPreview={openPreview}
+        onDeleteFrames={onDeleteFrames}
         error={error}
       />
 

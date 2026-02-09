@@ -28,13 +28,13 @@ function renderTemplate(template, data) {
 /**
  * 渲染 JSON 对象模板，递归替换所有占位符
  * 遇到 {{key}} 占位符就整体替换：
- * - 如果值存在：替换为对应的值（保持类型）
- * - 如果值不存在（undefined/null）：标记该字段删除
+ * - 如果值为 _REMOVE_ 标识符：标记该字段删除（调用方明确表示不需要该字段）
+ * - 如果值存在且不为 _REMOVE_：替换为对应的值（保持类型）
+ * - 如果值不存在（undefined）：保留 {{key}} 原样（留给校验层报错）
  */
 function renderJsonTemplate(template, data) {
   if (!template) return template;
   
-  // 递归处理对象/数组
   function processValue(value) {
     if (typeof value === 'string') {
       // 检查是否是纯占位符 "{{key}}"
@@ -42,26 +42,28 @@ function renderJsonTemplate(template, data) {
       if (pureMatch) {
         const key = pureMatch[1];
         const dataValue = data[key];
-        // 如果值不存在，标记删除
-        if (dataValue === undefined || dataValue === null) {
+        // 未传入：保留原样，留给校验层处理
+        if (dataValue === undefined) return value;
+        // _REMOVE_ 标识符或 null：标记删除
+        if (dataValue === null || dataValue === '_REMOVE_') {
           return '__REMOVE_FIELD__';
         }
-        // 返回实际值（保持类型）
         return dataValue;
       }
       
       // 字符串内包含占位符（如 "Bearer {{apiKey}}"）
       if (value.includes('{{')) {
-        let result = value;
-        result = result.replace(/{{(\w+)}}/g, (match, key) => {
+        let hasRemove = false;
+        const result = value.replace(/{{(\w+)}}/g, (match, key) => {
           const dataValue = data[key];
-          if (dataValue === undefined || dataValue === null) {
+          if (dataValue === undefined) return match;
+          if (dataValue === null || dataValue === '_REMOVE_') {
+            hasRemove = true;
             return '__REMOVE_FIELD__';
           }
           return String(dataValue);
         });
-        // 如果替换后包含 __REMOVE_FIELD__，标记整个字段删除
-        if (result.includes('__REMOVE_FIELD__')) {
+        if (hasRemove || result.includes('__REMOVE_FIELD__')) {
           return '__REMOVE_FIELD__';
         }
         return result;
@@ -138,6 +140,73 @@ function mergeParams(defaultParams, runtimeParams) {
 }
 
 /**
+ * 从渲染结果中查找所有未被替换的 {{key}} 占位符
+ * 支持字符串和嵌套对象/数组
+ */
+function findUnrenderedPlaceholders(value) {
+  const placeholders = new Set();
+  const pattern = /{{(\w+)}}/g;
+
+  function scan(v) {
+    if (typeof v === 'string') {
+      let m;
+      while ((m = pattern.exec(v)) !== null) {
+        placeholders.add(m[1]);
+      }
+    } else if (Array.isArray(v)) {
+      v.forEach(scan);
+    } else if (v && typeof v === 'object') {
+      Object.values(v).forEach(scan);
+    }
+  }
+
+  scan(value);
+  return [...placeholders];
+}
+
+/**
+ * 两轮渲染 + 残留校验（Model Field Guard）
+ * 
+ * 渲染流程：
+ *   1. 合并参数：{ ...fallbackParams, ...runtimeParams }（用户传入优先）
+ *   2. 渲染前校验：扫描模板中的 {{key}}，检查合并后的参数是否覆盖了所有占位符
+ *   3. 渲染：用合并后的参数渲染模板
+ * 
+ * 删除字段：调用方传入 { imageUrls: '_REMOVE_' } 表示明确不需要该字段
+ * 
+ * 注意：校验在渲染前进行（扫描原始模板），而非渲染后扫描结果。
+ * 因为用户传入的数据（如 prompt 文本）中可能包含 {{xxx}} 字样，
+ * 渲染后扫描会误判为未填充的占位符。
+ * 
+ * @param {'string'|'json'} type - 渲染类型
+ * @param {*} template - 模板
+ * @param {object} runtimeParams - 用户传入的运行时参数（优先级高）
+ * @param {object} fallbackParams - 后台配置的默认参数（兜底）
+ * @param {string} [label] - 用于错误提示的标签
+ * @returns {*} 渲染完成的结果
+ * @throws {Error} 渲染后仍有未填充的占位符
+ */
+function renderWithFallback(type, template, runtimeParams, fallbackParams, label = 'template') {
+  if (!template) return template;
+
+  // 合并参数：runtimeParams 覆盖 fallbackParams（包括 _REMOVE_ 标识符）
+  const mergedData = { ...(fallbackParams || {}), ...(runtimeParams || {}) };
+
+  // 渲染前校验：扫描原始模板中的 {{key}}，检查 mergedData 是否全部覆盖
+  const required = findUnrenderedPlaceholders(template);
+  const missing = required.filter(key => mergedData[key] === undefined);
+  if (missing.length > 0) {
+    throw new Error(
+      `模板渲染不完整 [${label}]：以下占位符未被填充: ${missing.map(k => '{{' + k + '}}').join(', ')}。` +
+      `请检查调用参数或模型的 default_params 配置。如果某字段确实不需要，请传入 '_REMOVE_' 标识符。`
+    );
+  }
+
+  const renderFn = type === 'json' ? renderJsonTemplate : renderTemplate;
+  return renderFn(template, mergedData);
+}
+
+/**
  * 构建完整的 HTTP 请求对象
  */
 function buildRequest(config, runtimeParams) {
@@ -188,5 +257,7 @@ module.exports = {
   mapResponse,
   mergeParams,
   buildRequest,
-  buildQueryRequest
+  buildQueryRequest,
+  findUnrenderedPlaceholders,
+  renderWithFallback
 };

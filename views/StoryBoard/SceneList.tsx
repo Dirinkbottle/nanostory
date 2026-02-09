@@ -17,6 +17,7 @@ interface SceneListProps {
   onUpdateDescription: (id: number, description: string) => void;
   onGenerateImage: (id: number, prompt: string) => Promise<{ success: boolean; error?: string }>;
   onGenerateVideo: (id: number) => Promise<{ success: boolean; error?: string }>;
+  onUpdateScene?: (id: number, updates: Partial<StoryboardScene>) => void;
   tasks: Record<string, TaskState>;
   onReorderScenes: (newScenes: StoryboardScene[]) => void;
   onBatchGenerate?: (overwriteFrames: boolean) => void;
@@ -39,6 +40,7 @@ const SceneList: React.FC<SceneListProps> = ({
   onUpdateDescription,
   onGenerateImage,
   onGenerateVideo,
+  onUpdateScene,
   tasks,
   onReorderScenes,
   onBatchGenerate,
@@ -187,6 +189,7 @@ const SceneList: React.FC<SceneListProps> = ({
               onUpdateDescription={onUpdateDescription}
               onGenerateImage={onGenerateImage}
               onGenerateVideo={onGenerateVideo}
+              onUpdateScene={onUpdateScene}
               imageTask={tasks[`img_${scene.id}`]}
               videoTask={tasks[`vid_${scene.id}`]}
             />

@@ -13,19 +13,23 @@
  */
 
 const { callAIModel } = require('../../../aiModelService');
+const { washForText } = require('../../../utils/washBody');
+const { deriveTextParams } = require('../../../utils/deriveTextParams');
 
 async function handleBaseTextModelCall(params, onProgress) {
   const {
     prompt,
-    textModel: _textModel,
-    modelName: _legacyModelName,
+    message,
+    messages,
+    textModel: modelName,
     maxTokens = 500,
     temperature = 0.7
   } = params;
 
-  const modelName = _textModel || _legacyModelName;
+  // 自动派生文本参数
+  const derived = deriveTextParams({ prompt, message, messages });
 
-  if (!prompt) {
+  if (!derived.prompt) {
     throw new Error('prompt 参数是必需的');
   }
 
@@ -35,7 +39,7 @@ async function handleBaseTextModelCall(params, onProgress) {
 
   console.log('[BaseTextModelCall] 开始调用文本模型:', {
     modelName,
-    promptLength: prompt.length,
+    promptLength: derived.prompt.length,
     maxTokens,
     temperature
   });
@@ -45,21 +49,17 @@ async function handleBaseTextModelCall(params, onProgress) {
   if (onProgress) onProgress(20);
 
   try {
-    // 构建请求参数，同时支持 prompt 和 message 字段
-    // 不同的模型可能使用不同的字段名
+    // 构建请求参数（deriveTextParams 已自动派生 prompt/message/messages）
     const requestParams = {
-      messages: [
-        { role: 'user', content: prompt }
-      ],
+      prompt: derived.prompt,
+      message: derived.message,
+      messages: derived.messages,
       maxTokens,
-      temperature,
-      // 同时传递 prompt 和 message 字段以适配不同模型
-      prompt: prompt,
-      message: prompt
+      temperature
     };
 
     console.log('[BaseTextModelCall] 调用 AI 模型...');
-    console.log('[BaseTextModelCall] 提示词预览:', prompt.substring(0, 200) + '...');
+    console.log('[BaseTextModelCall] 提示词预览:', derived.prompt.substring(0, 200) + '...');
 
     if (onProgress) onProgress(40);
 
@@ -74,7 +74,11 @@ async function handleBaseTextModelCall(params, onProgress) {
 
     if (onProgress) onProgress(100);
 
-    // 返回原始响应，由调用方自行处理
+    // 清洗响应内容（去除 think 标签、代码块标记等）
+    if (response && typeof response.content === 'string') {
+      response.content = washForText(response.content);
+    }
+
     return response;
 
   } catch (error) {

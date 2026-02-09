@@ -6,10 +6,10 @@
  */
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
+const { stripThinkTags, extractCodeBlock, extractJSON, stripInvisible, safeParseJSON } = require('../../../utils/washBody');
 
 async function handleSceneExtraction(inputParams, onProgress) {
-  const { scenes, scriptContent, textModel, modelName: _legacy, projectId, scriptId, userId } = inputParams;
-  const modelName = textModel || _legacy;
+  const { scenes, scriptContent, textModel: modelName, projectId, scriptId, userId } = inputParams;
 
   if (!modelName) {
     throw new Error('textModel 参数是必需的');
@@ -19,7 +19,19 @@ async function handleSceneExtraction(inputParams, onProgress) {
 
   if (onProgress) onProgress(10);
 
-  // 构建提示词：从分镜中提取场景信息
+  // 从分镜 location 字段收集所有不重复的场景名称
+  const locationSet = new Set();
+  if (scenes && scenes.length > 0) {
+    scenes.forEach(scene => {
+      if (scene.location && scene.location.trim()) {
+        locationSet.add(scene.location.trim());
+      }
+    });
+  }
+  const collectedLocations = Array.from(locationSet);
+  console.log('[SceneExtraction] 从分镜收集到的场景名称:', collectedLocations);
+
+  // 构建分镜内容供 AI 参考
   let contentForAnalysis = '';
   if (scenes && scenes.length > 0) {
     contentForAnalysis = `分镜数据（共 ${scenes.length} 个镜头）：\n\n`;
@@ -40,32 +52,41 @@ async function handleSceneExtraction(inputParams, onProgress) {
     throw new Error('必须提供 scriptContent 或 scenes 参数');
   }
 
-  const fullPrompt = `你是一个专业的场景分析助手。你的任务是从分镜或剧本中提取所有不同的场景信息。
+  // 构建场景名称固定列表
+  const locationListText = collectedLocations.length > 0
+    ? `\n\n【固定场景名称列表 - 禁止修改】\n以下是从分镜中提取的所有场景名称，你必须为每一个场景都输出对应的信息，且 name 字段必须与下面的名称完全一致，不得修改、合并或省略任何一个：\n${collectedLocations.map((loc, i) => `${i + 1}. ${loc}`).join('\n')}\n`
+    : '';
+
+  const fullPrompt = `你是一个专业的场景分析助手。你的任务是为给定的场景名称补充详细的场景信息。
 
 **重要：必须输出严格的 JSON 格式！**
 - 所有字符串值必须用双引号包裹
 - 不要输出缺少引号的值
 - 确保 JSON 格式完整
 - 只输出 JSON 数组，不要添加其他说明文字
-
+${locationListText}
 ---
 
-请从以下内容中提取所有不同的场景信息。注意：
-1. 合并相同或相似的场景（如"办公室"和"办公室内部"应该合并）
-2. 为每个场景提供详细的环境描述、光照描述和氛围描述
-3. 场景名称要简洁明确
+以下是分镜/剧本内容，请根据内容为每个场景补充详细信息：
 
 ${contentForAnalysis}
 
+**核心规则：**
+1. **禁止修改场景名称** — name 字段必须与固定列表中的名称完全一致
+2. **禁止合并场景** — 即使场景相似（如"房子内"和"房子外"），也必须分别输出
+3. **禁止遗漏场景** — 固定列表中的每个场景都必须出现在输出中
+4. 为每个场景提供详细的环境描述、光照描述和氛围描述
+5. 根据分镜中该场景出现的上下文来推断环境、光照和氛围
+
 **重要：必须输出严格的 JSON 格式！**
-- 所有字符串值必须用双引号包裹
 - 确保 JSON 格式完整，以 ] 结尾
 - 只输出 JSON 数组，不要添加其他说明文字
+- 输出的场景数量必须等于 ${collectedLocations.length || '分镜中出现的场景数'}
 
 请严格按以下 JSON 格式返回：
 [
   {
-    "name": "场景名称（如：废弃仓库、城市街道等）",
+    "name": "场景名称（必须与固定列表完全一致）",
     "description": "场景整体描述",
     "environment": "环境描述（建筑结构、空间布局、物品摆设等）",
     "lighting": "光照描述（光线来源、明暗对比、色调等）",
@@ -87,64 +108,30 @@ ${contentForAnalysis}
   // 解析 AI 返回的 JSON
   let extractedScenes = [];
   try {
-    let jsonStr = result.content;
-    
-    console.log('[SceneExtraction] 响应长度:', jsonStr.length, '字符');
-    console.log('[SceneExtraction] 原始响应 (前200字符):', jsonStr.substring(0, 200));
-    
-    // 1. 移除 <think> 标签
-    jsonStr = jsonStr.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-    
-    // 2. 处理 markdown 代码块
-    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1].trim();
-      console.log('[SceneExtraction] 提取代码块后长度:', jsonStr.length, '字符');
+    console.log('[SceneExtraction] 响应长度:', result.content.length, '字符');
+
+    // 1. 统一清洗
+    let jsonStr = stripThinkTags(result.content);
+    jsonStr = extractCodeBlock(jsonStr);
+    jsonStr = stripInvisible(jsonStr).trim();
+
+    // 2. 尝试解析
+    let parsed = safeParseJSON(jsonStr);
+
+    // 3. 如果整体失败，提取 JSON 片段再试
+    if (parsed === null) {
+      const extracted = extractJSON(jsonStr);
+      if (extracted) parsed = safeParseJSON(extracted);
     }
-    
-    // 3. 移除前导/尾随空白
-    jsonStr = jsonStr.trim();
-    
-    // 4. 先尝试直接解析
-    let needsFix = false;
-    try {
-      extractedScenes = JSON.parse(jsonStr);
-    } catch (e) {
-      needsFix = true;
-      console.log('[SceneExtraction] JSON 解析失败，尝试修复格式错误...');
+
+    if (parsed === null) {
+      throw new Error('JSON 解析失败');
     }
-    
-    // 5. 如果失败，尝试修复格式错误
-    if (needsFix) {
-      const lines = jsonStr.split('\n');
-      const fixedLines = lines.map(line => {
-        return line.replace(
-          /"(\w+)":\s*([^"\d\[\{tfn][^,\}]*?)([,\}])/g,
-          (match, key, value, end) => {
-            const trimmedValue = value.trim();
-            if (trimmedValue !== 'true' && 
-                trimmedValue !== 'false' && 
-                trimmedValue !== 'null') {
-              console.log('[SceneExtraction] 修复字段:', key);
-              return `"${key}": "${trimmedValue}"${end}`;
-            }
-            return match;
-          }
-        );
-      });
-      jsonStr = fixedLines.join('\n');
-      console.log('[SceneExtraction] 格式修复完成，重新尝试解析...');
-      
-      extractedScenes = JSON.parse(jsonStr);
-    }
-    
-    console.log('[SceneExtraction] 成功解析，共', extractedScenes.length, '个场景');
-    
+
     // 确保返回数组
-    if (!Array.isArray(extractedScenes)) {
-      extractedScenes = extractedScenes.scenes || [extractedScenes];
-    }
-    
+    extractedScenes = Array.isArray(parsed) ? parsed : (parsed.scenes || [parsed]);
+    console.log('[SceneExtraction] 成功解析，共', extractedScenes.length, '个场景');
+
   } catch (parseError) {
     console.error('[SceneExtraction] 解析场景 JSON 失败:', parseError);
     console.error('[SceneExtraction] 完整响应内容:', result.content);
@@ -154,6 +141,24 @@ ${contentForAnalysis}
   if (!Array.isArray(extractedScenes) || extractedScenes.length === 0) {
     console.warn('[SceneExtraction] AI 未返回有效的场景数据，返回空数组');
     extractedScenes = [];
+  }
+
+  // 校验：确保收集到的每个场景名都在结果中，缺失的自动补上
+  if (collectedLocations.length > 0) {
+    const returnedNames = new Set(extractedScenes.map(s => s.name));
+    for (const loc of collectedLocations) {
+      if (!returnedNames.has(loc)) {
+        console.warn('[SceneExtraction] AI 遗漏场景，自动补充:', loc);
+        extractedScenes.push({
+          name: loc,
+          description: '',
+          environment: '',
+          lighting: '',
+          mood: ''
+        });
+      }
+    }
+    console.log('[SceneExtraction] 校验后场景数:', extractedScenes.length, '(预期:', collectedLocations.length, ')');
   }
 
   if (onProgress) onProgress(80);

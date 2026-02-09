@@ -26,7 +26,6 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   scenes,
   imageModel,
   textModel,
-  onExtractResources
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('characters');
   
@@ -75,14 +74,13 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     }
   });
 
-  const handleExtractResources = async () => {
+  const handleRefreshResources = async () => {
     if (!projectId) {
       alert('请先选择项目');
       return;
     }
     await loadCharacters();
     await loadScenes();
-    alert('资源已刷新');
   };
 
   const handleShowSceneDetail = (sceneName: string) => {
@@ -138,6 +136,9 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       
       const data = await res.json();
       console.log('[ResourcePanel] 场景图片生成已启动:', data.jobId);
+      
+      // 立即触发轮询检测，避免重复点击
+      sceneImageGeneration.checkAndResumeNextWorkflow();
     } catch (error: any) {
       console.error('[ResourcePanel] 生成场景图片失败:', error);
       alert('生成场景图片失败: ' + error.message);
@@ -156,9 +157,9 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
             variant="flat"
             className="bg-green-100 text-green-700 font-medium"
             startContent={<Save className="w-3 h-3" />}
-            onPress={handleExtractResources}
+            onPress={handleRefreshResources}
           >
-            同步资源
+            刷新
           </Button>
         </div>
         <TabButtons activeTab={activeTab} onTabChange={setActiveTab} />
@@ -186,7 +187,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
             ) : dbScenes.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
                 <p className="text-sm">暂无场景数据</p>
-                <p className="text-xs mt-2">请先点击"提取场景"按钮</p>
+                <p className="text-xs mt-2">智能分镜生成后会自动提取场景</p>
               </div>
             ) : (
               <LocationsTab

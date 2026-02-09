@@ -8,10 +8,10 @@
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const handleRepairJsonResponse = require('./repairJsonResponse');
+const { stripThinkTags, extractCodeBlock, extractJSON, stripInvisible } = require('../../../utils/washBody');
 
 async function handleStoryboardGeneration(inputParams, onProgress) {
-  const { scriptContent, scriptTitle, textModel, modelName: _legacy } = inputParams;
-  const modelName = textModel || _legacy;
+  const { scriptContent, scriptTitle, textModel: modelName } = inputParams;
 
   if (!scriptContent || scriptContent.trim() === '') {
     throw new Error('剧本内容为空，无法生成分镜');
@@ -23,11 +23,17 @@ async function handleStoryboardGeneration(inputParams, onProgress) {
 
   if (onProgress) onProgress(10);
 
-  const fullPrompt = `你是一个专业的电影分镜师。你的任务是将剧本极度细化为分镜，每个镜头只展示一个静止画面。规则：1）每句对白独立一个镜头；2）每个动作分解为准备-进行-结果；3）场景切换要从远到近层层推进；4）一个剧本场景至少拆成5-10个镜头；5）【关键】每个镜头最多只能出现一个角色，如果场景中有多个角色互动，必须拆分为多个镜头（例如A和B对话→镜头1:A说话特写→镜头2:B反应特写→镜头3:A回应），characters数组最多只能有1个元素或为空。
+  const fullPrompt = `你是一个专业的电影分镜师，精通连续性剪辑（Continuity Editing）规则。你的任务是将剧本细化为分镜，确保相邻镜头在视觉上可以无缝衔接。
+
+规则：
+1）每句对白独立一个镜头
+2）每个动作分解为准备-进行-结果
+3）场景切换要从远到近层层推进
+4）一个剧本场景至少拆成5-10个镜头
+5）【关键】每个镜头最多只能出现一个角色，多角色互动必须拆分为多个镜头（例如A和B对话→镜头1:A说话特写→镜头2:B反应特写→镜头3:A回应），characters数组最多只能有1个元素或为空
 
 **重要：必须输出严格的 JSON 格式！**
-- 所有字符串值必须用双引号包裹，例如 "description": "这是描述"
-- 不要输出 "description": 这是描述（缺少引号）
+- 所有字符串值必须用双引号包裹
 - 确保 JSON 格式完整，以 ] 结尾
 - 只输出 JSON 数组，不要添加其他说明文字
 
@@ -58,25 +64,94 @@ ${scriptContent}
 6. 情绪变化点要单独一个特写镜头
 7. 数量要求：一个场景至少拆成 5-10 个镜头
 
+【镜头连续性规则 - 极其重要】
+相邻镜头必须在视觉上可以无缝衔接，遵守以下专业剪辑规则：
+
+1. **姿态连续性（Match on Action）**：
+   - 上一镜头结束时角色的姿势/位置/朝向，必须与下一镜头开始时一致
+   - 例如：上一镜头角色站着结束 → 下一镜头角色必须站着开始，不能突然坐着或趴着
+   - 如果需要姿态变化（如站→坐），必须有一个过渡镜头展示这个动作
+
+2. **景别渐变规则（30度规则）**：
+   - 同场景内相邻镜头的景别不能跳跃太大
+   - 允许的渐变：远景↔全景↔中景↔近景↔特写（相邻级别可以跳一级）
+   - 禁止直接跳跃：特写→远景 或 远景→特写（必须经过中间景别过渡）
+   - 不同场景之间切换不受此限制
+
+3. **空间连续性（180度规则）**：
+   - 同一场景内，镜头的拍摄方向应保持在同一侧
+   - 角色面朝左离开画面 → 下一镜头应从右侧入画
+
+4. **场景转换规则**：
+   - 切换到新场景时，第一个镜头必须是建立镜头（远景/全景），让观众理解新的空间
+   - 然后再逐步推近到角色
+
+5. **endState 必须精确**：
+   - 每个镜头必须填写 endState，完整描述该镜头结束时的状态
+   - 下一个镜头的 startFrame/description 的起始状态必须与上一个镜头的 endState 一致
+
+6. **环境效果描述规范 - 极其重要**：
+   每个镜头的 description 中，所有环境效果必须按以下规则精确描述：
+
+   a) **持续性 vs 一次性**：必须区分持续性环境（全程不停）和一次性事件（发生一次就结束）
+      - 持续性环境必须明确标注"持续"/"不间断"/"全程"，如："暴风雪持续肆虐（全程不停）"
+      - 一次性事件用瞬时动词，如："一道闪电划过天空"
+      - 禁止模糊描述：不能只写"暴风雪"而不说明是持续还是短暂
+
+   b) **强度量化**：每个环境效果必须标注强度等级
+      - 使用明确的强度词：微弱/轻微/中等/强烈/猛烈
+      - 错误示例：❌ "闪电在乌云中若隐若现" → 视频模型会生成猛烈闪电
+      - 正确示例：✅ "极远处乌云中偶尔有一丝微弱的电光闪烁（非常微弱，仅是云层内部的微光，没有雷声）"
+      - 特别注意："若隐若现""隐约""淡淡的"这类含蓄修辞必须转换为明确的强度描述
+
+   c) **室内外环境隔离**：
+      - 室外环境效果不能直接"穿越"到室内
+      - 室内镜头描述外部天气时，必须明确说明是"透过窗户/门缝感受到的"，并且强度大幅衰减
+      - 错误示例：❌ "庙内，风雪灌入" → 视频模型会在室内生成暴风雪
+      - 正确示例：✅ "庙内，少量细小雪粒从破损的窗棂缝隙中被风带入，在火光中可见零星飘落的雪花"
+      - 室内不可能出现：室外级别的暴风雪、直接的闪电光照、大面积降雨
+
+   d) **物理交互合理性**：
+      - 环境效果与物体/空间的交互必须符合物理规律
+      - 通过缝隙进入的风雪：只能是少量、细小、被风挤入的
+      - 透过窗户的光：会被窗框遮挡和散射，不是直射
+      - 室内火焰受风影响：微微摇曳，不会被吹灭（除非剧情需要）
+
 【输出 JSON 格式】
 每个分镜包含：
 - order: 分镜序号（从1开始）
 - shotType: 镜头类型（"特写"/"近景"/"中景"/"全景"/"远景"/"俯拍"/"仰拍"/"过肩"）
 - description: 画面描述（详细描述画面内容，要足够详细，可直接用于AI生图）
 - hasAction: 是否有动作（true/false）
-- startFrame: 首帧描述（仅当hasAction=true时）
-- endFrame: 尾帧描述（仅当hasAction=true时）
+- startFrame: 首帧描述（仅当hasAction=true时，描述动作开始瞬间的画面）
+- endFrame: 尾帧描述（仅当hasAction=true时，描述动作完成瞬间的画面）
+- endState: 【必填】镜头结束时的完整状态快照，包括：角色姿势（站/坐/蹲/躺等）、肢体位置、身体朝向、面部表情、所处位置（房间哪个区域）、手中物品、场景环境状态（门开/关、灯亮/灭等）。无角色镜头只描述场景状态。下一个镜头的起始状态必须与此一致。
 - dialogue: 对白内容（如果有）
 - duration: 建议时长（秒）
 - characters: 出现的角色数组（**最多1个元素**，如["主角"]或[]，禁止出现2个以上角色）
 - location: 场景地点
 - emotion: 情绪氛围
+- cameraMovement: 镜头运动描述，从以下选择或组合：
+  · "static"（静止）- 固定机位，无运动
+  · "push_in"（推近）- 镜头向主体推进，营造紧迫感或聚焦
+  · "pull_out"（拉远）- 镜头远离主体，揭示环境或制造疏离感
+  · "pan_left" / "pan_right"（左摇/右摇）- 镜头水平旋转，跟随或扫视
+  · "tilt_up" / "tilt_down"（上摇/下摇）- 镜头垂直旋转，仰视或俯视
+  · "track_left" / "track_right"（左移/右移）- 镜头平行移动，跟随角色行走
+  · "zoom_in" / "zoom_out"（变焦推/变焦拉）- 焦距变化，不改变机位
+  · "follow"（跟随）- 镜头跟随角色运动
+  · "crane_up" / "crane_down"（升/降）- 镜头垂直升降
+  · "orbit"（环绕）- 围绕主体旋转
+  · "shake"（手持晃动）- 模拟手持拍摄的不稳定感，适合紧张/动作场景
+  可以组合使用，如 "push_in + tilt_down"（推近同时下摇）
 
-只输出 JSON 数组，不要其他内容。示例（注意每个镜头最多1个角色）：
+只输出 JSON 数组，不要其他内容。示例（注意每个镜头最多1个角色，endState必须精确，相邻镜头状态必须衔接）：
 [
-  {"order": 1, "shotType": "远景", "description": "清晨的城市天际线，高楼大厦沐浴在金色晨光中", "hasAction": false, "dialogue": "", "duration": 2, "characters": [], "location": "城市外景", "emotion": "平静"},
-  {"order": 2, "shotType": "近景", "description": "主角侧脸特写，眼神望向窗外，晨光映照在脸上", "hasAction": true, "startFrame": "主角侧脸望向窗外", "endFrame": "主角缓缓转头看向镜头", "dialogue": "新的一天又开始了...", "duration": 3, "characters": ["主角"], "location": "办公室", "emotion": "沉思"},
-  {"order": 3, "shotType": "特写", "description": "小美抬头看向主角，露出微笑", "hasAction": false, "dialogue": "早上好啊！", "duration": 2, "characters": ["小美"], "location": "办公室", "emotion": "愉快"}
+  {"order": 1, "shotType": "远景", "description": "暴风雪持续肆虐的深夜（风雪全程不停，强度：猛烈），破败的山神庙孤立在荒山中，庙顶积雪厚重，枯树在强风中剧烈摇摆，极远处乌云深处偶尔闪过一丝微弱电光（强度：极微弱，仅云层内部微光，无雷声）", "hasAction": false, "endState": "山神庙外景，暴风雪持续，庙门半掩，无人，远处云层微弱电光", "dialogue": "", "duration": 2, "characters": [], "location": "山神庙外", "emotion": "萧瑟", "cameraMovement": "static"},
+  {"order": 2, "shotType": "全景", "description": "山神庙内部昏暗，中央篝火微弱摇曳（火光强度：微弱，持续燃烧），林冲裹着破旧棉袄侧卧在供桌旁稻草堆上，花枪靠墙。少量细小雪粒从破损窗棂缝隙被风带入（室内风雪强度：极轻微，仅零星雪粒飘落），庙外暴风雪的呼啸声隐约可闻", "hasAction": false, "endState": "林冲侧卧在稻草堆上，面朝供桌方向，双眼微闭，花枪靠墙，篝火微弱燃烧，窗缝偶有雪粒飘入", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "凄凉", "cameraMovement": "push_in"},
+  {"order": 3, "shotType": "特写", "description": "林冲耳朵特写，篝火微光映照（持续），他猛然睁眼侧耳倾听，庙外隐约传来马蹄声（强度：微弱，被风雪声遮盖大半）", "hasAction": true, "startFrame": "林冲侧卧姿态，耳朵特写，双眼微闭，篝火微光映照", "endFrame": "林冲双眼圆睁，眉头紧锁，侧耳凝听", "endState": "林冲侧卧在稻草堆上，双眼圆睁警觉，身体仍保持侧卧但肌肉紧绷", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "警觉", "cameraMovement": "static"},
+  {"order": 4, "shotType": "近景", "description": "林冲从稻草堆上猛然翻身坐起，一手撑地一手去够墙边的花枪，篝火因动作带起的气流微微晃动（轻微晃动，不熄灭）", "hasAction": true, "startFrame": "林冲侧卧在稻草堆上，双眼圆睁警觉", "endFrame": "林冲坐起身，右手已握住花枪枪杆", "endState": "林冲坐在稻草堆上，右手握住花枪，左手撑地，上身前倾，面朝庙门方向，表情警惕", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "紧张", "cameraMovement": "track_right + tilt_up"},
+  {"order": 5, "shotType": "中景", "description": "林冲握枪站起，双脚分开站稳，花枪斜指地面，身体微前倾做戒备姿态，篝火在身后持续燃烧（持续），将他的影子投射在残破墙面上", "hasAction": true, "startFrame": "林冲坐在稻草堆上，右手握枪，篝火微光", "endFrame": "林冲站立，双脚分开，花枪斜指地面，戒备姿态，身后篝火映出长影", "endState": "林冲站立于庙内中央，双脚与肩同宽，右手握花枪斜指地面，左手微抬护身，身体微前倾，目光锐利注视庙门方向，篝火持续燃烧", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "肃杀", "cameraMovement": "crane_up + pull_out"}
 ]`;
 
   const result = await handleBaseTextModelCall({
@@ -91,61 +166,59 @@ ${scriptContent}
   // 解析 AI 返回的 JSON
   let scenes = [];
   try {
-    let jsonStr = result.content;
-    
-    console.log('[StoryboardGen] 响应总长度:', jsonStr.length, '字符');
-    console.log('[StoryboardGen] 原始响应 (前200字符):', jsonStr.substring(0, 200));
-    console.log('[StoryboardGen] 原始响应 (后200字符):', jsonStr.substring(Math.max(0, jsonStr.length - 200)));
+    console.log('[StoryboardGen] 响应总长度:', result.content.length, '字符');
 
-    // 1. 先处理 <think> 标签
-    jsonStr = jsonStr.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-    
-    // 2. 处理 markdown 代码块包裹 (```json ... ``` 或 ``` ... ```)
-    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1].trim();
-      console.log('[StoryboardGen] 提取代码块后长度:', jsonStr.length, '字符');
-    }
-    
-    // 3. 移除可能的前导/尾随空白和换行
-    jsonStr = jsonStr.trim();
-    
-    // 4. 尝试直接解析
+    // 1. 统一清洗：去 think 标签 + 提取代码块 + 去不可见字符
+    let jsonStr = stripThinkTags(result.content);
+    jsonStr = extractCodeBlock(jsonStr);
+    jsonStr = stripInvisible(jsonStr).trim();
+
+    // 2. 尝试直接解析
     try {
       scenes = JSON.parse(jsonStr);
       console.log('[StoryboardGen] ✅ 直接解析成功，共', scenes.length, '个分镜');
     } catch (directParseError) {
-      console.log('[StoryboardGen] 直接解析失败，使用 jsonrepair 修复...');
-      
-      // 5. 使用 jsonrepair 库修复（处理缺失括号、引号、多余逗号等）
-      try {
-        const { jsonrepair } = await import('jsonrepair');
-        const repaired = jsonrepair(jsonStr);
-        scenes = JSON.parse(repaired);
-        console.log('[StoryboardGen] ✅ jsonrepair 修复成功，共', scenes.length, '个分镜');
-      } catch (repairLibError) {
-        console.error('[StoryboardGen] ❌ jsonrepair 修复失败:', repairLibError.message);
-        
-        // 6. 最后手段：调用 AI 修复
-        console.log('[StoryboardGen] 🔧 调用 AI 修复任务...');
+      // 2.5 尝试提取 JSON 片段
+      const extracted = extractJSON(jsonStr);
+      if (extracted) {
         try {
-          const repairResult = await handleRepairJsonResponse({
-            incompleteJson: jsonStr,
-            originalPrompt: fullPrompt,
-            textModel: modelName
-          }, (progress) => {
-            if (onProgress) onProgress(80 + progress * 0.15);
-          });
-          
-          if (repairResult.success && repairResult.repairedJson) {
-            scenes = repairResult.repairedJson;
-            console.log('[StoryboardGen] ✅ AI 修复成功，共', scenes.length, '个分镜');
-          } else {
-            throw new Error('AI 修复也失败: ' + (repairResult.error || directParseError.message));
+          scenes = JSON.parse(extracted);
+          console.log('[StoryboardGen] ✅ 提取 JSON 片段解析成功，共', scenes.length, '个分镜');
+        } catch (_) { /* 继续往下 fallback */ }
+      }
+
+      if (!Array.isArray(scenes) || scenes.length === 0) {
+        // 3. jsonrepair 库修复
+        console.log('[StoryboardGen] 直接解析失败，使用 jsonrepair 修复...');
+        try {
+          const { jsonrepair } = await import('jsonrepair');
+          const repaired = jsonrepair(jsonStr);
+          scenes = JSON.parse(repaired);
+          console.log('[StoryboardGen] ✅ jsonrepair 修复成功，共', scenes.length, '个分镜');
+        } catch (repairLibError) {
+          console.error('[StoryboardGen] ❌ jsonrepair 修复失败:', repairLibError.message);
+
+          // 4. 最后手段：调用 AI 修复
+          console.log('[StoryboardGen] 🔧 调用 AI 修复任务...');
+          try {
+            const repairResult = await handleRepairJsonResponse({
+              incompleteJson: jsonStr,
+              originalPrompt: fullPrompt,
+              textModel: modelName
+            }, (progress) => {
+              if (onProgress) onProgress(80 + progress * 0.15);
+            });
+
+            if (repairResult.success && repairResult.repairedJson) {
+              scenes = repairResult.repairedJson;
+              console.log('[StoryboardGen] ✅ AI 修复成功，共', scenes.length, '个分镜');
+            } else {
+              throw new Error('AI 修复也失败: ' + (repairResult.error || directParseError.message));
+            }
+          } catch (aiRepairError) {
+            console.error('[StoryboardGen] ❌ AI 修复失败:', aiRepairError);
+            throw new Error('分镜 JSON 解析失败，jsonrepair 和 AI 修复均失败: ' + directParseError.message);
           }
-        } catch (aiRepairError) {
-          console.error('[StoryboardGen] ❌ AI 修复失败:', aiRepairError);
-          throw new Error('分镜 JSON 解析失败，jsonrepair 和 AI 修复均失败: ' + directParseError.message);
         }
       }
     }

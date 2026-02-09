@@ -16,6 +16,7 @@ const projectRoutes = require('./projects');
 const workflowRoutes = require('./nosyntask/routes');
 const modelRoutes = require('./modelRoutes');
 const adminRoutes = require('./adminRoutes');
+const fileProxyRoutes = require('./scripts/fileProxy');
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/ai-models', modelRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/files', fileProxyRoutes);
 
 // Serve static files for production if needed
 const clientBuildPath = path.join(__dirname, '..', '..', 'dist');

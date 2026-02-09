@@ -131,18 +131,20 @@ async function fetchProjectScenes(projectId: number, scriptId?: number): Promise
 }
 
 /**
- * 前端首尾帧生成预检
+ * 前端首尾帧生成预检（通过后端关联表校验）
  * 
- * @param projectId  项目 ID
- * @param characters 镜头涉及的角色名数组
- * @param location   镜头涉及的场景名
- * @param scriptId   可选，剧本 ID（用于精确查询场景）
+ * @param projectId     项目 ID
+ * @param characters    镜头涉及的角色名数组
+ * @param location      镜头涉及的场景名
+ * @param scriptId      可选，剧本 ID
+ * @param storyboardId  分镜 ID（用于关联表查询）
  */
 export async function validateFrameReadiness(
   projectId: number,
   characters: string[],
   location: string,
-  scriptId?: number
+  scriptId?: number,
+  storyboardId?: number
 ): Promise<ValidationResult> {
   const issues: ValidationIssue[] = [];
 
@@ -164,7 +166,7 @@ export async function validateFrameReadiness(
     });
   }
 
-  // 如果有阻止性问题（多角色/无场景），直接返回，无需查询数据库
+  // 如果有阻止性问题（多角色/无场景），直接返回
   const earlyBlocking = issues.filter(i => i.blocking);
   if (earlyBlocking.length > 0) {
     return {
@@ -175,36 +177,53 @@ export async function validateFrameReadiness(
     };
   }
 
-  // 3. 并行查询角色和场景数据
+  // 3. 通过后端关联表校验（优先使用 storyboardId）
+  if (storyboardId) {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/storyboards/${storyboardId}/validate?type=frame`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.ready && data.issues) {
+          for (const issue of data.issues) {
+            issues.push({
+              type: issue.type,
+              message: issue.message,
+              blocking: true,
+            });
+          }
+        }
+        const blockingIssues = issues.filter(i => i.blocking);
+        const warningIssues = issues.filter(i => !i.blocking);
+        return { ready: blockingIssues.length === 0, issues, blockingIssues, warningIssues };
+      }
+    } catch (e) {
+      console.warn('[validateFrameReadiness] 后端校验失败，降级为本地校验:', e);
+    }
+  }
+
+  // 4. 降级：无 storyboardId 或后端校验失败时，使用本地名称匹配
   const [allCharacters, allScenes] = await Promise.all([
     fetchProjectCharacters(projectId),
     fetchProjectScenes(projectId, scriptId),
   ]);
 
-  // 4. 角色校验（0 或 1 个）
   if (characters.length === 1) {
     const charName = characters[0];
     const charRecord = allCharacters.find(c => c.name === charName);
     if (!charRecord) {
-      issues.push({
-        type: 'character_not_found',
-        message: `角色不存在：${charName}`,
-        blocking: true,
-      });
+      issues.push({ type: 'character_not_found', message: `角色不存在：${charName}`, blocking: true });
     } else {
       issues.push(...validateCharacterFields(charRecord));
     }
   }
 
-  // 5. 场景校验
   if (location && location.trim() !== '') {
     const sceneRecord = allScenes.find(s => s.name === location);
     if (!sceneRecord) {
-      issues.push({
-        type: 'scene_not_found',
-        message: `场景不存在：${location}`,
-        blocking: true,
-      });
+      issues.push({ type: 'scene_not_found', message: `场景不存在：${location}`, blocking: true });
     } else {
       issues.push(...validateSceneFields(sceneRecord, location));
     }
@@ -212,13 +231,7 @@ export async function validateFrameReadiness(
 
   const blockingIssues = issues.filter(i => i.blocking);
   const warningIssues = issues.filter(i => !i.blocking);
-
-  return {
-    ready: blockingIssues.length === 0,
-    issues,
-    blockingIssues,
-    warningIssues,
-  };
+  return { ready: blockingIssues.length === 0, issues, blockingIssues, warningIssues };
 }
 
 /**
@@ -231,51 +244,42 @@ export async function validateFrameReadiness(
  */
 export async function validateBatchFrameReadiness(
   projectId: number,
-  scenes: { characters: string[]; location: string }[],
+  scenes: { id?: number; characters: string[]; location: string }[],
   scriptId?: number
 ): Promise<ValidationResult> {
   const allIssues: ValidationIssue[] = [];
+  const token = getAuthToken();
 
-  // 收集所有涉及的角色名和场景名（去重）
-  const allCharNames = new Set<string>();
-  const allLocations = new Set<string>();
-  for (const s of scenes) {
-    (s.characters || []).forEach(c => allCharNames.add(c));
-    if (s.location?.trim()) allLocations.add(s.location.trim());
-  }
-
-  // 一次性查询所有角色和场景
-  const [allCharacters, allScenes] = await Promise.all([
-    fetchProjectCharacters(projectId),
-    fetchProjectScenes(projectId, scriptId),
-  ]);
-
-  const charMap = new Map(allCharacters.map(c => [c.name, c]));
-  const sceneMap = new Map(allScenes.map(s => [s.name, s]));
-
-  // 校验角色
-  const checkedChars = new Set<string>();
-  for (const name of allCharNames) {
-    if (checkedChars.has(name)) continue;
-    checkedChars.add(name);
-    const record = charMap.get(name);
-    if (!record) {
-      allIssues.push({ type: 'character_not_found', message: `角色不存在：${name}`, blocking: true });
-    } else {
-      allIssues.push(...validateCharacterFields(record));
+  // 逐个分镜通过后端关联表校验
+  const validationPromises = scenes.map(async (s) => {
+    if (!s.id) return; // 无 storyboardId 跳过
+    try {
+      const res = await fetch(`/api/storyboards/${s.id}/validate?type=frame`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.ready && data.issues) {
+          for (const issue of data.issues) {
+            allIssues.push({ type: issue.type, message: issue.message, blocking: true });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn(`[validateBatch] 分镜 ${s.id} 校验失败:`, e);
     }
-  }
+  });
 
-  // 校验场景
-  const checkedScenes = new Set<string>();
-  for (const loc of allLocations) {
-    if (checkedScenes.has(loc)) continue;
-    checkedScenes.add(loc);
-    const record = sceneMap.get(loc);
-    if (!record) {
-      allIssues.push({ type: 'scene_not_found', message: `场景不存在：${loc}`, blocking: true });
-    } else {
-      allIssues.push(...validateSceneFields(record, loc));
+  await Promise.all(validationPromises);
+
+  // 补充前端本地校验（多角色检查）
+  for (const s of scenes) {
+    if ((s.characters || []).length > 1) {
+      allIssues.push({
+        type: 'too_many_characters',
+        message: `当前仅支持单角色镜头，某镜头包含 ${s.characters.length} 个角色：${s.characters.join('、')}`,
+        blocking: true,
+      });
     }
   }
 

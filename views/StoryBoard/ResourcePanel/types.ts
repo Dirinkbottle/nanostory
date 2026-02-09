@@ -34,7 +34,6 @@ export interface ResourcePanelProps {
   scenes?: any[];
   imageModel: string;
   textModel: string;
-  onExtractResources?: () => void;
 }
 
 export type TabType = 'characters' | 'locations' | 'props';

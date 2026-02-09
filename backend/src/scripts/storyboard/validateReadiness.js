@@ -7,7 +7,7 @@
  * type=video: 检查生成视频的前置条件（首尾帧 + 提示词完整性）
  */
 
-const { queryOne, queryAll } = require('../dbHelper');
+const { queryOne, queryAll } = require('../../dbHelper');
 
 module.exports = async (req, res) => {
   try {
@@ -31,9 +31,9 @@ module.exports = async (req, res) => {
     // 解析 variables
     let variables = {};
     try {
-      variables = typeof storyboard.variables === 'string'
-        ? JSON.parse(storyboard.variables)
-        : (storyboard.variables || {});
+      variables = typeof storyboard.variables_json === 'string'
+        ? JSON.parse(storyboard.variables_json)
+        : (storyboard.variables_json || {});
     } catch (e) {
       variables = {};
     }
@@ -56,66 +56,71 @@ module.exports = async (req, res) => {
  */
 async function validateForFrame(res, storyboard, variables) {
   const issues = [];
-  const projectId = storyboard.project_id;
-
-  // 1. 检查角色图片
+  const storyboardId = storyboard.id;
   const characterNames = variables.characters || [];
+  const location = variables.location || '';
+
+  // 1. 通过关联表检查角色
   if (characterNames.length > 0) {
-    const placeholders = characterNames.map(() => '?').join(',');
-    const characters = await queryAll(
-      `SELECT name, image_url FROM characters WHERE project_id = ? AND name IN (${placeholders})`,
-      [projectId, ...characterNames]
+    const linkedChars = await queryAll(
+      `SELECT c.name, c.description, c.appearance, c.personality, c.image_url
+       FROM storyboard_characters sc
+       JOIN characters c ON sc.character_id = c.id
+       WHERE sc.storyboard_id = ?`,
+      [storyboardId]
     );
+    const linkedCharMap = {};
+    linkedChars.forEach(c => { linkedCharMap[c.name] = c; });
 
-    const charMap = {};
-    characters.forEach(c => { charMap[c.name] = c; });
-
-    const missingChars = [];
-    const noImageChars = [];
     for (const name of characterNames) {
-      if (!charMap[name]) {
-        missingChars.push(name);
-      } else if (!charMap[name].image_url) {
-        noImageChars.push(name);
+      const char = linkedCharMap[name];
+      if (!char) {
+        issues.push({
+          type: 'character_not_linked',
+          message: `角色「${name}」未与该分镜建立关联，请先运行智能分镜生成`,
+          details: [name]
+        });
+      } else {
+        if (!char.image_url) {
+          issues.push({ type: 'character_no_image', message: `角色「${name}」缺少图片`, details: [name] });
+        }
+        if (!char.description || !char.description.trim()) {
+          issues.push({ type: 'character_field_missing', message: `角色「${name}」缺少描述`, details: [name] });
+        }
+        if (!char.appearance || !char.appearance.trim()) {
+          issues.push({ type: 'character_field_missing', message: `角色「${name}」缺少外貌`, details: [name] });
+        }
       }
-    }
-
-    if (missingChars.length > 0) {
-      issues.push({
-        type: 'character_missing',
-        message: `角色未创建: ${missingChars.join('、')}`,
-        details: missingChars
-      });
-    }
-    if (noImageChars.length > 0) {
-      issues.push({
-        type: 'character_no_image',
-        message: `角色缺少图片: ${noImageChars.join('、')}`,
-        details: noImageChars
-      });
     }
   }
 
-  // 2. 检查场景图片
-  const location = variables.location || '';
+  // 2. 通过关联表检查场景
   if (location) {
-    const scene = await queryOne(
-      'SELECT name, image_url FROM scenes WHERE project_id = ? AND name = ?',
-      [projectId, location]
+    const linkedScenes = await queryAll(
+      `SELECT s.name, s.description, s.environment, s.lighting, s.mood, s.image_url
+       FROM storyboard_scenes ss
+       JOIN scenes s ON ss.scene_id = s.id
+       WHERE ss.storyboard_id = ?`,
+      [storyboardId]
     );
+    const linkedScene = linkedScenes.find(s => s.name === location);
 
-    if (!scene) {
+    if (!linkedScene) {
       issues.push({
-        type: 'scene_missing',
-        message: `场景未创建: ${location}`,
+        type: 'scene_not_linked',
+        message: `场景「${location}」未与该分镜建立关联，请先运行智能分镜生成`,
         details: [location]
       });
-    } else if (!scene.image_url) {
-      issues.push({
-        type: 'scene_no_image',
-        message: `场景缺少图片: ${location}`,
-        details: [location]
-      });
+    } else {
+      if (!linkedScene.image_url) {
+        issues.push({ type: 'scene_no_image', message: `场景「${location}」缺少图片`, details: [location] });
+      }
+      if (!linkedScene.description || !linkedScene.description.trim()) {
+        issues.push({ type: 'scene_field_missing', message: `场景「${location}」缺少描述`, details: [location] });
+      }
+      if (!linkedScene.environment || !linkedScene.environment.trim()) {
+        issues.push({ type: 'scene_field_missing', message: `场景「${location}」缺少环境描述`, details: [location] });
+      }
     }
   }
 

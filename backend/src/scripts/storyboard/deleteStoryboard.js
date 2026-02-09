@@ -5,7 +5,7 @@
  * 删除后自动重排同一 script 下剩余分镜的 idx
  */
 
-const { queryOne, queryAll, execute } = require('../dbHelper');
+const { queryOne, queryAll, execute } = require('../../dbHelper');
 
 async function deleteStoryboard(req, res) {
   const userId = req.user.id;

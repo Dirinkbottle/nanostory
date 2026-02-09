@@ -23,6 +23,7 @@
 const handleImageGeneration = require('../base/imageGeneration');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const { requireVisualStyle } = require('../../../utils/getProjectStyle');
+const { downloadAndStore } = require('../../../utils/fileStorage');
 
 /**
  * 使用 AI 生成视图提示词
@@ -31,18 +32,18 @@ async function generateViewPrompt(view, characterName, appearance, description, 
   const viewConfig = {
     front: {
       desc: '正面视图',
-      pose: 'facing the viewer, standing straight, arms slightly away from body, natural relaxed T-pose',
-      angle: 'front view'
+      pose: 'facing directly at the camera, standing upright with relaxed natural posture, arms at sides, feet shoulder-width apart, looking straight ahead, clear face and full body visible',
+      angle: 'front view, eye-level shot'
     },
     side: {
       desc: '侧面视图',
-      pose: 'turned 90 degrees to the side, standing straight, showing full side profile silhouette',
-      angle: 'side view, profile'
+      pose: 'turned 90 degrees to the right, standing upright, showing full side profile silhouette, arms naturally at sides',
+      angle: 'side view, profile shot'
     },
     back: {
       desc: '背面视图',
-      pose: 'facing away from the viewer, standing straight, showing back details of hair and clothing',
-      angle: 'back view, rear view'
+      pose: 'facing completely away from the camera, standing upright, showing back of head, hair, and clothing details',
+      angle: 'back view, rear shot'
     }
   };
 
@@ -50,35 +51,47 @@ async function generateViewPrompt(view, characterName, appearance, description, 
 
   console.log(`[CharacterViews] 使用 AI 生成${cfg.desc}提示词...`);
 
-  const fullPrompt = `你是一个专业的角色设计图提示词专家。你的任务是生成用于 AI 绘图的角色三视图参考图提示词。
+  // 侧面/背面时强调与正面图严格一致
+  const isNonFront = view !== 'front';
+  const consistencyBlock = isNonFront
+    ? `
+8. 【最关键 - 一致性约束】这是与正面图同一角色的${cfg.desc}，你会收到正面图作为参考。以下每一项都必须与正面图完全一致，不得有任何改动：
+   - 发型和发色：必须与正面图完全相同（如正面是短发/平头，${view === 'back' ? '背面也必须是短发/平头，绝对不能变成长发' : '侧面也必须是短发/平头'}）
+   - 服装款式：必须与正面图完全相同（如正面穿战袍，${view === 'back' ? '背面也必须是同一件战袍' : '侧面也必须是同一件战袍'}，不能变成其他衣服）
+   - 服装细节：袖子状态（挽起/放下）、领口、腰带、配饰等必须一致
+   - 体型和肤色：必须一致
+   - 提示词中必须逐项重复正面图的外貌特征描述，确保每个细节都被包含`
+    : '';
+
+  const fullPrompt = `你是一个专业的角色设计图提示词专家。你的任务是生成用于 AI 绘图的单个角色参考图提示词。
 
 核心要求（必须严格遵守）：
 1. 提示词必须用英文输出，逗号分隔的关键词格式
-2. 必须包含：character reference sheet, plain white background, solid white background
-3. 必须包含：full body, standing pose, even soft lighting, flat lighting
-4. 必须包含角色的外貌特征（服装、发型、体型、配饰等）
-5. 绝对不要加入任何场景、背景元素、故事情节
-6. 不要加入情绪表情，保持中性自然表情
-7. 长度控制在 80-120 个单词
+2. 【最重要】画面中只能有一个角色，绝对不能出现多个人物、多个角度、多个姿势。禁止使用 "character sheet"、"reference sheet"、"turnaround"、"multiple views"、"multiple poses" 等会导致多人物的关键词
+3. 必须包含：single character, solo, one person, pure white background, solid white background, full body, standing pose, even soft lighting
+4. 必须包含角色的完整外貌特征（服装、发型、体型、配饰、肤色等），越详细越好
+5. 绝对不要加入任何场景、背景元素、故事情节、地面阴影、其他人物
+6. 保持中性自然表情，不要加入夸张情绪
+7. 长度控制在 80-150 个单词${consistencyBlock}
 
 ---
 
-请为以下角色生成「${cfg.desc}」的提示词：
+请为以下角色生成「${cfg.desc}」的提示词（画面中只有这一个角色）：
 
 角色名称：${characterName || '未命名角色'}
 外貌特征：${appearance || '无'}
 角色描述：${description || '无'}
 风格要求：${style || '动漫风格'}
 视角要求：${cfg.angle}, ${cfg.pose}
-
+${isNonFront ? '\n【再次强调】提示词中必须完整重复上面的「外貌特征」中的每一个细节（发型、发色、服装款式、服装细节、配饰等），只是视角从正面变为' + cfg.desc + '。不要省略任何外貌描述，不要自行想象或修改任何服装/发型细节。' : ''}
 请直接输出英文提示词，不要包含任何解释。`;
 
-  // 调用基础文本模型
+  // 调用基础文本模型（侧面/背面降低 temperature 减少发挥空间，严格跟随正面特征）
   const response = await handleBaseTextModelCall({
     prompt: fullPrompt,
     textModel: textModel,
     maxTokens: 500,
-    temperature: 0.7
+    temperature: isNonFront ? 0.3 : 0.7
   });
 
   console.log(`[CharacterViews] baseTextModelCall 响应:`, JSON.stringify(response).substring(0, 500));
@@ -129,14 +142,12 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     description = '',
     style: inputStyle = '动漫风格',
     projectId,
-    imageModel: _imageModel, modelName: _legacyModel,
-    textModel: _textModel, textModelName: _legacyTextModel,
+    imageModel,
+    textModel,
     width = 512,
     height = 768
   } = inputParams;
 
-  const imageModel = _imageModel || _legacyModel;
-  const textModel = _textModel || _legacyTextModel || null;
 
   // 项目视觉风格（必填，未设置则报错）
   const style = await requireVisualStyle(projectId);
@@ -180,12 +191,19 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     dimensions: `${width}x${height}`
   });
 
+  // 持久化正面视图到 MinIO
+  const persistedFrontUrl = await downloadAndStore(
+    frontViewUrl,
+    `images/characters/${characterId}/front_view`,
+    { fallbackExt: '.png' }
+  );
+
   // 立即保存正面视图到数据库
-  if (characterId && frontViewUrl) {
+  if (characterId && persistedFrontUrl) {
     const { execute } = require('../../../dbHelper');
     await execute(
       'UPDATE characters SET front_view_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [frontViewUrl, characterId]
+      [persistedFrontUrl, characterId]
     );
     console.log('[CharacterViews] ✅ 正面视图已保存到数据库');
   }
@@ -194,8 +212,8 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
 
   // 收集参考图片 URL（用于保持角色一致性）
   const referenceUrls = [];
-  if (frontViewUrl) {
-    referenceUrls.push(frontViewUrl);
+  if (persistedFrontUrl) {
+    referenceUrls.push(persistedFrontUrl);
     console.log('[CharacterViews] 正面视图将作为参考图传递给后续生成');
   }
 
@@ -224,12 +242,19 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     dimensions: `${width}x${height}`
   });
 
+  // 持久化侧面视图到 MinIO
+  const persistedSideUrl = await downloadAndStore(
+    sideViewUrl,
+    `images/characters/${characterId}/side_view`,
+    { fallbackExt: '.png' }
+  );
+
   // 立即保存侧面视图到数据库
-  if (characterId && sideViewUrl) {
+  if (characterId && persistedSideUrl) {
     const { execute } = require('../../../dbHelper');
     await execute(
       'UPDATE characters SET side_view_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [sideViewUrl, characterId]
+      [persistedSideUrl, characterId]
     );
     console.log('[CharacterViews] ✅ 侧面视图已保存到数据库');
   }
@@ -237,8 +262,8 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
   if (onProgress) onProgress(60);
 
   // 累加侧面视图到参考图
-  if (sideViewUrl) {
-    referenceUrls.push(sideViewUrl);
+  if (persistedSideUrl) {
+    referenceUrls.push(persistedSideUrl);
   }
 
   // 生成背面视图（带正面+侧面参考图）
@@ -266,12 +291,19 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     dimensions: `${width}x${height}`
   });
 
+  // 持久化背面视图到 MinIO
+  const persistedBackUrl = await downloadAndStore(
+    backViewUrl,
+    `images/characters/${characterId}/back_view`,
+    { fallbackExt: '.png' }
+  );
+
   // 立即保存背面视图到数据库
-  if (characterId && backViewUrl) {
+  if (characterId && persistedBackUrl) {
     const { execute } = require('../../../dbHelper');
     await execute(
       'UPDATE characters SET back_view_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [backViewUrl, characterId]
+      [persistedBackUrl, characterId]
     );
     console.log('[CharacterViews] ✅ 背面视图已保存到数据库');
   }
@@ -279,13 +311,13 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
   if (onProgress) onProgress(90);
 
   // 将正面视图同时保存为主图片 (image_url)，并标记生成完成
-  if (characterId && frontViewUrl) {
+  if (characterId && persistedFrontUrl) {
     const { execute } = require('../../../dbHelper');
     await execute(
       `UPDATE characters 
        SET image_url = ?, generation_status = 'completed', updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-      [frontViewUrl, characterId]
+      [persistedFrontUrl, characterId]
     );
     console.log('[CharacterViews] ✅ 正面视图已保存为主图片 (image_url)');
   }
@@ -295,10 +327,10 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
   if (onProgress) onProgress(100);
 
   const finalResult = {
-    frontViewUrl,
-    sideViewUrl,
-    backViewUrl,
-    imageUrl: frontViewUrl, // 主图片使用正面视图
+    frontViewUrl: persistedFrontUrl,
+    sideViewUrl: persistedSideUrl,
+    backViewUrl: persistedBackUrl,
+    imageUrl: persistedFrontUrl, // 主图片使用正面视图
     imageModel,
     textModel
   };

@@ -3,7 +3,7 @@
  * 更新单个分镜的图片或视频
  */
 
-const { queryOne, execute } = require('../dbHelper');
+const { queryOne, execute } = require('../../dbHelper');
 
 async function updateMedia(req, res) {
   const userId = req.user.id;
@@ -39,11 +39,11 @@ async function updateMedia(req, res) {
       params.push(videoUrl);
     }
     if (startFrame !== undefined) {
-      updates.push('start_frame = ?');
+      updates.push('first_frame_url = ?');
       params.push(startFrame);
     }
     if (endFrame !== undefined) {
-      updates.push('end_frame = ?');
+      updates.push('last_frame_url = ?');
       params.push(endFrame);
     }
 

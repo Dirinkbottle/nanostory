@@ -32,8 +32,8 @@ class ContextBuilder {
     return {
       jobParams,
       previousResults,
-      userId: job.user_id,  // 添加 userId 到上下文
-      projectId: job.project_id  // 添加 projectId 到上下文
+      userId: job.user_id,
+      projectId: job.project_id
     };
   }
 }

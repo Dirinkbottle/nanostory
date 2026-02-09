@@ -98,6 +98,9 @@ CREATE TABLE IF NOT EXISTS characters (
   appearance TEXT COMMENT '外貌特征',
   personality TEXT COMMENT '性格特点',
   image_url TEXT COMMENT '角色图片URL',
+  front_view_url TEXT COMMENT '正面视图URL',
+  side_view_url TEXT COMMENT '侧面视图URL',
+  back_view_url TEXT COMMENT '背面视图URL',
   tags TEXT COMMENT '标签（逗号分隔）',
   source VARCHAR(50) DEFAULT 'manual' COMMENT '来源：manual=手动创建, ai_extracted=AI从剧本提取, ai_generated=AI生成',
   generation_prompt TEXT COMMENT '图片生成提示词',
@@ -165,6 +168,33 @@ CREATE TABLE IF NOT EXISTS props (
   INDEX idx_name (name),
   INDEX idx_category (category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 分镜-角色 关联表（强ID关联，替代 variables_json 中的名字字符串）
+CREATE TABLE IF NOT EXISTS storyboard_characters (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  storyboard_id INT NOT NULL COMMENT '分镜ID',
+  character_id INT NOT NULL COMMENT '角色ID',
+  role_type VARCHAR(50) DEFAULT 'appear' COMMENT '角色在该镜头中的作用：appear=出现, speak=说话, action=动作',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (storyboard_id) REFERENCES storyboards(id) ON DELETE CASCADE,
+  FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE,
+  UNIQUE KEY uk_storyboard_character (storyboard_id, character_id),
+  INDEX idx_storyboard_id (storyboard_id),
+  INDEX idx_character_id (character_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='分镜-角色关联表';
+
+-- 分镜-场景 关联表
+CREATE TABLE IF NOT EXISTS storyboard_scenes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  storyboard_id INT NOT NULL COMMENT '分镜ID',
+  scene_id INT NOT NULL COMMENT '场景ID',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (storyboard_id) REFERENCES storyboards(id) ON DELETE CASCADE,
+  FOREIGN KEY (scene_id) REFERENCES scenes(id) ON DELETE CASCADE,
+  UNIQUE KEY uk_storyboard_scene (storyboard_id, scene_id),
+  INDEX idx_storyboard_id (storyboard_id),
+  INDEX idx_scene_id (scene_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='分镜-场景关联表';
 
 -- 计费记录表
 CREATE TABLE IF NOT EXISTS billing_records (

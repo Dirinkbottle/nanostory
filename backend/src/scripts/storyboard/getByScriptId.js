@@ -1,5 +1,6 @@
 const { queryOne, queryAll } = require('../../dbHelper');
 const { authMiddleware } = require('../../middleware');
+const { getBatchStoryboardLinks } = require('../../resourceLinks/queryLinks');
 
 // GET /:scriptId - 获取指定剧本的所有分镜
 module.exports = (router) => {
@@ -24,11 +25,25 @@ module.exports = (router) => {
         [scriptId]
       );
 
-      // 解析 variables_json
-      const parsed = storyboards.map(sb => ({
-        ...sb,
-        variables: sb.variables_json ? JSON.parse(sb.variables_json) : {}
-      }));
+      // 批量查询关联的角色/场景（避免 N+1）
+      const sbIds = storyboards.map(sb => sb.id);
+      let linksMap = new Map();
+      try {
+        linksMap = await getBatchStoryboardLinks(sbIds);
+      } catch (linkErr) {
+        console.warn('[Get Storyboards] 查询资源关联失败（降级为空）:', linkErr.message);
+      }
+
+      // 解析 variables_json 并附带关联数据
+      const parsed = storyboards.map(sb => {
+        const links = linksMap.get(sb.id) || { characters: [], scenes: [] };
+        return {
+          ...sb,
+          variables: sb.variables_json ? JSON.parse(sb.variables_json) : {},
+          linkedCharacters: links.characters,
+          linkedScenes: links.scenes
+        };
+      });
 
       res.json(parsed);
     } catch (error) {

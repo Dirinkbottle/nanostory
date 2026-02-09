@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from 'react';
 import { Card, CardBody, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Checkbox } from '@heroui/react';
-import { ImagePlus } from 'lucide-react';
 import SceneImageGenerator from '../SceneImageGenerator';
 import { StoryboardScene } from '../useSceneManager';
 import { TaskState } from '../../../hooks/useTaskRunner';
@@ -27,6 +26,7 @@ export interface SceneCardProps {
   onUpdateDescription: (id: number, description: string) => void;
   onGenerateImage: (id: number, prompt: string) => Promise<{ success: boolean; error?: string }>;
   onGenerateVideo: (id: number) => Promise<{ success: boolean; error?: string }>;
+  onUpdateScene?: (id: number, updates: Partial<StoryboardScene>) => void;
   imageTask?: TaskState;
   videoTask?: TaskState;
 }
@@ -46,6 +46,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
   onUpdateDescription,
   onGenerateImage,
   onGenerateVideo,
+  onUpdateScene,
   imageTask,
   videoTask
 }) => {
@@ -56,6 +57,49 @@ const SceneCard: React.FC<SceneCardProps> = ({
   const [dontAskAgain, setDontAskAgain] = useState(false);
 
   const isGeneratingVideo = videoTask?.status === 'pending' || videoTask?.status === 'running';
+
+  // 删除视频（数据库 + MinIO 存储桶）
+  const handleDeleteVideo = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      await fetch(`/api/storyboards/${scene.id}/media`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ videoUrl: null })
+      });
+      if (onUpdateScene) {
+        onUpdateScene(scene.id, { videoUrl: undefined });
+      }
+      console.log('[SceneCard] 已删除视频, sceneId:', scene.id);
+    } catch (err) {
+      console.error('[SceneCard] 删除视频失败:', err);
+    }
+  }, [scene.id, onUpdateScene]);
+
+  // 删除首尾帧（动作镜头同时删除首帧和尾帧）
+  const handleDeleteFrames = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      await fetch(`/api/storyboards/${scene.id}/media`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ startFrame: null, endFrame: null })
+      });
+      // 更新本地状态
+      if (onUpdateScene) {
+        onUpdateScene(scene.id, { startFrame: undefined, endFrame: undefined, imageUrl: undefined });
+      }
+      console.log('[SceneCard] 已删除首尾帧, sceneId:', scene.id);
+    } catch (err) {
+      console.error('[SceneCard] 删除首尾帧失败:', err);
+    }
+  }, [scene.id, onUpdateScene]);
 
   const handleSaveDescription = () => {
     onUpdateDescription(scene.id, editedDescription);
@@ -91,7 +135,8 @@ const SceneCard: React.FC<SceneCardProps> = ({
         projectId,
         scene.characters || [],
         scene.location || '',
-        scriptId || undefined
+        scriptId || undefined,
+        scene.id
       );
       if (!result.ready) {
         const msg = formatValidationMessage(result);
@@ -178,24 +223,15 @@ const SceneCard: React.FC<SceneCardProps> = ({
             />
 
             {scene.videoUrl ? (
-              <div className="flex flex-col gap-1.5">
-                <VideoPreviewModal
-                  scene={scene}
-                  index={index}
-                  isGeneratingVideo={isGeneratingVideo}
-                  onGenerateVideo={handleGenerateVideo}
-                  showVideoPreview={showVideoPreview}
-                  setShowVideoPreview={setShowVideoPreview}
-                />
-                <button
-                  onClick={() => onGenerateImage(scene.id, scene.description)}
-                  className="w-40 px-2 py-1 text-xs bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg hover:from-blue-600 hover:to-indigo-600 flex items-center justify-center gap-1 transition-all shadow-sm hover:shadow"
-                  title="重新生成首尾帧（不影响已有视频）"
-                >
-                  <ImagePlus className="w-3 h-3" />
-                  重新生成帧
-                </button>
-              </div>
+              <VideoPreviewModal
+                scene={scene}
+                index={index}
+                isGeneratingVideo={isGeneratingVideo}
+                onGenerateVideo={handleGenerateVideo}
+                onDeleteVideo={handleDeleteVideo}
+                showVideoPreview={showVideoPreview}
+                setShowVideoPreview={setShowVideoPreview}
+              />
             ) : (
               <SceneImageGenerator
                 sceneId={scene.id}
@@ -204,6 +240,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
                 hasAction={scene.hasAction}
                 sceneDescription={scene.description}
                 onGenerate={handleGenerateImageWithValidation}
+                onDeleteFrames={handleDeleteFrames}
               />
             )}
 
@@ -235,6 +272,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
         index={index}
         isGeneratingVideo={isGeneratingVideo}
         onGenerateVideo={handleGenerateVideo}
+        onDeleteVideo={handleDeleteVideo}
         showVideoPreview={showVideoPreview}
         setShowVideoPreview={setShowVideoPreview}
         isModal

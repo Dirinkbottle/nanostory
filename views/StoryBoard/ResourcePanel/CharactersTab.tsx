@@ -29,11 +29,6 @@ const CharactersTab: React.FC<CharactersTabProps> = ({
         <span className="text-sm font-semibold text-slate-700">
           全部角色 ({dbCharacters.length > 0 ? dbCharacters.length : characters.length})
         </span>
-        {dbCharacters.length === 0 && characters.length > 0 && (
-          <Chip size="sm" color="warning" variant="flat">
-            未提取
-          </Chip>
-        )}
       </div>
       
       {isLoadingCharacters ? (
@@ -53,11 +48,6 @@ const CharactersTab: React.FC<CharactersTabProps> = ({
         ))
       ) : characters.length > 0 ? (
         <>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
-            <p className="text-xs text-yellow-800">
-              💡 检测到 {characters.length} 个角色，点击顶部"提取角色"按钮可获取详细信息
-            </p>
-          </div>
           {characters.map((char, idx) => (
             <SimpleCharacterCard
               key={idx}

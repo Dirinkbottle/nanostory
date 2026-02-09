@@ -1,6 +1,21 @@
 import { useState, useEffect } from 'react';
 import { getAuthToken } from '../../services/auth';
 
+export interface LinkedCharacter {
+  character_id: number;
+  role_type?: string;
+  name: string;
+  appearance?: string;
+  image_url?: string;
+}
+
+export interface LinkedScene {
+  scene_id: number;
+  name: string;
+  description?: string;
+  image_url?: string;
+}
+
 export interface StoryboardScene {
   id: number;
   order: number;
@@ -19,6 +34,8 @@ export interface StoryboardScene {
   endFrame?: string;
   startFrameDesc?: string;
   endFrameDesc?: string;
+  linkedCharacters?: LinkedCharacter[];
+  linkedScenes?: LinkedScene[];
 }
 
 export const useSceneManager = (scriptId: number | null, projectId?: number | null) => {
@@ -79,7 +96,9 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
               startFrame: item.first_frame_url || undefined,
               endFrame: item.last_frame_url || undefined,
               startFrameDesc: vars.startFrame || undefined,
-              endFrameDesc: vars.endFrame || undefined
+              endFrameDesc: vars.endFrame || undefined,
+              linkedCharacters: item.linkedCharacters || [],
+              linkedScenes: item.linkedScenes || []
             };
           });
           
@@ -90,31 +109,6 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
             setSelectedScene(loadedScenes[0].id);
           }
 
-          // 自动保存分镜中的角色到数据库
-          const allCharacters = [...new Set(loadedScenes.flatMap(s => s.characters || []))];
-          if (allCharacters.length > 0 && projectId) {
-            console.log('[useSceneManager] 自动保存角色到数据库:', allCharacters);
-            
-            fetch('/api/characters/batch-save', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {})
-              },
-              body: JSON.stringify({
-                projectId,
-                scriptId: targetScriptId,
-                characters: allCharacters
-              })
-            }).then(async (batchRes) => {
-              if (batchRes.ok) {
-                const batchData = await batchRes.json();
-                console.log('[useSceneManager] 角色自动保存成功:', batchData);
-              }
-            }).catch(err => {
-              console.error('[useSceneManager] 角色自动保存失败:', err);
-            });
-          }
         } else {
           setScenes([]);
         }

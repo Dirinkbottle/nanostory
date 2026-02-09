@@ -1,12 +1,15 @@
 /**
  * DELETE /api/scripts/:id/episode
- * 删除某集剧本及其所有分镜，返回孤立角色/场景供用户确认
+ * 删除某集剧本，返回孤立角色/场景供用户确认
+ * 
+ * 级联删除链：
+ *   DELETE script → CASCADE → storyboards → CASCADE → storyboard_characters / storyboard_scenes
+ *   DELETE script → SET NULL → characters.script_id / scenes.script_id（角色/场景保留）
  * 
  * 流程：
- * 1. 删除该集所有分镜（storyboards）
- * 2. 删除剧本记录（scripts）
- * 3. 查找因此变为孤立的角色和场景（仅被该集引用）
- * 4. 返回孤立资源列表，由前端决定是否清理
+ * 1. 先通过关联表查找仅被该集分镜关联的角色和场景（孤立资源）
+ * 2. 删除剧本（级联自动清理分镜和关联记录）
+ * 3. 返回孤立资源列表，由前端决定是否清理
  */
 
 const { queryOne, queryAll, execute } = require('../../dbHelper');
@@ -32,31 +35,41 @@ async function deleteEpisode(req, res) {
     const projectId = script.project_id;
     const episodeNumber = script.episode_number;
 
-    // 1. 删除该集所有分镜
-    const storyboards = await queryAll(
-      'SELECT id FROM storyboards WHERE script_id = ?',
+    // 统计分镜数（用于返回信息）
+    const storyboardCount = await queryOne(
+      'SELECT COUNT(*) AS cnt FROM storyboards WHERE script_id = ?',
       [scriptId]
     );
-    if (storyboards.length > 0) {
-      await execute('DELETE FROM storyboards WHERE script_id = ?', [scriptId]);
-      console.log(`[DeleteEpisode] 已删除 ${storyboards.length} 个分镜, scriptId=${scriptId}`);
-    }
 
-    // 2. 查找孤立角色（script_id 指向该集，且项目内没有其他集引用同名角色）
-    const orphanCharacters = await findOrphanCharacters(projectId, scriptId);
+    // 1. 先查孤立资源（必须在删除前查，删除后关联记录就没了）
+    const orphanCharIds = await findOrphanIds(projectId, scriptId, 'storyboard_characters', 'character_id');
+    const orphanSceneIds = await findOrphanIds(projectId, scriptId, 'storyboard_scenes', 'scene_id');
 
-    // 3. 查找孤立场景（同理）
-    const orphanScenes = await findOrphanScenes(projectId, scriptId);
-
-    // 4. 删除剧本
+    // 2. 删除剧本（级联自动删除：分镜 → 关联记录；角色/场景的 script_id 置 NULL）
     await execute('DELETE FROM scripts WHERE id = ? AND user_id = ?', [scriptId, userId]);
-    console.log(`[DeleteEpisode] 已删除剧本 id=${scriptId}, 第${episodeNumber}集`);
+    console.log(`[DeleteEpisode] 已删除剧本 id=${scriptId}, 第${episodeNumber}集, 级联删除 ${storyboardCount?.cnt || 0} 个分镜`);
+
+    // 3. 自动清理孤立角色和场景
+    let deletedCharacters = 0;
+    let deletedScenes = 0;
+    if (orphanCharIds.length > 0) {
+      const ph = orphanCharIds.map(() => '?').join(',');
+      await execute(`DELETE FROM characters WHERE id IN (${ph})`, orphanCharIds);
+      deletedCharacters = orphanCharIds.length;
+      console.log(`[DeleteEpisode] 自动清理 ${deletedCharacters} 个孤立角色`);
+    }
+    if (orphanSceneIds.length > 0) {
+      const ph = orphanSceneIds.map(() => '?').join(',');
+      await execute(`DELETE FROM scenes WHERE id IN (${ph})`, orphanSceneIds);
+      deletedScenes = orphanSceneIds.length;
+      console.log(`[DeleteEpisode] 自动清理 ${deletedScenes} 个孤立场景`);
+    }
 
     res.json({
       message: `第${episodeNumber}集已删除`,
-      deletedStoryboards: storyboards.length,
-      orphanCharacters,
-      orphanScenes
+      deletedStoryboards: storyboardCount?.cnt || 0,
+      deletedCharacters,
+      deletedScenes
     });
   } catch (err) {
     console.error('[DeleteEpisode] 删除失败:', err);
@@ -65,71 +78,34 @@ async function deleteEpisode(req, res) {
 }
 
 /**
- * 查找仅被该集引用的角色
- * 逻辑：角色的 script_id = 当前 scriptId，且该角色名在项目的其他集分镜中未出现
+ * 通用：查找仅被该集分镜关联的资源ID（通过关联表）
+ * @param {string} joinTable  关联表名（storyboard_characters / storyboard_scenes）
+ * @param {string} fkColumn   外键列名（character_id / scene_id）
  */
-async function findOrphanCharacters(projectId, scriptId) {
-  // 获取该集关联的角色
-  const characters = await queryAll(
-    'SELECT id, name, image_url FROM characters WHERE project_id = ? AND script_id = ?',
-    [projectId, scriptId]
+async function findOrphanIds(projectId, scriptId, joinTable, fkColumn) {
+  // 该集分镜关联的资源ID
+  const thisIds = await queryAll(
+    `SELECT DISTINCT jt.${fkColumn} AS rid
+     FROM ${joinTable} jt
+     JOIN storyboards sb ON jt.storyboard_id = sb.id
+     WHERE sb.script_id = ?`,
+    [scriptId]
   );
-  if (characters.length === 0) return [];
+  if (thisIds.length === 0) return [];
 
-  // 获取项目中其他集的所有分镜角色名
-  const otherStoryboards = await queryAll(
-    'SELECT variables_json FROM storyboards WHERE project_id = ? AND script_id != ?',
-    [projectId, scriptId]
+  // 其中哪些也被其他集关联
+  const ids = thisIds.map(r => r.rid);
+  const ph = ids.map(() => '?').join(',');
+  const otherLinked = await queryAll(
+    `SELECT DISTINCT jt.${fkColumn} AS rid
+     FROM ${joinTable} jt
+     JOIN storyboards sb ON jt.storyboard_id = sb.id
+     WHERE sb.project_id = ? AND sb.script_id != ? AND jt.${fkColumn} IN (${ph})`,
+    [projectId, scriptId, ...ids]
   );
-  const otherCharNames = new Set();
-  for (const sb of otherStoryboards) {
-    try {
-      const vars = typeof sb.variables_json === 'string'
-        ? JSON.parse(sb.variables_json || '{}')
-        : (sb.variables_json || {});
-      if (Array.isArray(vars.characters)) {
-        vars.characters.forEach((name) => otherCharNames.add(name));
-      }
-    } catch (e) { /* ignore */ }
-  }
+  const otherSet = new Set(otherLinked.map(r => r.rid));
 
-  // 筛选出未被其他集引用的角色
-  return characters
-    .filter(c => !otherCharNames.has(c.name))
-    .map(c => ({ id: c.id, name: c.name, image_url: c.image_url }));
-}
-
-/**
- * 查找仅被该集引用的场景
- * 逻辑：场景的 script_id = 当前 scriptId，且该场景名在项目的其他集分镜中未出现
- */
-async function findOrphanScenes(projectId, scriptId) {
-  const scenes = await queryAll(
-    'SELECT id, name, image_url FROM scenes WHERE project_id = ? AND script_id = ?',
-    [projectId, scriptId]
-  );
-  if (scenes.length === 0) return [];
-
-  // 获取项目中其他集的所有分镜场景名
-  const otherStoryboards = await queryAll(
-    'SELECT variables_json FROM storyboards WHERE project_id = ? AND script_id != ?',
-    [projectId, scriptId]
-  );
-  const otherLocations = new Set();
-  for (const sb of otherStoryboards) {
-    try {
-      const vars = typeof sb.variables_json === 'string'
-        ? JSON.parse(sb.variables_json || '{}')
-        : (sb.variables_json || {});
-      if (vars.location) {
-        otherLocations.add(vars.location);
-      }
-    } catch (e) { /* ignore */ }
-  }
-
-  return scenes
-    .filter(s => !otherLocations.has(s.name))
-    .map(s => ({ id: s.id, name: s.name, image_url: s.image_url }));
+  return ids.filter(id => !otherSet.has(id));
 }
 
 module.exports = deleteEpisode;

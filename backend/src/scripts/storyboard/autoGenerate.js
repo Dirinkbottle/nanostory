@@ -35,6 +35,7 @@ module.exports = (router) => {
         projectId,
         jobParams: {
           scriptId,
+          projectId,
           episodeNumber: script.episode_number,
           scriptContent: script.content,
           scriptTitle: script.title || `第${script.episode_number}集`,

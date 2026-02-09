@@ -1,6 +1,6 @@
 import React from 'react';
 import { Spinner } from '@heroui/react';
-import { Plus, RefreshCw, ZoomIn } from 'lucide-react';
+import { Plus, RefreshCw, ZoomIn, X } from 'lucide-react';
 
 interface ImageFramesProps {
   startFrame?: string;
@@ -11,6 +11,7 @@ interface ImageFramesProps {
   onQuickGenerate: () => void;
   onOpenGenerateModal: () => void;
   onPreview: (imageUrl: string) => void;
+  onDeleteFrames?: () => void;
   error: string | null;
 }
 
@@ -23,6 +24,7 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
   onQuickGenerate,
   onOpenGenerateModal,
   onPreview,
+  onDeleteFrames,
   error
 }) => {
   const showEndFrame = hasAction;
@@ -40,7 +42,7 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
                 className="w-full h-full object-cover rounded-lg cursor-pointer" 
                 onClick={() => onPreview(startFrame)}
               />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-1">
                 <button
                   onClick={() => onPreview(startFrame)}
                   className="p-1 bg-white/90 rounded-full hover:bg-white transition-colors"
@@ -49,6 +51,15 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
                   <ZoomIn className="w-3 h-3 text-slate-700" />
                 </button>
               </div>
+              {onDeleteFrames && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDeleteFrames(); }}
+                  className="absolute top-0.5 right-0.5 p-0.5 bg-red-500/80 rounded-full hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100 z-10"
+                  title={hasAction ? '删除首尾帧' : '删除图片'}
+                >
+                  <X className="w-2.5 h-2.5 text-white" />
+                </button>
+              )}
               {hasAction && (
                 <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5">首帧</div>
               )}
@@ -80,7 +91,7 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
                   className="w-full h-full object-cover rounded-lg cursor-pointer" 
                   onClick={() => onPreview(endFrame)}
                 />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-1">
                   <button
                     onClick={() => onPreview(endFrame)}
                     className="p-1 bg-white/90 rounded-full hover:bg-white transition-colors"
@@ -89,6 +100,15 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
                     <ZoomIn className="w-3 h-3 text-slate-700" />
                   </button>
                 </div>
+                {onDeleteFrames && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteFrames(); }}
+                    className="absolute top-0.5 right-0.5 p-0.5 bg-red-500/80 rounded-full hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100 z-10"
+                    title="删除首尾帧"
+                  >
+                    <X className="w-2.5 h-2.5 text-white" />
+                  </button>
+                )}
                 <div className="absolute bottom-0 left-0 right-0 bg-orange-500/70 text-white text-[10px] text-center py-0.5">尾帧</div>
               </>
             ) : isGenerating ? (

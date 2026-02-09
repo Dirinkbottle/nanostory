@@ -1,6 +1,7 @@
 export interface AuthUser {
   id: number;
   email: string;
+  role?: string;
 }
 
 export interface AuthResponse {
@@ -31,6 +32,7 @@ function saveAuth(resp: AuthResponse) {
   if (typeof localStorage === 'undefined') return;
   localStorage.setItem(AUTH_TOKEN_KEY, resp.token);
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(resp.user));
+  localStorage.setItem('userRole', resp.user.role || 'user');
 }
 
 async function request(path: string, body: unknown): Promise<AuthResponse> {
@@ -64,4 +66,5 @@ export function logout() {
   if (typeof localStorage === 'undefined') return;
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
+  localStorage.removeItem('userRole');
 }

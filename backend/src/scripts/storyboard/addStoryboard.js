@@ -3,7 +3,7 @@
  * 手动添加单个分镜，返回真实 DB ID
  */
 
-const { queryOne, execute, getLastInsertId } = require('../dbHelper');
+const { queryOne, execute, getLastInsertId } = require('../../dbHelper');
 
 async function addStoryboard(req, res) {
   const userId = req.user.id;

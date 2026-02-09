@@ -9,8 +9,7 @@ const { queryAll } = require('../../../dbHelper');
 const { getStoryStyle } = require('../../../utils/getProjectStyle');
 
 async function handleScriptGeneration(inputParams, onProgress) {
-  const { title, description, style, length, textModel, modelName: _legacy, projectId, episodeNumber } = inputParams;
-  const modelName = textModel || _legacy;
+  const { title, description, style, length, textModel: modelName, projectId, episodeNumber } = inputParams;
 
   if (!modelName) {
     throw new Error('textModel 参数是必需的');
@@ -87,7 +86,7 @@ ${userPrompt}`;
     prompt: fullPrompt,
     textModel: modelName,
     maxTokens: 8000,
-    temperature: 0.7
+    temperature: 0.9
   }, onProgress);
 
   if (onProgress) onProgress(90);

@@ -7,8 +7,7 @@
 const { submitAndPoll } = require('./pollUtils');
 
 async function handleVideoGeneration(inputParams, onProgress) {
-  const { prompt, imageUrl, videoModel, modelName: _legacy, duration } = inputParams;
-  const modelName = videoModel || _legacy;
+  const { prompt, imageUrl, videoModel: modelName, duration } = inputParams;
 
   if (!modelName) {
     throw new Error('videoModel 参数是必需的');
