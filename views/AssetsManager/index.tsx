@@ -197,20 +197,28 @@ const AssetsManager: React.FC = () => {
     }
   };
 
-  const filteredCharacters = characters.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCharacters = characters.filter(c => {
+    const q = searchQuery.toLowerCase();
+    return c.name.toLowerCase().includes(q) ||
+      c.description.toLowerCase().includes(q) ||
+      (c.tags && c.tags.toLowerCase().includes(q)) ||
+      (c.project_name && c.project_name.toLowerCase().includes(q));
+  });
 
-  const filteredScenes = scenes.filter(s => 
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredScenes = scenes.filter(s => {
+    const q = searchQuery.toLowerCase();
+    return s.name.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q) ||
+      (s.tags && s.tags.toLowerCase().includes(q)) ||
+      (s.project_name && s.project_name.toLowerCase().includes(q));
+  });
 
-  const filteredProps = props.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProps = props.filter(p => {
+    const q = searchQuery.toLowerCase();
+    return p.name.toLowerCase().includes(q) ||
+      p.description.toLowerCase().includes(q) ||
+      (p.tags && p.tags.toLowerCase().includes(q));
+  });
 
   return (
     <div className="h-full bg-slate-50 overflow-hidden p-6">
@@ -338,7 +346,7 @@ const AssetsManager: React.FC = () => {
           isOpen={isDetailOpen}
           onClose={onDetailOpenChange}
           scene={selectedScene}
-          onGenerateImage={handleGenerateSceneImage}
+          onGenerateImage={(sceneId: number, imageModel: string) => handleGenerateSceneImage(sceneId, '', imageModel)}
           isGenerating={isGenerating}
         />
       </div>

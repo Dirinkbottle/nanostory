@@ -9,6 +9,7 @@ export interface Character {
   personality: string;
   image_url: string;
   tags: string;
+  project_name?: string;
   created_at: string;
   updated_at: string;
 }
@@ -23,6 +24,7 @@ export interface Scene {
   mood: string;
   image_url: string;
   tags: string;
+  project_name?: string;
   created_at: string;
   updated_at: string;
 }

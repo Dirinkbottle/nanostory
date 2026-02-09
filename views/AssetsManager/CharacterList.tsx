@@ -39,20 +39,27 @@ const CharacterList: React.FC<CharacterListProps> = ({ characters, onEdit, onDel
               </div>
             </div>
             <p className="text-sm text-slate-500 line-clamp-2">{character.description}</p>
-            {character.tags && (
-              <div className="flex flex-wrap gap-2">
-                {character.tags.split(',').map((tag, idx) => (
-                  <Chip 
-                    key={idx} 
-                    size="sm" 
-                    variant="flat" 
-                    className="bg-blue-50 text-blue-600 font-medium"
-                  >
-                    {tag.trim()}
-                  </Chip>
-                ))}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {character.project_name && (
+                <Chip 
+                  size="sm" 
+                  variant="flat" 
+                  className="bg-emerald-50 text-emerald-600 font-medium"
+                >
+                  {character.project_name}
+                </Chip>
+              )}
+              {character.tags && character.tags.split(',').map((tag, idx) => (
+                <Chip 
+                  key={idx} 
+                  size="sm" 
+                  variant="flat" 
+                  className="bg-blue-50 text-blue-600 font-medium"
+                >
+                  {tag.trim()}
+                </Chip>
+              ))}
+            </div>
           </CardBody>
         </Card>
       ))}

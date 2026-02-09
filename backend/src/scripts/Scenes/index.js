@@ -13,7 +13,11 @@ router.get('/', authMiddleware, async (req, res) => {
 
   try {
     const scenes = await queryAll(
-      'SELECT * FROM scenes WHERE user_id = ? ORDER BY created_at DESC',
+      `SELECT s.*, p.name AS project_name 
+       FROM scenes s 
+       LEFT JOIN projects p ON s.project_id = p.id 
+       WHERE s.user_id = ? 
+       ORDER BY s.created_at DESC`,
       [userId]
     );
 

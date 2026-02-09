@@ -51,20 +51,27 @@ const SceneList: React.FC<SceneListProps> = ({ scenes, onEdit, onDelete, onViewD
               </div>
             </div>
             <p className="text-sm text-slate-500 line-clamp-2">{scene.description}</p>
-            {scene.tags && (
-              <div className="flex flex-wrap gap-2">
-                {scene.tags.split(',').map((tag, idx) => (
-                  <Chip 
-                    key={idx} 
-                    size="sm" 
-                    variant="flat" 
-                    className="bg-sky-50 text-sky-600 font-medium"
-                  >
-                    {tag.trim()}
-                  </Chip>
-                ))}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {scene.project_name && (
+                <Chip 
+                  size="sm" 
+                  variant="flat" 
+                  className="bg-emerald-50 text-emerald-600 font-medium"
+                >
+                  {scene.project_name}
+                </Chip>
+              )}
+              {scene.tags && scene.tags.split(',').map((tag, idx) => (
+                <Chip 
+                  key={idx} 
+                  size="sm" 
+                  variant="flat" 
+                  className="bg-sky-50 text-sky-600 font-medium"
+                >
+                  {tag.trim()}
+                </Chip>
+              ))}
+            </div>
           </CardBody>
         </Card>
       ))}

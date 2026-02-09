@@ -8,7 +8,11 @@ module.exports = (router) => {
 
     try {
       const characters = await queryAll(
-        'SELECT * FROM characters WHERE user_id = ? ORDER BY created_at DESC',
+        `SELECT c.*, p.name AS project_name 
+         FROM characters c 
+         LEFT JOIN projects p ON c.project_id = p.id 
+         WHERE c.user_id = ? 
+         ORDER BY c.created_at DESC`,
         [userId]
       );
 
