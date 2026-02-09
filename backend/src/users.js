@@ -87,10 +87,16 @@ router.get('/stats', authMiddleware, async (req, res) => {
       [userId]
     );
 
+    const projectCount = await queryOne(
+      'SELECT COUNT(*) as count FROM projects WHERE user_id = ?',
+      [userId]
+    );
+
     res.json({
       totalSpent: totalSpent.total,
       scriptCount: scriptCount.count,
-      videoCount: videoCount.count
+      videoCount: videoCount.count,
+      projectCount: projectCount.count
     });
   } catch (error) {
     console.error('[User Stats]', error);

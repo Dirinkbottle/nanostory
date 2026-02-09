@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardBody, Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from '@heroui/react';
-import { User, Wallet, TrendingUp, FileText, Video, DollarSign } from 'lucide-react';
+import { User, Wallet, TrendingUp, FolderOpen, Trophy, DollarSign } from 'lucide-react';
 import { getAuthToken } from '../services/auth';
 
 interface UserProfile {
@@ -14,6 +14,7 @@ interface UserStats {
   totalSpent: number;
   scriptCount: number;
   videoCount: number;
+  projectCount: number;
 }
 
 interface BillingRecord {
@@ -38,7 +39,7 @@ const UserCenter: React.FC = () => {
   const fetchUserData = async () => {
     try {
       const token = getAuthToken();
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       
       const [profileRes, statsRes, recordsRes] = await Promise.all([
         fetch('/api/users/profile', { headers }),
@@ -105,7 +106,7 @@ const UserCenter: React.FC = () => {
             <CardBody className="p-6">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/25">
-                  <User className="w-8 h-8 text-white" />
+                  <span className="text-2xl font-bold text-white">{profile?.email?.charAt(0)?.toUpperCase() || '?'}</span>
                 </div>
                 <div className="flex-1">
                   <div className="text-sm text-slate-500">用户名</div>
@@ -170,15 +171,15 @@ const UserCenter: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-blue-600" />
+                    <FolderOpen className="w-6 h-6 text-blue-600" />
                   </div>
                   <div>
-                    <div className="text-sm text-slate-500">生成剧本</div>
-                    <div className="text-2xl font-bold text-slate-800">{stats?.scriptCount || 0}</div>
+                    <div className="text-sm text-slate-500">工程文件</div>
+                    <div className="text-2xl font-bold text-slate-800">{stats?.projectCount || 0}</div>
                   </div>
                 </div>
                 <Chip size="sm" variant="flat" className="bg-blue-100 text-blue-700 font-medium">
-                  文本
+                  项目
                 </Chip>
               </div>
             </CardBody>
@@ -188,16 +189,16 @@ const UserCenter: React.FC = () => {
             <CardBody className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                    <Video className="w-6 h-6 text-purple-600" />
+                  <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+                    <Trophy className="w-6 h-6 text-amber-600" />
                   </div>
                   <div>
-                    <div className="text-sm text-slate-500">生成视频</div>
-                    <div className="text-2xl font-bold text-slate-800">{stats?.videoCount || 0}</div>
+                    <div className="text-sm text-slate-500">我的成就</div>
+                    <div className="text-lg font-semibold text-slate-400">即将开放</div>
                   </div>
                 </div>
-                <Chip size="sm" variant="flat" className="bg-purple-100 text-purple-700 font-medium">
-                  视频
+                <Chip size="sm" variant="flat" className="bg-amber-100 text-amber-700 font-medium">
+                  成就
                 </Chip>
               </div>
             </CardBody>
