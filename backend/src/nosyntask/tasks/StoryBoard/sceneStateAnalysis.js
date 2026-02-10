@@ -113,7 +113,6 @@ ${shotsText}
     prompt: fullPrompt,
     textModel,
     think,
-    maxTokens,
     temperature: 0.2
   });
 
@@ -136,12 +135,10 @@ ${shotsText}
   // 5.1 空结果回退：关闭 thinking 重试一次
   if (analysisResults.length === 0 && think) {
     console.log('[SceneStateAnalysis] 思考模式输出为空，关闭 thinking 重试...');
-    const retryTokens = Math.max(4096, shotsForAnalysis.length * 200);
     const retryResult = await handleBaseTextModelCall({
       prompt: fullPrompt,
       textModel,
       think: false,
-      maxTokens: retryTokens,
       temperature: 0.2
     });
     try {
