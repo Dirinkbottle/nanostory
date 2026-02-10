@@ -26,14 +26,14 @@ const AsyncModelResult: React.FC<AsyncModelResultProps> = ({
   return (
     <div className="space-y-4">
       {/* 提交结果 */}
-      <div className={`rounded-lg border p-4 space-y-2 ${testResult.success ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+      <div className={`rounded-lg border p-4 space-y-2 ${testResult.success ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {testResult.success 
-              ? <CheckCircle className="w-4 h-4 text-green-600" /> 
-              : <XCircle className="w-4 h-4 text-red-600" />
+              ? <CheckCircle className="w-4 h-4 text-emerald-400" /> 
+              : <XCircle className="w-4 h-4 text-red-400" />
             }
-            <span className={`text-sm font-medium ${testResult.success ? 'text-green-700' : 'text-red-700'}`}>
+            <span className={`text-sm font-medium ${testResult.success ? 'text-emerald-400' : 'text-red-400'}`}>
               {testResult.success ? '任务已提交' : '提交失败'}
             </span>
           </div>
@@ -51,11 +51,11 @@ const AsyncModelResult: React.FC<AsyncModelResultProps> = ({
           const entries = Object.entries(mapped).filter(([, v]) => v != null);
           if (entries.length === 0) return null;
           return (
-            <div className="bg-white rounded-md p-3 border border-slate-200 mt-2">
+            <div className="bg-slate-800/60 rounded-md p-3 border border-slate-700/50 mt-2">
               <p className="text-xs text-slate-500 mb-1">映射字段（自动传入查询接口）：</p>
               {entries.map(([key, value]) => (
-                <p key={key} className="text-xs text-slate-600">
-                  <span className="font-medium">{key}</span>: <code className="bg-slate-100 px-1 rounded">{String(value)}</code>
+                <p key={key} className="text-xs text-slate-400">
+                  <span className="font-medium">{key}</span>: <code className="bg-slate-700/50 px-1 rounded">{String(value)}</code>
                 </p>
               ))}
             </div>
@@ -64,7 +64,7 @@ const AsyncModelResult: React.FC<AsyncModelResultProps> = ({
 
         {/* 错误信息 */}
         {!testResult.success && (
-          <p className="text-sm text-red-600">{testResult.message || testResult.error}</p>
+          <p className="text-sm text-red-400">{testResult.message || testResult.error}</p>
         )}
 
         <RawResponseDetail data={testResult.result} />
@@ -72,25 +72,25 @@ const AsyncModelResult: React.FC<AsyncModelResultProps> = ({
 
       {/* 轮询状态 */}
       {(polling || queryResult) && (
-        <div className="rounded-lg border bg-blue-50 border-blue-200 p-4 space-y-2">
+        <div className="rounded-lg border bg-blue-500/10 border-blue-500/30 p-4 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {polling ? (
                 <>
                   <Spinner size="sm" color="primary" />
-                  <span className="text-sm font-medium text-blue-700">
+                  <span className="text-sm font-medium text-blue-400">
                     查询中... (第 {pollCount} 次)
                   </span>
                 </>
               ) : (
                 <>
-                  <Search className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-700">查询完成</span>
+                  <Search className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm font-medium text-blue-400">查询完成</span>
                 </>
               )}
             </div>
             {polling && (
-              <Button size="sm" variant="flat" className="bg-red-100 text-red-600" onPress={onStopPolling}>
+              <Button size="sm" variant="flat" className="bg-red-500/10 text-red-400" onPress={onStopPolling}>
                 停止轮询
               </Button>
             )}
@@ -98,7 +98,7 @@ const AsyncModelResult: React.FC<AsyncModelResultProps> = ({
 
           {/* 媒体预览 */}
           {mediaUrl && (
-            <div className="bg-white rounded-md p-3 border border-slate-200 mt-2">
+            <div className="bg-slate-800/60 rounded-md p-3 border border-slate-700/50 mt-2">
               <p className="text-xs text-slate-500 mb-2">生成结果预览：</p>
               {category === 'VIDEO' ? (
                 <video src={mediaUrl} controls className="max-w-full max-h-64 rounded" />

@@ -61,22 +61,22 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
 
 const ToastItem: React.FC<{ toast: ToastMessage; onClose: () => void }> = ({ toast, onClose }) => {
   const bgColors = {
-    success: 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800',
-    error: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800',
-    warning: 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800',
-    info: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800'
+    success: 'bg-emerald-500/10 border-emerald-500/30',
+    error: 'bg-red-500/10 border-red-500/30',
+    warning: 'bg-amber-500/10 border-amber-500/30',
+    info: 'bg-blue-500/10 border-blue-500/30'
   };
 
   const icons = {
-    success: <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />,
-    error: <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />,
-    warning: <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />,
-    info: <Info className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+    success: <CheckCircle className="w-5 h-5 text-emerald-400" />,
+    error: <AlertCircle className="w-5 h-5 text-red-400" />,
+    warning: <AlertTriangle className="w-5 h-5 text-amber-400" />,
+    info: <Info className="w-5 h-5 text-blue-400" />
   };
 
   return (
     <Card 
-      className={`w-80 shadow-xl border ${bgColors[toast.type]}`}
+      className={`w-80 shadow-xl shadow-black/20 border backdrop-blur-xl ${bgColors[toast.type]}`}
       radius="lg"
     >
       <CardBody className="p-4 flex flex-row items-start gap-3">
@@ -84,13 +84,13 @@ const ToastItem: React.FC<{ toast: ToastMessage; onClose: () => void }> = ({ toa
           {icons[toast.type]}
         </div>
         <div className="flex-1 mr-2">
-          <p className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-snug break-words">
+          <p className="text-sm font-bold text-slate-100 leading-snug break-words">
             {toast.message}
           </p>
         </div>
         <button 
           onClick={onClose}
-          className="shrink-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          className="shrink-0 text-slate-400 hover:text-slate-200 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>

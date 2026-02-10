@@ -56,8 +56,11 @@ const ResourceSidebar: React.FC<ResourceSidebarProps> = ({
       const char = dbCharacters.find(c => c.name === selectedCharacterName);
       if (char) {
         setView({ mode: 'character-detail', character: char });
-        setActiveTab('character');
+      } else {
+        // 角色未入库时，用名字构造一个最小化角色对象
+        setView({ mode: 'character-detail', character: { id: 0, name: selectedCharacterName } as Character });
       }
+      setActiveTab('character');
       onClearSelection?.();
     }
   }, [selectedCharacterName, dbCharacters]);

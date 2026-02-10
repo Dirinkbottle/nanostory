@@ -117,10 +117,10 @@ const SceneList: React.FC<SceneListProps> = ({
     setDragOverIndex(null);
   };
   return (
-    <div className="flex-1 flex flex-col border-r border-slate-200 bg-white">
-      <div className="p-4 border-b border-slate-200">
+    <div className="flex-1 flex flex-col border-r border-slate-700/50 bg-slate-900/40">
+      <div className="p-4 border-b border-slate-700/50">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-slate-800">分镜列表</h2>
+          <h2 className="text-xl font-bold text-slate-100">分镜列表</h2>
           <div className="flex items-center gap-2">
             {onBatchGenerate && scenes.length > 0 && (
               <Button
@@ -148,7 +148,7 @@ const SceneList: React.FC<SceneListProps> = ({
             )}
             <Button
               size="sm"
-              className="bg-blue-600 text-white font-semibold hover:bg-blue-700"
+              className="bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold"
               startContent={<Plus className="w-4 h-4" />}
               onPress={onAddScene}
             >
@@ -183,8 +183,8 @@ const SceneList: React.FC<SceneListProps> = ({
               projectId={projectId}
               scriptId={scriptId}
               onSelect={onSelectScene}
-              onMoveUp={onMoveScene}
-              onMoveDown={onMoveScene}
+              onMoveUp={(id) => onMoveScene(id, 'up')}
+              onMoveDown={(id) => onMoveScene(id, 'down')}
               onDelete={onDeleteScene}
               onUpdateDescription={onUpdateDescription}
               onGenerateImage={onGenerateImage}
@@ -197,26 +197,27 @@ const SceneList: React.FC<SceneListProps> = ({
         ))}
       </div>
       {/* 批量生成确认弹窗 */}
-      <Modal isOpen={showBatchModal} onOpenChange={setShowBatchModal} size="sm">
+      <Modal isOpen={showBatchModal} onOpenChange={setShowBatchModal} size="sm" classNames={{ base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50" }}>
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>检测到已有帧图片</ModalHeader>
+              <ModalHeader className="text-slate-100">检测到已有帧图片</ModalHeader>
               <ModalBody>
-                <p className="text-sm text-slate-600">
-                  当前 {totalScenes} 个分镜中，已有 <span className="font-bold text-orange-600">{scenesWithFrames}</span> 个分镜已生成帧图片。
+                <p className="text-sm text-slate-300">
+                  当前 {totalScenes} 个分镜中，已有 <span className="font-bold text-orange-400">{scenesWithFrames}</span> 个分镜已生成帧图片。
                 </p>
-                <p className="text-sm text-slate-500 mt-1">请选择处理方式：</p>
+                <p className="text-sm text-slate-400 mt-1">请选择处理方式：</p>
               </ModalBody>
               <ModalFooter>
                 <Button
                   variant="flat"
                   onPress={onClose}
+                  className="bg-slate-800/80 text-slate-300"
                 >
                   取消
                 </Button>
                 <Button
-                  className="bg-blue-600 text-white font-semibold"
+                  className="bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold"
                   onPress={() => {
                     onClose();
                     onBatchGenerate?.(false);
@@ -240,26 +241,27 @@ const SceneList: React.FC<SceneListProps> = ({
       </Modal>
 
       {/* 批量视频生成确认弹窗 */}
-      <Modal isOpen={showBatchVideoModal} onOpenChange={setShowBatchVideoModal} size="sm">
+      <Modal isOpen={showBatchVideoModal} onOpenChange={setShowBatchVideoModal} size="sm" classNames={{ base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50" }}>
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>检测到已有视频</ModalHeader>
+              <ModalHeader className="text-slate-100">检测到已有视频</ModalHeader>
               <ModalBody>
-                <p className="text-sm text-slate-600">
-                  当前 {totalScenes} 个分镜中，已有 <span className="font-bold text-purple-600">{scenesWithVideos}</span> 个分镜已生成视频。
+                <p className="text-sm text-slate-300">
+                  当前 {totalScenes} 个分镜中，已有 <span className="font-bold text-purple-400">{scenesWithVideos}</span> 个分镜已生成视频。
                 </p>
-                <p className="text-sm text-slate-500 mt-1">请选择处理方式：</p>
+                <p className="text-sm text-slate-400 mt-1">请选择处理方式：</p>
               </ModalBody>
               <ModalFooter>
                 <Button
                   variant="flat"
                   onPress={onClose}
+                  className="bg-slate-800/80 text-slate-300"
                 >
                   取消
                 </Button>
                 <Button
-                  className="bg-blue-600 text-white font-semibold"
+                  className="bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold"
                   onPress={() => {
                     onClose();
                     onBatchGenerateVideo?.(false);

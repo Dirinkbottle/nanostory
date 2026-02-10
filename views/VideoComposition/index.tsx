@@ -74,7 +74,7 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectN
   }, [timeline.clips, ffmpeg, compositionData.selectedEpisode]);
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 overflow-hidden">
+    <div className="h-full flex flex-col bg-[#0a0a0f] overflow-hidden">
       <div className="flex-1 flex overflow-hidden">
         {/* 左侧：集列表 + 分镜视频 */}
         <EpisodeSidebar
@@ -137,14 +137,14 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectN
 
         {/* 右侧：属性面板 */}
         {showPanel && (
-          <div className="w-64 flex-shrink-0 border-l border-slate-200 bg-white overflow-y-auto flex flex-col">
+          <div className="w-64 flex-shrink-0 border-l border-slate-700/50 bg-slate-900/60 overflow-y-auto flex flex-col">
             {/* 面板 Tab 切换 */}
-            <div className="flex border-b border-slate-200">
+            <div className="flex border-b border-slate-700/50">
               <button
                 className={`flex-1 text-xs font-medium py-2.5 transition-colors ${
                   panelTab === 'clip'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? 'text-blue-400 border-b-2 border-blue-400'
+                    : 'text-slate-500 hover:text-slate-300'
                 }`}
                 onClick={() => setPanelTab('clip')}
               >
@@ -153,8 +153,8 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectN
               <button
                 className={`flex-1 text-xs font-medium py-2.5 transition-colors ${
                   panelTab === 'subtitle'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? 'text-blue-400 border-b-2 border-blue-400'
+                    : 'text-slate-500 hover:text-slate-300'
                 }`}
                 onClick={() => setPanelTab('subtitle')}
               >

@@ -37,15 +37,15 @@ const AssetModal: React.FC<AssetModalProps> = ({
       size="2xl"
       scrollBehavior="inside"
       classNames={{
-        base: "bg-white border border-slate-200 shadow-xl",
-        header: "border-b border-slate-200",
+        base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-black/40",
+        header: "border-b border-slate-700/50",
         body: "py-6"
       }}
     >
       <ModalContent>
         {(onClose) => (
           <>
-            <ModalHeader className="text-slate-800 font-bold">
+            <ModalHeader className="text-slate-100 font-bold">
               {editMode ? '编辑' : '新建'}{getTabLabel()}
             </ModalHeader>
             <ModalBody className="space-y-4">
@@ -55,9 +55,9 @@ const AssetModal: React.FC<AssetModalProps> = ({
                 value={formData.name}
                 onValueChange={(val) => setFormData({ ...formData, name: val })}
                 classNames={{
-                  input: "bg-white text-slate-800 placeholder:text-slate-400",
-                  label: "text-slate-600 font-medium",
-                  inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                  input: "bg-transparent text-slate-100 placeholder:text-slate-500",
+                  label: "text-slate-400 font-medium",
+                  inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
                 }}
               />
               
@@ -68,9 +68,9 @@ const AssetModal: React.FC<AssetModalProps> = ({
                 onValueChange={(val) => setFormData({ ...formData, description: val })}
                 minRows={3}
                 classNames={{
-                  input: "bg-white text-slate-800 placeholder:text-slate-400",
-                  label: "text-slate-600 font-medium",
-                  inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                  input: "bg-transparent text-slate-100 placeholder:text-slate-500",
+                  label: "text-slate-400 font-medium",
+                  inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
                 }}
               />
 
@@ -82,9 +82,9 @@ const AssetModal: React.FC<AssetModalProps> = ({
                     value={formData.appearance}
                     onValueChange={(val) => setFormData({ ...formData, appearance: val })}
                     classNames={{
-                      input: "bg-white text-slate-800 placeholder:text-slate-400",
-                      label: "text-slate-600 font-medium",
-                      inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                      input: "bg-transparent text-slate-100 placeholder:text-slate-500",
+                      label: "text-slate-400 font-medium",
+                      inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
                     }}
                   />
                   <Input
@@ -93,9 +93,9 @@ const AssetModal: React.FC<AssetModalProps> = ({
                     value={formData.personality}
                     onValueChange={(val) => setFormData({ ...formData, personality: val })}
                     classNames={{
-                      input: "bg-white text-slate-800 placeholder:text-slate-400",
-                      label: "text-slate-600 font-medium",
-                      inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                      input: "bg-transparent text-slate-100 placeholder:text-slate-500",
+                      label: "text-slate-400 font-medium",
+                      inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
                     }}
                   />
                 </>
@@ -109,9 +109,9 @@ const AssetModal: React.FC<AssetModalProps> = ({
                     value={formData.environment}
                     onValueChange={(val) => setFormData({ ...formData, environment: val })}
                     classNames={{
-                      input: "bg-white text-slate-800 placeholder:text-slate-400",
-                      label: "text-slate-600 font-medium",
-                      inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                      input: "bg-transparent text-slate-100 placeholder:text-slate-500",
+                      label: "text-slate-400 font-medium",
+                      inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
                     }}
                   />
                   <Input
@@ -120,9 +120,9 @@ const AssetModal: React.FC<AssetModalProps> = ({
                     value={formData.lighting}
                     onValueChange={(val) => setFormData({ ...formData, lighting: val })}
                     classNames={{
-                      input: "bg-white text-slate-800 placeholder:text-slate-400",
-                      label: "text-slate-600 font-medium",
-                      inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                      input: "bg-transparent text-slate-100 placeholder:text-slate-500",
+                      label: "text-slate-400 font-medium",
+                      inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
                     }}
                   />
                   <Input
@@ -131,9 +131,9 @@ const AssetModal: React.FC<AssetModalProps> = ({
                     value={formData.mood}
                     onValueChange={(val) => setFormData({ ...formData, mood: val })}
                     classNames={{
-                      input: "bg-white text-slate-800 placeholder:text-slate-400",
-                      label: "text-slate-600 font-medium",
-                      inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                      input: "bg-transparent text-slate-100 placeholder:text-slate-500",
+                      label: "text-slate-400 font-medium",
+                      inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
                     }}
                   />
                 </>
@@ -146,9 +146,9 @@ const AssetModal: React.FC<AssetModalProps> = ({
                   value={formData.category}
                   onValueChange={(val) => setFormData({ ...formData, category: val })}
                   classNames={{
-                    input: "bg-white text-slate-800 placeholder:text-slate-400",
-                    label: "text-slate-600 font-medium",
-                    inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                    input: "bg-transparent text-slate-100 placeholder:text-slate-500",
+                    label: "text-slate-400 font-medium",
+                    inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
                   }}
                 />
               )}
@@ -159,9 +159,9 @@ const AssetModal: React.FC<AssetModalProps> = ({
                 value={formData.image_url}
                 onValueChange={(val) => setFormData({ ...formData, image_url: val })}
                 classNames={{
-                  input: "bg-white text-slate-800 placeholder:text-slate-400",
-                  label: "text-slate-600 font-medium",
-                  inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                  input: "bg-transparent text-slate-100 placeholder:text-slate-500",
+                  label: "text-slate-400 font-medium",
+                  inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
                 }}
               />
 
@@ -171,18 +171,18 @@ const AssetModal: React.FC<AssetModalProps> = ({
                 value={formData.tags}
                 onValueChange={(val) => setFormData({ ...formData, tags: val })}
                 classNames={{
-                  input: "bg-white text-slate-800 placeholder:text-slate-400",
-                  label: "text-slate-600 font-medium",
-                  inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 shadow-sm"
+                  input: "bg-transparent text-slate-100 placeholder:text-slate-500",
+                  label: "text-slate-400 font-medium",
+                  inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
                 }}
               />
             </ModalBody>
             <ModalFooter>
-              <Button variant="light" onPress={onClose} className="font-semibold">
+              <Button variant="light" onPress={onClose} className="font-semibold text-slate-400">
                 取消
               </Button>
               <Button 
-                className="bg-blue-600 text-white hover:bg-blue-700 font-semibold" 
+                className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold shadow-lg shadow-blue-500/20"
                 onPress={onSave}
               >
                 保存

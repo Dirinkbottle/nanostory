@@ -106,20 +106,20 @@ const ModelTestModal: React.FC<ModelTestModalProps> = ({ isOpen, onClose, model 
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} size="full" scrollBehavior="inside">
-      <ModalContent>
-        <ModalHeader className="flex items-center gap-3">
-          <Play className="w-5 h-5 text-green-600" />
+      <ModalContent className="bg-slate-900/95 backdrop-blur-xl">
+        <ModalHeader className="flex items-center gap-3 text-slate-100 border-b border-slate-700/50">
+          <Play className="w-5 h-5 text-green-400" />
           <span>调试模型：{model.name}</span>
-          <Chip size="sm" className="bg-blue-100 text-blue-700">{model.category}</Chip>
-          <Chip size="sm" className="bg-slate-100 text-slate-600">{model.provider}</Chip>
+          <Chip size="sm" className="bg-blue-500/10 text-blue-400">{model.category}</Chip>
+          <Chip size="sm" className="bg-slate-800/60 text-slate-400">{model.provider}</Chip>
         </ModalHeader>
         <ModalBody className="p-0">
           <div className="flex h-[calc(100vh-200px)]">
             {/* 左侧：参数输入和结果预览 */}
-            <div className="w-1/2 border-r border-slate-200 p-6 space-y-4 overflow-y-auto">
+            <div className="w-1/2 border-r border-slate-700/50 p-6 space-y-4 overflow-y-auto">
               {/* 参数输入 */}
               <div>
-                <label className="text-sm font-medium text-slate-700 mb-2 block">
+                <label className="text-sm font-medium text-slate-300 mb-2 block">
                   调用参数 (JSON)
                 </label>
                 <Textarea
@@ -129,7 +129,7 @@ const ModelTestModal: React.FC<ModelTestModalProps> = ({ isOpen, onClose, model 
                   maxRows={15}
                   classNames={{
                     input: "font-mono text-xs",
-                    inputWrapper: "bg-slate-50 border-2 border-slate-200"
+                    inputWrapper: "bg-slate-800/60 border-2 border-slate-600/50"
                   }}
                   placeholder='{"prompt": "...", "title": "..."}'
                 />
@@ -137,15 +137,15 @@ const ModelTestModal: React.FC<ModelTestModalProps> = ({ isOpen, onClose, model 
 
               {/* 执行状态 */}
               {testing && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      <span className="text-sm text-blue-700">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                      <span className="text-sm text-blue-300">
                         {model.category === 'TEXT' ? '文本生成中...' : model.category === 'IMAGE' ? '图片生成中（含轮询）...' : '视频生成中（含轮询）...'}
                       </span>
                     </div>
-                    <Button size="sm" variant="flat" className="bg-red-100 text-red-600" onPress={() => { abortRef.current?.abort(); setTesting(false); }}>
+                    <Button size="sm" variant="flat" className="bg-red-500/10 text-red-400" onPress={() => { abortRef.current?.abort(); setTesting(false); }}>
                       取消
                     </Button>
                   </div>
@@ -157,9 +157,9 @@ const ModelTestModal: React.FC<ModelTestModalProps> = ({ isOpen, onClose, model 
 
               {/* 结果预览 */}
               {testResult && testResult.result && (
-                <div className="bg-white rounded-lg border border-slate-200 p-4">
+                <div className="bg-slate-800/60 rounded-lg border border-slate-700/50 p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-slate-700">结果预览</h3>
+                    <h3 className="text-sm font-semibold text-slate-300">结果预览</h3>
                     {testResult.elapsed && (
                       <span className="text-xs text-slate-500">耗时: {(testResult.elapsed / 1000).toFixed(1)}s</span>
                     )}
@@ -167,8 +167,8 @@ const ModelTestModal: React.FC<ModelTestModalProps> = ({ isOpen, onClose, model 
                   
                   {/* TEXT 模型：显示文本内容 */}
                   {model.category === 'TEXT' && testResult.result.content && (
-                    <div className="bg-slate-50 rounded p-3 border border-slate-200 max-h-96 overflow-auto">
-                      <p className="text-sm text-slate-800 whitespace-pre-wrap">
+                    <div className="bg-slate-800/40 rounded p-3 border border-slate-700/50 max-h-96 overflow-auto">
+                      <p className="text-sm text-slate-200 whitespace-pre-wrap">
                         {testResult.result.content}
                       </p>
                     </div>
@@ -176,7 +176,7 @@ const ModelTestModal: React.FC<ModelTestModalProps> = ({ isOpen, onClose, model 
 
                   {/* IMAGE 模型：显示图片 */}
                   {model.category === 'IMAGE' && testResult.result.image_url && (
-                    <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                    <div className="bg-slate-800/40 rounded p-3 border border-slate-700/50">
                       <img 
                         src={testResult.result.image_url} 
                         alt="生成结果" 
@@ -187,7 +187,7 @@ const ModelTestModal: React.FC<ModelTestModalProps> = ({ isOpen, onClose, model 
 
                   {/* VIDEO 模型：显示视频 */}
                   {model.category === 'VIDEO' && testResult.result.video_url && (
-                    <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                    <div className="bg-slate-800/40 rounded p-3 border border-slate-700/50">
                       <video 
                         src={testResult.result.video_url} 
                         controls 
@@ -200,28 +200,28 @@ const ModelTestModal: React.FC<ModelTestModalProps> = ({ isOpen, onClose, model 
 
               {/* 错误信息 */}
               {testResult && !testResult.result && testResult.message && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <AlertCircle className="w-4 h-4 text-red-600" />
-                    <span className="text-sm font-medium text-red-700">测试失败</span>
+                    <AlertCircle className="w-4 h-4 text-red-400" />
+                    <span className="text-sm font-medium text-red-400">测试失败</span>
                   </div>
-                  <p className="text-sm text-red-600">{testResult.message}</p>
+                  <p className="text-sm text-red-300">{testResult.message}</p>
                 </div>
               )}
             </div>
 
             {/* 右侧：详细调试信息 */}
-            <div className="w-1/2 bg-slate-50">
+            <div className="w-1/2 bg-slate-900/40">
               <DebugPanel testResult={testResult} model={model} />
             </div>
           </div>
         </ModalBody>
-        <ModalFooter>
-          <Button variant="flat" className="bg-slate-100 text-slate-700" onPress={handleClose}>
+        <ModalFooter className="border-t border-slate-700/50">
+          <Button variant="flat" className="bg-slate-800/60 text-slate-300" onPress={handleClose}>
             关闭
           </Button>
           <Button
-            className="bg-green-600 text-white hover:bg-green-700"
+            className="bg-gradient-to-r from-emerald-500 to-green-600 text-white"
             onPress={handleTest}
             isLoading={testing}
             startContent={!testing && <Play className="w-4 h-4" />}

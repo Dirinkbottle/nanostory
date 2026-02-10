@@ -25,7 +25,7 @@ const ExportToolbar: React.FC<ExportToolbarProps> = ({
   const isExporting = exportProgress.stage === 'loading' || exportProgress.stage === 'processing';
 
   return (
-    <div className="bg-white border-t border-slate-200 px-4 py-2.5 flex items-center justify-between">
+    <div className="bg-slate-900/80 border-t border-slate-700/50 px-4 py-2.5 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <span className="text-xs text-slate-500">
           {clipCount} 个片段 · 总时长 {formatDuration(totalDuration)}
@@ -42,9 +42,9 @@ const ExportToolbar: React.FC<ExportToolbarProps> = ({
               />
             )}
             <span className={`text-xs font-medium ${
-              exportProgress.stage === 'done' ? 'text-green-600' :
-              exportProgress.stage === 'error' ? 'text-red-600' :
-              'text-blue-600'
+              exportProgress.stage === 'done' ? 'text-green-400' :
+              exportProgress.stage === 'error' ? 'text-red-400' :
+              'text-blue-400'
             }`}>
               {exportProgress.message}
             </span>
@@ -57,7 +57,7 @@ const ExportToolbar: React.FC<ExportToolbarProps> = ({
           <Button
             size="sm"
             variant="flat"
-            className="bg-slate-100 text-slate-600 font-medium"
+            className="bg-slate-800/60 text-slate-400 font-medium"
             startContent={<Trash2 className="w-3.5 h-3.5" />}
             onPress={onClearTimeline}
             isDisabled={isExporting}
@@ -68,7 +68,7 @@ const ExportToolbar: React.FC<ExportToolbarProps> = ({
 
         <Button
           size="sm"
-          className="bg-blue-600 text-white font-bold"
+          className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-bold"
           startContent={isExporting ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
           onPress={onExport}
           isDisabled={clipCount === 0 || isExporting}

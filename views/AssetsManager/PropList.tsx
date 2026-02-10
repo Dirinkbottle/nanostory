@@ -13,34 +13,34 @@ const PropList: React.FC<PropListProps> = ({ props, onEdit, onDelete }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
       {props.map((prop) => (
-        <Card key={prop.id} className="bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+        <Card key={prop.id} className="bg-slate-900/80 border border-slate-700/50 shadow-sm hover:shadow-md hover:shadow-blue-500/5 transition-shadow">
           <CardBody className="p-4 space-y-3">
             <div className="flex items-start justify-between">
-              <h3 className="text-lg font-semibold text-slate-800">{prop.name}</h3>
+              <h3 className="text-lg font-semibold text-slate-100">{prop.name}</h3>
               <div className="flex gap-1">
                 <Button 
                   size="sm" 
                   isIconOnly 
                   variant="light" 
                   onPress={() => onEdit(prop)} 
-                  className="hover:bg-blue-50"
+                  className="hover:bg-blue-500/10"
                 >
-                  <Edit className="w-4 h-4 text-blue-600" />
+                  <Edit className="w-4 h-4 text-blue-400" />
                 </Button>
                 <Button 
                   size="sm" 
                   isIconOnly 
                   variant="light" 
                   onPress={() => onDelete(prop.id)} 
-                  className="hover:bg-red-50"
+                  className="hover:bg-red-500/10"
                 >
                   <Trash2 className="w-4 h-4 text-red-500" />
                 </Button>
               </div>
             </div>
-            <p className="text-sm text-slate-500 line-clamp-2">{prop.description}</p>
+            <p className="text-sm text-slate-400 line-clamp-2">{prop.description}</p>
             {prop.category && (
-              <Chip size="sm" variant="flat" className="bg-amber-50 text-amber-600 font-medium">
+              <Chip size="sm" variant="flat" className="bg-amber-500/10 text-amber-400 font-medium">
                 {prop.category}
               </Chip>
             )}
@@ -51,7 +51,7 @@ const PropList: React.FC<PropListProps> = ({ props, onEdit, onDelete }) => {
                     key={idx} 
                     size="sm" 
                     variant="flat" 
-                    className="bg-purple-50 text-purple-600 font-medium"
+                    className="bg-purple-500/10 text-purple-400 font-medium"
                   >
                     {tag.trim()}
                   </Chip>

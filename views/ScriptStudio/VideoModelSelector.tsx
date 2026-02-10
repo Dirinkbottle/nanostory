@@ -44,16 +44,16 @@ const VideoModelSelector: React.FC<VideoModelSelectorProps> = ({
       case '极致': return 'from-purple-500 to-pink-500';
       case '性能': return 'from-blue-500 to-cyan-500';
       case '经济': return 'from-green-500 to-teal-500';
-      default: return 'from-gray-500 to-slate-500';
+      default: return 'from-slate-500 to-slate-600';
     }
   };
 
   const getTierBorderColor = (tier: string) => {
     switch (tier) {
-      case '极致': return 'border-purple-300';
-      case '性能': return 'border-blue-300';
-      case '经济': return 'border-green-300';
-      default: return 'border-slate-300';
+      case '极致': return 'border-purple-500/50';
+      case '性能': return 'border-blue-500/50';
+      case '经济': return 'border-green-500/50';
+      default: return 'border-slate-600/50';
     }
   };
 
@@ -63,16 +63,16 @@ const VideoModelSelector: React.FC<VideoModelSelectorProps> = ({
       onOpenChange={onClose}
       size="3xl"
       classNames={{
-        base: "bg-white border border-slate-200 shadow-xl",
-        header: "border-b border-slate-200",
+        base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-black/40",
+        header: "border-b border-slate-700/50",
         body: "py-6",
-        footer: "border-t border-slate-200"
+        footer: "border-t border-slate-700/50"
       }}
     >
       <ModalContent>
         {(onModalClose) => (
           <>
-            <ModalHeader className="text-slate-800 font-bold">选择视频生成模型</ModalHeader>
+            <ModalHeader className="text-slate-100 font-bold">选择视频生成模型</ModalHeader>
             <ModalBody>
               <div className="grid grid-cols-2 gap-4">
                 {videoModels.map((model) => (
@@ -83,7 +83,7 @@ const VideoModelSelector: React.FC<VideoModelSelectorProps> = ({
                     className={`cursor-pointer transition-all ${
                       selectedModel === model.id
                         ? 'bg-gradient-to-br ' + getTierColor(model.tier) + ' text-white ' + getTierBorderColor(model.tier) + ' border-2'
-                        : 'bg-white border border-slate-200 hover:border-blue-300 hover:shadow-md'
+                        : 'bg-slate-800/60 border border-slate-700/50 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10'
                     }`}
                     onPress={() => onModelSelect(model.id)}
                   >
@@ -91,20 +91,20 @@ const VideoModelSelector: React.FC<VideoModelSelectorProps> = ({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {getTierIcon(model.tier)}
-                          <span className={`font-bold ${selectedModel === model.id ? 'text-white' : 'text-slate-800'}`}>
+                          <span className={`font-bold ${selectedModel === model.id ? 'text-white' : 'text-slate-100'}`}>
                             {model.tier}
                           </span>
                         </div>
                         <Chip 
                           size="sm" 
                           variant="flat" 
-                          className={selectedModel === model.id ? 'bg-white/20 text-white font-semibold' : 'bg-slate-100 text-slate-700 font-semibold'}
+                          className={selectedModel === model.id ? 'bg-white/20 text-white font-semibold' : 'bg-slate-700/50 text-slate-300 font-semibold'}
                         >
                           {model.displayName}
                         </Chip>
                       </div>
                       
-                      <p className={`text-sm font-medium ${selectedModel === model.id ? 'text-white/90' : 'text-slate-600'}`}>
+                      <p className={`text-sm font-medium ${selectedModel === model.id ? 'text-white/90' : 'text-slate-400'}`}>
                         {model.description}
                       </p>
                       
@@ -114,18 +114,18 @@ const VideoModelSelector: React.FC<VideoModelSelectorProps> = ({
                             key={idx} 
                             size="sm" 
                             variant="flat" 
-                            className={selectedModel === model.id ? 'bg-white/20 text-white/90 font-medium' : 'bg-slate-100 text-slate-600 font-medium'}
+                            className={selectedModel === model.id ? 'bg-white/20 text-white/90 font-medium' : 'bg-slate-700/50 text-slate-400 font-medium'}
                           >
                             {feature}
                           </Chip>
                         ))}
                       </div>
                       
-                      <div className={`pt-2 border-t ${selectedModel === model.id ? 'border-white/20' : 'border-slate-200'}`}>
+                      <div className={`pt-2 border-t ${selectedModel === model.id ? 'border-white/20' : 'border-slate-700/50'}`}>
                         <div className={`text-xs font-medium ${selectedModel === model.id ? 'text-white/70' : 'text-slate-500'}`}>
                           预计费用 (10秒)
                         </div>
-                        <div className={`text-lg font-bold ${selectedModel === model.id ? 'text-white' : 'text-slate-800'}`}>
+                        <div className={`text-lg font-bold ${selectedModel === model.id ? 'text-white' : 'text-slate-100'}`}>
                           ¥{(10 * model.pricing.perSecond).toFixed(2)}
                         </div>
                       </div>
@@ -135,11 +135,11 @@ const VideoModelSelector: React.FC<VideoModelSelectorProps> = ({
               </div>
             </ModalBody>
             <ModalFooter>
-              <Button variant="light" onPress={onModalClose} className="text-slate-600 font-semibold hover:bg-slate-100">
+              <Button variant="light" onPress={onModalClose} className="text-slate-400 font-semibold hover:bg-slate-800/60">
                 取消
               </Button>
               <Button 
-                className="bg-blue-600 text-white font-bold hover:bg-blue-700"
+                className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-bold shadow-lg shadow-blue-500/20"
                 onPress={onConfirm}
               >
                 确认生成

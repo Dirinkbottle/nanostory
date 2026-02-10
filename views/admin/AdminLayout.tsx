@@ -87,7 +87,7 @@ const AdminLayout: React.FC = () => {
             w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all
             ${level === 0 ? 'mb-1' : 'mb-0.5'}
             ${active 
-              ? 'bg-blue-600 text-white shadow-md' 
+              ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-md' 
               : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
             }
             ${level > 0 ? 'ml-4 text-sm' : ''}
@@ -114,11 +114,11 @@ const AdminLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50">
-      <aside className="w-64 bg-slate-800 shadow-xl flex flex-col">
-        <div className="p-6 border-b border-slate-700">
+    <div className="flex h-screen bg-[#0a0a0f]">
+      <aside className="w-64 bg-slate-950 shadow-xl flex flex-col border-r border-slate-800">
+        <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-violet-600 rounded-lg flex items-center justify-center">
               <Settings className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -132,9 +132,9 @@ const AdminLayout: React.FC = () => {
           {menuItems.map(item => renderMenuItem(item))}
         </nav>
 
-        <div className="p-4 border-t border-slate-700">
+        <div className="p-4 border-t border-slate-800">
           <div className="flex items-center gap-3 px-3 py-2 bg-slate-700/50 rounded-lg mb-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-violet-600 rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-semibold">
                 {userEmail.charAt(0).toUpperCase()}
               </span>
@@ -155,7 +155,7 @@ const AdminLayout: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto bg-[#0a0a0f]">
         <Outlet />
       </main>
     </div>

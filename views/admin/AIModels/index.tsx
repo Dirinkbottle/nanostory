@@ -60,7 +60,9 @@ const AIModels: React.FC = () => {
           query_success_condition: config.query_success_condition || '',
           query_fail_condition: config.query_fail_condition || '',
           query_success_mapping: toJson(config.query_success_mapping),
-          query_fail_mapping: toJson(config.query_fail_mapping)
+          query_fail_mapping: toJson(config.query_fail_mapping),
+          custom_handler: config.custom_handler || '',
+          custom_query_handler: config.custom_query_handler || ''
         });
         onSmartClose();
         setSmartMode(false);
@@ -287,7 +289,9 @@ const AIModels: React.FC = () => {
         query_success_condition: config.query_success_condition || '',
         query_fail_condition: config.query_fail_condition || '',
         query_success_mapping: config.query_success_mapping ? JSON.stringify(config.query_success_mapping, null, 2) : '{}',
-        query_fail_mapping: config.query_fail_mapping ? JSON.stringify(config.query_fail_mapping, null, 2) : '{}'
+        query_fail_mapping: config.query_fail_mapping ? JSON.stringify(config.query_fail_mapping, null, 2) : '{}',
+        custom_handler: config.custom_handler || '',
+        custom_query_handler: config.custom_query_handler || ''
       });
       
       setSmartMode(false);
@@ -351,12 +355,12 @@ const AIModels: React.FC = () => {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800">AI 模型配置</h1>
-          <p className="text-slate-500 mt-1">管理所有第三方 AI 模型接口配置</p>
+          <h1 className="text-3xl font-bold text-slate-100">AI 模型配置</h1>
+          <p className="text-slate-400 mt-1">管理所有第三方 AI 模型接口配置</p>
         </div>
         <div className="flex gap-3">
           <Button
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold shadow-lg hover:shadow-xl"
+            className="bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold shadow-lg hover:shadow-xl"
             startContent={<Sparkles className="w-4 h-4" />}
             onPress={() => {
               resetForm();
@@ -367,7 +371,7 @@ const AIModels: React.FC = () => {
             智能添加
           </Button>
           <Button
-            className="bg-blue-600 text-white font-semibold shadow-lg hover:bg-blue-700"
+            className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold shadow-lg"
             startContent={<Plus className="w-4 h-4" />}
             onPress={() => {
               resetForm();
@@ -380,7 +384,7 @@ const AIModels: React.FC = () => {
         </div>
       </div>
 
-      <Card className="bg-white border border-slate-200 shadow-sm mb-6">
+      <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm mb-6">
         <CardBody className="p-6">
           <Input
             placeholder="搜索模型名称或厂商..."
@@ -388,7 +392,7 @@ const AIModels: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
             startContent={<Search className="w-4 h-4 text-slate-400" />}
             classNames={{
-              inputWrapper: "bg-slate-50 border border-slate-200"
+              inputWrapper: "bg-slate-800/60 border border-slate-600/50"
             }}
           />
         </CardBody>

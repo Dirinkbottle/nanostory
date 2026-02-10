@@ -34,8 +34,8 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="flex items-center gap-2">
-                <Play className="w-5 h-5 text-blue-600" />
+              <ModalHeader className="flex items-center gap-2 text-slate-100">
+                <Play className="w-5 h-5 text-blue-400" />
                 视频预览 - 分镜 {index + 1}
               </ModalHeader>
               <ModalBody>

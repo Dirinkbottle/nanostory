@@ -17,10 +17,10 @@ const SimpleCharacterCard: React.FC<SimpleCharacterCardProps> = ({
   onPreview
 }) => {
   return (
-    <Card className="bg-slate-50 shadow-sm hover:shadow-md transition-shadow">
+    <Card className="bg-slate-800/60 shadow-sm hover:shadow-md hover:shadow-blue-500/5 transition-shadow border border-slate-700/50">
       <CardBody className="p-3">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="font-bold text-slate-800">{name}</h4>
+          <h4 className="font-bold text-slate-100">{name}</h4>
           <span className="text-xs text-slate-500">
             出现 {scenes?.filter(s => s.characters?.includes(name)).length || 0} 次
           </span>
@@ -29,7 +29,7 @@ const SimpleCharacterCard: React.FC<SimpleCharacterCardProps> = ({
           <Button
             size="sm"
             variant="flat"
-            className="flex-1 bg-purple-100 text-purple-700 text-xs font-medium"
+            className="flex-1 bg-purple-500/10 text-purple-400 text-xs font-medium"
             startContent={<Layers className="w-3 h-3" />}
             onPress={() => onGenerateViews(name)}
           >
@@ -38,7 +38,7 @@ const SimpleCharacterCard: React.FC<SimpleCharacterCardProps> = ({
           <Button
             size="sm"
             variant="flat"
-            className="flex-1 bg-blue-100 text-blue-700 text-xs font-medium"
+            className="flex-1 bg-blue-500/10 text-blue-400 text-xs font-medium"
             startContent={<Eye className="w-3 h-3" />}
             onPress={() => onPreview({ name })}
           >

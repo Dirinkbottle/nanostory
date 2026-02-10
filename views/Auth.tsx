@@ -39,39 +39,52 @@ const Auth: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 px-4 relative overflow-hidden">
+    <div className="h-full flex items-center justify-center bg-[#0a0a0f] px-4 relative overflow-hidden">
       {/* 装饰背景元素 */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-100 rounded-full opacity-60"></div>
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-sky-100 rounded-full opacity-60"></div>
-        <div className="absolute top-1/3 left-1/4 w-64 h-64 bg-indigo-50 rounded-full opacity-40"></div>
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl animate-float"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-violet-600/10 rounded-full blur-3xl animate-float-delay"></div>
+        <div className="absolute top-1/3 left-1/4 w-64 h-64 bg-indigo-500/5 rounded-full blur-2xl"></div>
+        {/* 星点装饰 */}
+        {Array.from({ length: 20 }).map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-blue-400/40 rounded-full animate-twinkle"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 5}s`,
+              animationDuration: `${2 + Math.random() * 3}s`
+            }}
+          />
+        ))}
       </div>
 
-      <Card className="w-full max-w-md bg-white border border-slate-200 shadow-xl relative z-10">
+      <Card className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-black/50 relative z-10 rounded-2xl">
         <CardBody className="p-10 space-y-8">
           {/* Logo 区域 */}
           <div className="text-center space-y-4">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg shadow-blue-500/25 mb-2">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-violet-600 rounded-2xl shadow-lg shadow-blue-500/30 mb-2">
               <Sparkles className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-slate-800">
+              <h1 className="text-3xl font-black tracking-tight bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
                 NANOSTORY
               </h1>
-              <p className="text-sm text-slate-500 mt-2 font-medium">
+              <p className="text-sm text-slate-400 mt-2 font-medium">
                 AI 驱动的视频创作平台
               </p>
             </div>
           </div>
 
           {/* Tab 切换 */}
-          <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
+          <div className="flex gap-2 p-1 bg-slate-800/80 rounded-xl border border-slate-700/30">
             <button
               onClick={() => setMode('login')}
               className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${
                 mode === 'login'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-gradient-to-r from-blue-500/20 to-violet-500/20 text-blue-400 border border-blue-500/30 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-300'
               }`}
             >
               登录
@@ -80,8 +93,8 @@ const Auth: React.FC = () => {
               onClick={() => setMode('register')}
               className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${
                 mode === 'register'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-gradient-to-r from-blue-500/20 to-violet-500/20 text-blue-400 border border-blue-500/30 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-300'
               }`}
             >
               注册
@@ -95,14 +108,14 @@ const Auth: React.FC = () => {
               placeholder="用户名"
               value={username}
               onValueChange={setUsername}
-              startContent={<User className="w-4 h-4 text-slate-400" />}
+              startContent={<User className="w-4 h-4 text-slate-500" />}
               variant="flat"
               radius="lg"
               size="lg"
               classNames={{
                 base: 'bg-transparent',
-                input: 'bg-white text-slate-800 placeholder:text-slate-400',
-                inputWrapper: 'bg-white border border-slate-200 hover:border-blue-300 data-[focus=true]:border-blue-500 shadow-sm',
+                input: 'bg-transparent text-slate-200 placeholder:text-slate-500',
+                inputWrapper: 'bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 data-[focus=true]:border-blue-500/70 shadow-sm',
               }}
             />
 
@@ -111,14 +124,14 @@ const Auth: React.FC = () => {
               placeholder="密码"
               value={password}
               onValueChange={setPassword}
-              startContent={<Lock className="w-4 h-4 text-slate-400" />}
+              startContent={<Lock className="w-4 h-4 text-slate-500" />}
               variant="flat"
               radius="lg"
               size="lg"
               classNames={{
                 base: 'bg-transparent',
-                input: 'bg-white text-slate-800 placeholder:text-slate-400',
-                inputWrapper: 'bg-white border border-slate-200 hover:border-blue-300 data-[focus=true]:border-blue-500 shadow-sm',
+                input: 'bg-transparent text-slate-200 placeholder:text-slate-500',
+                inputWrapper: 'bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 data-[focus=true]:border-blue-500/70 shadow-sm',
               }}
             />
 
@@ -126,7 +139,7 @@ const Auth: React.FC = () => {
               type="submit"
               size="lg"
               radius="lg"
-              className="w-full font-bold bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/25 transition-all"
+              className="w-full font-bold bg-gradient-to-r from-blue-500 to-violet-600 text-white hover:from-blue-600 hover:to-violet-700 shadow-lg shadow-blue-500/25 transition-all"
               endContent={<ArrowRight className="w-4 h-4" />}
               isLoading={loading}
             >
@@ -134,14 +147,14 @@ const Auth: React.FC = () => {
             </Button>
           </form>
 
-          <Divider className="bg-slate-200" />
+          <Divider className="bg-slate-700/50" />
 
           {/* 底部提示 */}
           <p className="text-center text-xs text-slate-500">
             {mode === 'login' ? '首次使用？' : '已有账户？'}
             <button
               onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-              className="ml-2 text-blue-600 hover:text-blue-700 font-bold transition-colors"
+              className="ml-2 text-blue-400 hover:text-blue-300 font-bold transition-colors"
             >
               {mode === 'login' ? '立即注册' : '返回登录'}
             </button>

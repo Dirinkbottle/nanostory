@@ -26,7 +26,7 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
   if (scripts.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
+    <div className="flex items-center gap-3 pb-4 border-b border-slate-700/30">
       <span className="text-sm text-slate-500 font-medium">集数:</span>
       <div className="flex gap-2 flex-wrap flex-1">
         {scripts.map((s) => (
@@ -35,8 +35,8 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
             onClick={() => onEpisodeChange(s.episode_number)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
               currentEpisode === s.episode_number
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-md shadow-blue-500/20'
+                : 'bg-slate-800/60 text-slate-400 hover:bg-slate-700/60 border border-slate-700/30'
             } ${s.status === 'generating' ? 'animate-pulse' : ''}`}
           >
             第{s.episode_number}集
@@ -47,7 +47,7 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
       <button
         onClick={onNewEpisode}
         disabled={loading}
-        className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center gap-1 disabled:opacity-50"
+        className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center gap-1 disabled:opacity-50 shadow-md shadow-emerald-500/20"
       >
         <span className="text-lg leading-none">+</span> 生成第{nextEpisode}集
       </button>

@@ -73,11 +73,16 @@ const ImportStoryboardModal: React.FC<ImportStoryboardModalProps> = ({
       onOpenChange={onOpenChange}
       size="3xl"
       scrollBehavior="inside"
+      classNames={{
+        base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50",
+        header: "border-b border-slate-700/50",
+        footer: "border-t border-slate-700/50"
+      }}
     >
       <ModalContent>
         {(onClose) => (
           <>
-            <ModalHeader className="flex items-center gap-2">
+            <ModalHeader className="flex items-center gap-2 text-slate-100">
               <Upload className="w-5 h-5" />
               从 JSON 导入分镜
             </ModalHeader>

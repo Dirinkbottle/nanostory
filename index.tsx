@@ -4,6 +4,7 @@ import { HeroUIProvider } from "@heroui/react";
 import './index.css';
 import App from './App';
 import { ToastProvider } from './contexts/ToastContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -13,10 +14,12 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <HeroUIProvider>
-      <ToastProvider>
-        <App />
-      </ToastProvider>
-    </HeroUIProvider>
+    <ThemeProvider>
+      <HeroUIProvider>
+        <ToastProvider>
+          <App />
+        </ToastProvider>
+      </HeroUIProvider>
+    </ThemeProvider>
   </React.StrictMode>
 );

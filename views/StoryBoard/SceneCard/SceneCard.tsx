@@ -206,8 +206,8 @@ const SceneCard: React.FC<SceneCardProps> = ({
       <Card
         className={`transition-all ${
           isSelected
-            ? 'border-2 border-blue-500 shadow-md bg-blue-50'
-            : 'border border-slate-200 hover:border-blue-300'
+            ? 'border-2 border-blue-500/50 shadow-md shadow-blue-500/10 bg-slate-800/80'
+            : 'border border-slate-700/50 hover:border-blue-500/30 bg-slate-900/60'
         }`}
       >
         <CardBody className="p-4">
@@ -279,13 +279,13 @@ const SceneCard: React.FC<SceneCardProps> = ({
       />
 
       {/* 删除确认弹窗 */}
-      <Modal isOpen={showDeleteConfirm} onOpenChange={setShowDeleteConfirm} size="sm">
+      <Modal isOpen={showDeleteConfirm} onOpenChange={setShowDeleteConfirm} size="sm" classNames={{ base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50" }}>
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="text-red-600">删除分镜</ModalHeader>
+              <ModalHeader className="text-red-400">删除分镜</ModalHeader>
               <ModalBody>
-                <p className="text-sm text-slate-700">
+                <p className="text-sm text-slate-300">
                   确定要删除分镜 <span className="font-bold">#{index + 1}</span> 吗？此操作不可撤销。
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
@@ -297,11 +297,11 @@ const SceneCard: React.FC<SceneCardProps> = ({
                   onValueChange={setDontAskAgain}
                   className="mt-2"
                 >
-                  <span className="text-xs text-slate-500">本集不再提示</span>
+                  <span className="text-xs text-slate-400">本集不再提示</span>
                 </Checkbox>
               </ModalBody>
               <ModalFooter>
-                <Button variant="flat" size="sm" onPress={onClose}>
+                <Button variant="flat" size="sm" onPress={onClose} className="bg-slate-800/80 text-slate-300">
                   取消
                 </Button>
                 <Button

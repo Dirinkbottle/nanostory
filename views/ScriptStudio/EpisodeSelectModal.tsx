@@ -28,14 +28,12 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
 }) => {
   const [targetEpisode, setTargetEpisode] = useState(nextEpisode.toString());
 
-  // 重置集数当对话框打开时
   React.useEffect(() => {
     if (isOpen) {
       setTargetEpisode(nextEpisode.toString());
     }
   }, [isOpen, nextEpisode]);
 
-  // 计算缺失的集数
   const { missingEpisodes, hasExisting } = useMemo(() => {
     const episodeNumber = parseInt(targetEpisode) || nextEpisode;
     const existingNumbers = scripts.map(s => s.episode_number).sort((a, b) => a - b);
@@ -70,17 +68,27 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="2xl">
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      size="2xl"
+      classNames={{
+        base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-black/40",
+        header: "border-b border-slate-700/50",
+        body: "py-6",
+        footer: "border-t border-slate-700/50"
+      }}
+    >
       <ModalContent>
-        <ModalHeader className="flex items-center gap-2">
-          <Play className="w-5 h-5 text-blue-600" />
+        <ModalHeader className="flex items-center gap-2 text-slate-100">
+          <Play className="w-5 h-5 text-blue-400" />
           <span>选择生成集数</span>
         </ModalHeader>
         
         <ModalBody className="space-y-6">
           {/* 集数输入 */}
           <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 block">
+            <label className="text-sm font-medium text-slate-300 mb-2 block">
               选择要生成的集数
             </label>
             <Input
@@ -91,32 +99,30 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
               placeholder="输入集数"
               size="lg"
               classNames={{
-                input: "text-lg font-semibold",
-                inputWrapper: "border-2 border-slate-200 hover:border-blue-400"
+                input: "text-lg font-semibold bg-transparent text-slate-100",
+                inputWrapper: "bg-slate-800/60 border-2 border-slate-600/50 hover:border-blue-500/50 data-[focus=true]:border-blue-500"
               }}
-              startContent={<span className="text-slate-500 text-sm">第</span>}
-              endContent={<span className="text-slate-500 text-sm">集</span>}
+              startContent={<span className="text-slate-400 text-sm">第</span>}
+              endContent={<span className="text-slate-400 text-sm">集</span>}
             />
           </div>
 
           {/* 快速选择 */}
           <div>
-            <p className="text-sm font-medium text-slate-700 mb-3">快速选择：</p>
+            <p className="text-sm font-medium text-slate-300 mb-3">快速选择：</p>
             <div className="flex gap-2 flex-wrap">
-              {/* 下一集 */}
               <button
                 onClick={() => handleQuickSelect(nextEpisode)}
-                className="px-4 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border-2 border-blue-200 transition-all font-medium text-sm"
+                className="px-4 py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-2 border-blue-500/30 transition-all font-medium text-sm"
               >
                 下一集（第 {nextEpisode} 集）
               </button>
               
-              {/* 缺失的集数 */}
               {missingEpisodes.slice(0, 5).map(ep => (
                 <button
                   key={ep}
                   onClick={() => handleQuickSelect(ep)}
-                  className="px-4 py-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 border-2 border-amber-200 transition-all font-medium text-sm"
+                  className="px-4 py-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border-2 border-amber-500/30 transition-all font-medium text-sm"
                 >
                   第 {ep} 集（缺失）
                 </button>
@@ -126,37 +132,35 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
 
           {/* 状态提示 */}
           <div className="space-y-3">
-            {/* 缺失集数警告 - 禁止跳过 */}
             {missingEpisodes.length > 0 && (
-              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+              <div className="bg-red-500/10 border-2 border-red-500/30 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-red-800 mb-1">
+                    <p className="text-sm font-semibold text-red-300 mb-1">
                       无法跳过集数生成
                     </p>
-                    <p className="text-sm text-red-700">
+                    <p className="text-sm text-red-400/80">
                       缺失第 {missingEpisodes.slice(0, 10).join('、')} 集
                       {missingEpisodes.length > 10 && ` 等 ${missingEpisodes.length} 集`}
                     </p>
-                    <p className="text-xs text-red-600 mt-2 font-medium">
-                      ⚠️ 请先生成第 {missingEpisodes[0]} 集，不能跳过集数
+                    <p className="text-xs text-red-400/60 mt-2 font-medium">
+                      请先生成第 {missingEpisodes[0]} 集，不能跳过集数
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* 已存在警告 */}
             {hasExisting && (
-              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+              <div className="bg-red-500/10 border-2 border-red-500/30 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-red-800 mb-1">
+                    <p className="text-sm font-semibold text-red-300 mb-1">
                       第 {targetEpisode} 集已存在
                     </p>
-                    <p className="text-sm text-red-700">
+                    <p className="text-sm text-red-400/80">
                       该集已存在，请选择其他集数或删除后重新生成
                     </p>
                   </div>
@@ -164,16 +168,15 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
               </div>
             )}
 
-            {/* 正常提示 */}
             {!hasExisting && missingEpisodes.length === 0 && (
-              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4">
+              <div className="bg-emerald-500/10 border-2 border-emerald-500/30 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-green-800 mb-1">
+                    <p className="text-sm font-semibold text-emerald-300 mb-1">
                       准备生成第 {targetEpisode} 集
                     </p>
-                    <p className="text-sm text-green-700">
+                    <p className="text-sm text-emerald-400/80">
                       前面的集数都已完整，可以继续创作
                     </p>
                   </div>
@@ -184,10 +187,10 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
 
           {/* 已有集数概览 */}
           {scripts.length > 0 && (
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+            <div className="bg-slate-800/60 border border-slate-700/50 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Info className="w-4 h-4 text-slate-500" />
-                <p className="text-sm font-medium text-slate-700">已有集数概览</p>
+                <Info className="w-4 h-4 text-slate-400" />
+                <p className="text-sm font-medium text-slate-300">已有集数概览</p>
               </div>
               <div className="flex gap-2 flex-wrap">
                 {scripts.map(s => (
@@ -195,10 +198,10 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
                     key={s.id}
                     className={`px-3 py-1.5 rounded-md text-xs font-medium ${
                       s.status === 'completed'
-                        ? 'bg-green-100 text-green-700'
+                        ? 'bg-emerald-500/15 text-emerald-400'
                         : s.status === 'generating'
-                        ? 'bg-blue-100 text-blue-700 animate-pulse'
-                        : 'bg-red-100 text-red-700'
+                        ? 'bg-blue-500/15 text-blue-400 animate-pulse'
+                        : 'bg-red-500/15 text-red-400'
                     }`}
                   >
                     第 {s.episode_number} 集
@@ -213,16 +216,16 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
           <Button
             variant="flat"
             onPress={onClose}
-            className="bg-slate-100 text-slate-700"
+            className="bg-slate-800/80 text-slate-300 hover:bg-slate-700/80"
           >
             取消
           </Button>
           <Button
-            color="primary"
             onPress={handleConfirm}
             isDisabled={hasExisting || missingEpisodes.length > 0}
             startContent={<Play className="w-4 h-4" />}
-            className="bg-blue-600 text-white">
+            className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-bold shadow-lg shadow-blue-500/20"
+          >
             确认生成
           </Button>
         </ModalFooter>

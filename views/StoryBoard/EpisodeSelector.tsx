@@ -22,7 +22,7 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-slate-500">集数:</span>
+      <span className="text-sm text-slate-400">集数:</span>
       <div className="flex gap-1">
         {scripts.map((s) => (
           <button
@@ -30,8 +30,8 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
             onClick={() => onSelect(s)}
             className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
               currentEpisode === s.episode_number
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-sm shadow-blue-500/20'
+                : 'bg-slate-800/60 text-slate-400 hover:bg-slate-700/60 hover:text-slate-200'
             }`}
           >
             第{s.episode_number}集

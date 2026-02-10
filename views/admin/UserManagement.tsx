@@ -114,11 +114,11 @@ const UserManagement: React.FC = () => {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-800">用户管理</h1>
-          <p className="text-slate-500 mt-1">管理系统所有用户账户</p>
+          <h1 className="text-3xl font-bold text-slate-100">用户管理</h1>
+          <p className="text-slate-400 mt-1">管理系统所有用户账户</p>
         </div>
         <Button
-          className="bg-blue-600 text-white font-semibold shadow-lg hover:bg-blue-700"
+          className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold shadow-lg"
           startContent={<Plus className="w-4 h-4" />}
           onPress={() => {
             setEditingUser(null);
@@ -130,7 +130,7 @@ const UserManagement: React.FC = () => {
         </Button>
       </div>
 
-      <Card className="bg-white border border-slate-200 shadow-sm">
+      <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm">
         <CardBody className="p-6">
           <div className="mb-6">
             <Input
@@ -139,7 +139,7 @@ const UserManagement: React.FC = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               startContent={<Search className="w-4 h-4 text-slate-400" />}
               classNames={{
-                inputWrapper: "bg-slate-50 border border-slate-200"
+                inputWrapper: "bg-slate-800/60 border border-slate-600/50"
               }}
             />
           </div>
@@ -148,8 +148,8 @@ const UserManagement: React.FC = () => {
             aria-label="用户列表"
             classNames={{
               wrapper: "bg-transparent shadow-none",
-              th: "bg-slate-100 text-slate-600 font-semibold",
-              td: "text-slate-700"
+              th: "bg-slate-800/60 text-slate-400 font-semibold",
+              td: "text-slate-300"
             }}
           >
             <TableHeader>
@@ -166,8 +166,8 @@ const UserManagement: React.FC = () => {
                   <TableCell>{user.id}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="w-4 h-4 text-blue-600" />
+                      <div className="w-8 h-8 bg-blue-500/10 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-blue-400" />
                       </div>
                       <span className="font-medium">{user.email}</span>
                     </div>
@@ -176,15 +176,15 @@ const UserManagement: React.FC = () => {
                     <Chip
                       size="sm"
                       className={user.role === 'admin' 
-                        ? 'bg-purple-100 text-purple-700 font-medium'
-                        : 'bg-slate-100 text-slate-700 font-medium'
+                        ? 'bg-purple-500/10 text-purple-400 font-medium'
+                        : 'bg-slate-700/50 text-slate-400 font-medium'
                       }
                     >
                       {user.role === 'admin' ? '管理员' : '普通用户'}
                     </Chip>
                   </TableCell>
                   <TableCell>
-                    <span className="font-mono font-semibold text-emerald-600">
+                    <span className="font-mono font-semibold text-emerald-400">
                       ¥{typeof user.balance === 'number' ? user.balance.toFixed(2) : Number(user.balance || 0).toFixed(2)}
                     </span>
                   </TableCell>
@@ -196,7 +196,7 @@ const UserManagement: React.FC = () => {
                       <Button
                         size="sm"
                         variant="flat"
-                        className="bg-blue-100 text-blue-700 hover:bg-blue-200 min-w-0 px-3"
+                        className="bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 min-w-0 px-3"
                         onPress={() => handleEdit(user)}
                       >
                         <Edit className="w-4 h-4" />
@@ -204,7 +204,7 @@ const UserManagement: React.FC = () => {
                       <Button
                         size="sm"
                         variant="flat"
-                        className="bg-red-100 text-red-700 hover:bg-red-200 min-w-0 px-3"
+                        className="bg-red-500/10 text-red-400 hover:bg-red-500/20 min-w-0 px-3"
                         onPress={() => handleDelete(user.id)}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -218,9 +218,9 @@ const UserManagement: React.FC = () => {
         </CardBody>
       </Card>
 
-      <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      <Modal isOpen={isOpen} onClose={onClose} size="lg" classNames={{ base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50" }}>
         <ModalContent>
-          <ModalHeader className="text-xl font-bold text-slate-800">
+          <ModalHeader className="text-xl font-bold text-slate-100">
             {editingUser ? '编辑用户' : '添加用户'}
           </ModalHeader>
           <ModalBody className="space-y-4">
@@ -230,19 +230,19 @@ const UserManagement: React.FC = () => {
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               classNames={{
-                inputWrapper: "bg-slate-50 border border-slate-200"
+                inputWrapper: "bg-slate-800/60 border border-slate-600/50"
               }}
             />
             
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-2 block">角色</label>
+              <label className="text-sm font-medium text-slate-400 mb-2 block">角色</label>
               <div className="flex gap-4">
                 <button
                   onClick={() => setFormData({ ...formData, role: 'user' })}
                   className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
                     formData.role === 'user'
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                      : 'border-slate-600/50 bg-slate-800/60 text-slate-400 hover:border-slate-500'
                   }`}
                 >
                   <p className="font-semibold">普通用户</p>
@@ -252,8 +252,8 @@ const UserManagement: React.FC = () => {
                   onClick={() => setFormData({ ...formData, role: 'admin' })}
                   className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
                     formData.role === 'admin'
-                      ? 'border-purple-600 bg-purple-50 text-purple-700'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      ? 'border-purple-500 bg-purple-500/10 text-purple-400'
+                      : 'border-slate-600/50 bg-slate-800/60 text-slate-400 hover:border-slate-500'
                   }`}
                 >
                   <p className="font-semibold">管理员</p>
@@ -270,20 +270,20 @@ const UserManagement: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, balance: parseFloat(e.target.value) || 0 })}
               startContent={<span className="text-slate-500">¥</span>}
               classNames={{
-                inputWrapper: "bg-slate-50 border border-slate-200"
+                inputWrapper: "bg-slate-800/60 border border-slate-600/50"
               }}
             />
           </ModalBody>
           <ModalFooter>
             <Button
               variant="flat"
-              className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+              className="bg-slate-800/80 text-slate-300 hover:bg-slate-700"
               onPress={onClose}
             >
               取消
             </Button>
             <Button
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-gradient-to-r from-blue-500 to-violet-600 text-white"
               onPress={handleSave}
             >
               保存

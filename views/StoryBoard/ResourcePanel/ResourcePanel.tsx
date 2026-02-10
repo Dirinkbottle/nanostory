@@ -147,15 +147,15 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   };
 
   return (
-    <div className="w-80 flex flex-col bg-white border-l border-slate-200">
+    <div className="w-80 flex flex-col bg-slate-900/60 border-l border-slate-700/50">
       {/* 头部 */}
-      <div className="p-4 border-b border-slate-200">
+      <div className="p-4 border-b border-slate-700/50">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-bold text-slate-800">资源库</h3>
+          <h3 className="text-lg font-bold text-slate-100">资源库</h3>
           <Button
             size="sm"
             variant="flat"
-            className="bg-green-100 text-green-700 font-medium"
+            className="bg-emerald-500/10 text-emerald-400 font-medium"
             startContent={<Save className="w-3 h-3" />}
             onPress={handleRefreshResources}
           >

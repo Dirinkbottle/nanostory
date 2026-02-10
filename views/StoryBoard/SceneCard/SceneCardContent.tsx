@@ -32,13 +32,13 @@ const SceneCardContent: React.FC<SceneCardContentProps> = ({
               onValueChange={onEditedDescriptionChange}
               minRows={3}
               classNames={{
-                input: "text-sm",
-                inputWrapper: "bg-white border border-blue-300"
+                input: "text-sm bg-transparent text-slate-100",
+                inputWrapper: "bg-slate-800/60 border border-blue-500/50"
               }}
             />
             <button
               onClick={onSaveDescription}
-              className="px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 flex items-center gap-1"
+              className="px-3 py-1 bg-gradient-to-r from-blue-500 to-violet-600 text-white text-xs rounded-md hover:opacity-90 flex items-center gap-1"
             >
               <Check className="w-3 h-3" />
               保存
@@ -47,7 +47,7 @@ const SceneCardContent: React.FC<SceneCardContentProps> = ({
         ) : (
           <div className="group">
             <div className="flex items-start gap-2">
-              <p className="text-sm text-slate-700 leading-relaxed flex-1">
+              <p className="text-sm text-slate-300 leading-relaxed flex-1">
                 {scene.description || '暂无描述'}
               </p>
               <button
@@ -55,14 +55,14 @@ const SceneCardContent: React.FC<SceneCardContentProps> = ({
                   e.stopPropagation();
                   onStartEditing();
                 }}
-                className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
+                className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-all"
               >
                 <Edit2 className="w-3 h-3" />
               </button>
             </div>
             {scene.dialogue && (
               <p className="text-xs text-slate-500 mt-1 italic">
-                💬 {scene.dialogue}
+                {scene.dialogue}
               </p>
             )}
           </div>
@@ -73,7 +73,7 @@ const SceneCardContent: React.FC<SceneCardContentProps> = ({
           e.stopPropagation();
           onDelete(scene.id);
         }}
-        className="p-1 text-red-500 hover:bg-red-50 rounded ml-2"
+        className="p-1 text-red-400 hover:bg-red-500/10 rounded ml-2"
       >
         <Trash2 className="w-4 h-4" />
       </button>

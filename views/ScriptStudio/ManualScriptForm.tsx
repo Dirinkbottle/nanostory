@@ -25,9 +25,9 @@ const ManualScriptForm: React.FC<ManualScriptFormProps> = ({
         value={manualTitle}
         onValueChange={setManualTitle}
         classNames={{
-          input: "bg-white text-slate-800 font-semibold placeholder:text-slate-400",
-          label: "text-slate-600 font-medium",
-          inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 data-[focus=true]:border-emerald-500 shadow-sm"
+          input: "bg-transparent text-slate-100 font-semibold placeholder:text-slate-500",
+          label: "text-slate-400 font-medium",
+          inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-emerald-500/50 data-[focus=true]:border-emerald-500 shadow-sm"
         }}
       />
 
@@ -38,14 +38,14 @@ const ManualScriptForm: React.FC<ManualScriptFormProps> = ({
         onValueChange={setManualContent}
         minRows={10}
         classNames={{
-          input: "bg-white text-slate-800 font-medium placeholder:text-slate-400",
-          label: "text-slate-600 font-medium",
-          inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 data-[focus=true]:border-emerald-500 shadow-sm"
+          input: "bg-transparent text-slate-100 font-medium placeholder:text-slate-500",
+          label: "text-slate-400 font-medium",
+          inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-emerald-500/50 data-[focus=true]:border-emerald-500 shadow-sm"
         }}
       />
 
       <Button
-        className="w-full text-white font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/25"
+        className="w-full text-white font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-emerald-500/20"
         size="lg"
         startContent={<PenLine className="w-5 h-5" />}
         isLoading={loading}

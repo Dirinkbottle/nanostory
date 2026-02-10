@@ -15,7 +15,7 @@ const SceneCardActions: React.FC<SceneCardActionsProps> = ({
   onGenerateVideo
 }) => {
   return (
-    <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+    <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/30">
       <button className="px-3 py-1.5 text-xs bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 rounded-lg flex items-center gap-1 transition-all shadow-sm hover:shadow">
         <Mic className="w-3 h-3" />
         配音

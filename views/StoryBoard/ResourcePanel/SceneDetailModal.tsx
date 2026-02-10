@@ -54,18 +54,18 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onOpenChange={onClose} size="2xl" scrollBehavior="inside">
-      <ModalContent className="bg-white">
+      <ModalContent className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50">
         {(onCloseModal) => (
           <>
-            <ModalHeader className="flex items-center gap-3 border-b border-slate-200 pb-4">
-              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-6 h-6 text-green-600" />
+            <ModalHeader className="flex items-center gap-3 border-b border-slate-700/50 pb-4">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 flex-shrink-0">
+                <MapPin className="w-6 h-6 text-emerald-400" />
               </div>
               <div className="flex-1">
-                <h3 className="text-xl font-bold text-slate-800">{scene.name}</h3>
+                <h3 className="text-xl font-bold text-slate-100">{scene.name}</h3>
                 <div className="flex items-center gap-2 mt-1">
                   {scene.source && (
-                    <Chip size="sm" variant="flat" className="bg-slate-100 text-slate-600">
+                    <Chip size="sm" variant="flat" className="bg-slate-700/50 text-slate-400">
                       {scene.source === 'ai_extracted' ? 'AI提取' : '本地'}
                     </Chip>
                   )}
@@ -74,10 +74,10 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
                       size="sm" 
                       variant="flat" 
                       className={
-                        scene.generation_status === 'completed' ? 'bg-green-100 text-green-700' :
-                        scene.generation_status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
-                        scene.generation_status === 'failed' ? 'bg-red-100 text-red-700' :
-                        'bg-slate-100 text-slate-600'
+                        scene.generation_status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                        scene.generation_status === 'processing' ? 'bg-amber-500/10 text-amber-400' :
+                        scene.generation_status === 'failed' ? 'bg-red-500/10 text-red-400' :
+                        'bg-slate-700/50 text-slate-400'
                       }
                     >
                       {scene.generation_status === 'completed' ? '已生成' :
@@ -95,7 +95,7 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
                 {/* 场景图片 */}
                 {scene.image_url && (
                   <div className="flex justify-center">
-                    <div className="w-full max-w-2xl bg-slate-100 rounded-lg overflow-hidden">
+                    <div className="w-full max-w-2xl bg-slate-800/60 rounded-lg overflow-hidden border border-slate-700/50">
                       <img 
                         src={scene.image_url} 
                         alt={scene.name} 
@@ -107,12 +107,12 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
 
                 {/* 场景描述 */}
                 {scene.description && (
-                  <div className="bg-gradient-to-br from-slate-50 to-slate-50 rounded-lg p-4 border border-slate-200">
-                    <h4 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                  <div className="bg-slate-800/60 rounded-lg p-4 border border-slate-700/50">
+                    <h4 className="text-sm font-bold text-slate-300 mb-2 flex items-center gap-2">
                       <span className="w-1 h-4 bg-slate-500 rounded"></span>
                       场景描述
                     </h4>
-                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-wrap">
                       {scene.description}
                     </p>
                   </div>
@@ -120,12 +120,12 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
 
                 {/* 环境描述 */}
                 {scene.environment && (
-                  <div className="bg-gradient-to-br from-green-50 to-slate-50 rounded-lg p-4 border border-green-100">
-                    <h4 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                  <div className="bg-emerald-500/5 rounded-lg p-4 border border-emerald-500/20">
+                    <h4 className="text-sm font-bold text-slate-300 mb-2 flex items-center gap-2">
                       <span className="w-1 h-4 bg-green-500 rounded"></span>
                       环境描述
                     </h4>
-                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-wrap">
                       {scene.environment}
                     </p>
                   </div>
@@ -133,12 +133,12 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
 
                 {/* 光照描述 */}
                 {scene.lighting && (
-                  <div className="bg-gradient-to-br from-yellow-50 to-slate-50 rounded-lg p-4 border border-yellow-100">
-                    <h4 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                  <div className="bg-amber-500/5 rounded-lg p-4 border border-amber-500/20">
+                    <h4 className="text-sm font-bold text-slate-300 mb-2 flex items-center gap-2">
                       <span className="w-1 h-4 bg-yellow-500 rounded"></span>
                       光照描述
                     </h4>
-                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-wrap">
                       {scene.lighting}
                     </p>
                   </div>
@@ -146,12 +146,12 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
 
                 {/* 氛围描述 */}
                 {scene.mood && (
-                  <div className="bg-gradient-to-br from-purple-50 to-slate-50 rounded-lg p-4 border border-purple-100">
-                    <h4 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                  <div className="bg-purple-500/5 rounded-lg p-4 border border-purple-500/20">
+                    <h4 className="text-sm font-bold text-slate-300 mb-2 flex items-center gap-2">
                       <span className="w-1 h-4 bg-purple-500 rounded"></span>
                       氛围描述
                     </h4>
-                    <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                    <p className="text-sm text-slate-400 leading-relaxed whitespace-pre-wrap">
                       {scene.mood}
                     </p>
                   </div>
@@ -160,10 +160,10 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
                 {/* 标签 */}
                 {tags.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-bold text-slate-700 mb-2">标签</h4>
+                    <h4 className="text-sm font-bold text-slate-300 mb-2">标签</h4>
                     <div className="flex flex-wrap gap-2">
                       {tags.map((tag, index) => (
-                        <Chip key={index} size="sm" variant="flat" className="bg-slate-100 text-slate-600">
+                        <Chip key={index} size="sm" variant="flat" className="bg-slate-700/50 text-slate-400">
                           {tag.trim()}
                         </Chip>
                       ))}
@@ -173,14 +173,14 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
 
                 {/* 图片生成控制 */}
                 {onGenerateImage && (
-                  <div className="bg-gradient-to-br from-blue-50 to-slate-50 rounded-lg p-4 border border-blue-100">
-                    <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                      <Wand2 className="w-4 h-4 text-blue-600" />
+                  <div className="bg-blue-500/5 rounded-lg p-4 border border-blue-500/20">
+                    <h4 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
+                      <Wand2 className="w-4 h-4 text-blue-400" />
                       生成场景图片
                     </h4>
                     <div className="space-y-3">
                       {imageModel ? (
-                        <p className="text-sm text-slate-500">使用图片模型：<span className="font-medium text-slate-700">{imageModel}</span></p>
+                        <p className="text-sm text-slate-500">使用图片模型：<span className="font-medium text-slate-300">{imageModel}</span></p>
                       ) : (
                         <p className="text-sm text-amber-600">请先点击右上角「AI 模型」按钮选择图片模型</p>
                       )}
@@ -201,7 +201,7 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
               </div>
             </ModalBody>
 
-            <ModalFooter className="border-t border-slate-200">
+            <ModalFooter className="border-t border-slate-700/50">
               <Button color="default" variant="light" onPress={onCloseModal}>
                 关闭
               </Button>

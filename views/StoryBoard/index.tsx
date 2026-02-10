@@ -214,18 +214,18 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   }, [scenes, allCharacters]);
 
   return (
-    <div className="h-full flex flex-col bg-slate-50">
+    <div className="h-full flex flex-col bg-[#0a0a0f]">
       {/* 顶部工具栏 */}
-      <div className="px-4 py-3 bg-white border-b border-slate-200 flex items-center justify-between">
+      <div className="px-4 py-3 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-slate-800">分镜设计</h2>
+          <h2 className="text-lg font-bold text-slate-100">分镜设计</h2>
           <EpisodeSelector
             scripts={scripts}
             currentEpisode={currentEpisode}
             onSelect={handleEpisodeSelect}
           />
           {scenes.length > 0 && (
-            <span className="text-sm text-slate-500">共 {scenes.length} 个分镜</span>
+            <span className="text-sm text-slate-400">共 {scenes.length} 个分镜</span>
           )}
         </div>
 
@@ -233,7 +233,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           <Button
             size="sm"
             variant="flat"
-            className="bg-slate-100 text-slate-600 font-medium"
+            className="bg-slate-800/60 text-slate-300 font-medium"
             startContent={<RefreshCw className="w-4 h-4" />}
             onPress={() => currentScriptId && loadStoryboards(currentScriptId)}
             isLoading={isLoading}
@@ -252,7 +252,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           </Button>
           <Button
             size="sm"
-            className="bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold"
+            className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold shadow-lg shadow-blue-500/20"
             startContent={<Wand2 className="w-4 h-4" />}
             onPress={autoStoryboard.handleAutoGenerateClick}
             isLoading={autoStoryboard.isGenerating}
@@ -267,7 +267,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       {!currentScriptId && (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center text-slate-500">
-            <Wand2 className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+            <Wand2 className="w-16 h-16 mx-auto mb-4 text-slate-600" />
             <p className="text-lg font-medium">请先生成剧本</p>
             <p className="text-sm mt-1">生成剧本后，可以自动将剧本转换为分镜</p>
           </div>

@@ -55,6 +55,7 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
   const [draft, setDraft] = useState(scene.description);
   const [locked, setLocked] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showVideoPreview, setShowVideoPreview] = useState(false);
 
   const save = () => {
     onUpdateDescription(scene.id, draft);
@@ -206,9 +207,9 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
       {/* 视频 */}
       <td className="px-3 py-3 w-20 text-center">
         {scene.videoUrl ? (
-          <a href={scene.videoUrl} target="_blank" rel="noreferrer" className="inline-flex p-2 rounded-lg bg-emerald-900/40 text-emerald-400 hover:bg-emerald-800/50 transition-all" title="播放视频">
+          <button onClick={() => setShowVideoPreview(true)} className="inline-flex p-2 rounded-lg bg-emerald-900/40 text-emerald-400 hover:bg-emerald-800/50 transition-all" title="播放视频">
             <Play className="w-4 h-4" />
-          </a>
+          </button>
         ) : (
           <button
             onClick={() => onGenerateVideo(scene.id)}
@@ -232,6 +233,36 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
         </button>
       </td>
     </tr>
+
+    {/* 视频预览 */}
+    <Modal isOpen={showVideoPreview} onOpenChange={setShowVideoPreview} size="2xl" classNames={{ base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50" }}>
+      <ModalContent>
+        {(onClose) => (
+          <>
+            <ModalHeader className="flex items-center gap-2 text-slate-100">
+              <Play className="w-5 h-5 text-blue-400" />
+              视频预览 - 分镜 {index + 1}
+            </ModalHeader>
+            <ModalBody>
+              {scene.videoUrl ? (
+                <video
+                  src={scene.videoUrl}
+                  controls
+                  autoPlay
+                  className="w-full rounded-lg"
+                  style={{ maxHeight: '60vh' }}
+                />
+              ) : (
+                <div className="text-center py-10 text-slate-500">暂无视频</div>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="flat" className="bg-slate-800/80 text-slate-300" onPress={onClose}>关闭</Button>
+            </ModalFooter>
+          </>
+        )}
+      </ModalContent>
+    </Modal>
 
     {/* 删除确认 */}
     <Modal isOpen={showDeleteConfirm} onOpenChange={setShowDeleteConfirm} size="sm">

@@ -55,7 +55,7 @@ const SubtitleStylePanel: React.FC<SubtitleStylePanelProps> = ({
               selectedKeys={[style.fontFamily]}
               onChange={(e) => onUpdateStyle({ fontFamily: e.target.value })}
               classNames={{
-                trigger: "bg-slate-50 border border-slate-200 h-8",
+                trigger: "bg-slate-800/60 border border-slate-600/50 h-8",
                 value: "text-xs"
               }}
             >
@@ -69,7 +69,7 @@ const SubtitleStylePanel: React.FC<SubtitleStylePanelProps> = ({
           <div>
             <div className="flex justify-between text-xs mb-1">
               <span className="text-slate-500">字号</span>
-              <span className="text-slate-700 font-mono">{style.fontSize}px</span>
+              <span className="text-slate-300 font-mono">{style.fontSize}px</span>
             </div>
             <Slider
               size="sm"
@@ -91,9 +91,9 @@ const SubtitleStylePanel: React.FC<SubtitleStylePanelProps> = ({
                   type="color"
                   value={style.color}
                   onChange={(e) => onUpdateStyle({ color: e.target.value })}
-                  className="w-7 h-7 rounded border border-slate-200 cursor-pointer"
+                  className="w-7 h-7 rounded border border-slate-600/50 cursor-pointer"
                 />
-                <span className="text-xs text-slate-600 font-mono">{style.color}</span>
+                <span className="text-xs text-slate-400 font-mono">{style.color}</span>
               </div>
             </div>
             <div className="flex-1">
@@ -103,9 +103,9 @@ const SubtitleStylePanel: React.FC<SubtitleStylePanelProps> = ({
                   type="color"
                   value={style.bgColor.startsWith('rgba') ? '#000000' : style.bgColor}
                   onChange={(e) => onUpdateStyle({ bgColor: e.target.value + '99' })}
-                  className="w-7 h-7 rounded border border-slate-200 cursor-pointer"
+                  className="w-7 h-7 rounded border border-slate-600/50 cursor-pointer"
                 />
-                <span className="text-xs text-slate-600 font-mono truncate">{style.bgColor.substring(0, 9)}</span>
+                <span className="text-xs text-slate-400 font-mono truncate">{style.bgColor.substring(0, 9)}</span>
               </div>
             </div>
           </div>
@@ -119,7 +119,7 @@ const SubtitleStylePanel: React.FC<SubtitleStylePanelProps> = ({
                 selectedKeys={[style.position]}
                 onChange={(e) => onUpdateStyle({ position: e.target.value as SubtitleStyle['position'] })}
                 classNames={{
-                  trigger: "bg-slate-50 border border-slate-200 h-8",
+                  trigger: "bg-slate-800/60 border border-slate-600/50 h-8",
                   value: "text-xs"
                 }}
               >
@@ -131,7 +131,7 @@ const SubtitleStylePanel: React.FC<SubtitleStylePanelProps> = ({
             <Button
               size="sm"
               variant={style.bold ? 'solid' : 'flat'}
-              className={`min-w-9 h-8 ${style.bold ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+              className={`min-w-9 h-8 ${style.bold ? 'bg-blue-500 text-white' : 'bg-slate-800/60 text-slate-400'}`}
               isIconOnly
               onPress={() => onUpdateStyle({ bold: !style.bold })}
               title="粗体"
@@ -163,7 +163,7 @@ const SubtitleStylePanel: React.FC<SubtitleStylePanelProps> = ({
       {selectedSubtitle && (
         <div>
           <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">编辑字幕</h4>
-          <div className="space-y-3 bg-slate-50 rounded-lg p-3">
+          <div className="space-y-3 bg-slate-800/40 rounded-lg p-3">
             <div>
               <label className="text-xs text-slate-500 mb-1 block">内容</label>
               <Input
@@ -172,7 +172,7 @@ const SubtitleStylePanel: React.FC<SubtitleStylePanelProps> = ({
                 onValueChange={(val) => onUpdateSubtitle(selectedSubtitle.id, { text: val })}
                 classNames={{
                   input: "text-xs",
-                  inputWrapper: "bg-white border border-slate-200 h-8"
+                  inputWrapper: "bg-slate-800/60 border border-slate-600/50 h-8"
                 }}
               />
             </div>
@@ -187,7 +187,7 @@ const SubtitleStylePanel: React.FC<SubtitleStylePanelProps> = ({
                   onValueChange={(val) => onUpdateSubtitle(selectedSubtitle.id, { startTime: parseFloat(val) || 0 })}
                   classNames={{
                     input: "text-xs font-mono",
-                    inputWrapper: "bg-white border border-slate-200 h-8"
+                    inputWrapper: "bg-slate-800/60 border border-slate-600/50 h-8"
                   }}
                 />
               </div>
@@ -201,7 +201,7 @@ const SubtitleStylePanel: React.FC<SubtitleStylePanelProps> = ({
                   onValueChange={(val) => onUpdateSubtitle(selectedSubtitle.id, { endTime: parseFloat(val) || 0 })}
                   classNames={{
                     input: "text-xs font-mono",
-                    inputWrapper: "bg-white border border-slate-200 h-8"
+                    inputWrapper: "bg-slate-800/60 border border-slate-600/50 h-8"
                   }}
                 />
               </div>
@@ -209,7 +209,7 @@ const SubtitleStylePanel: React.FC<SubtitleStylePanelProps> = ({
             <Button
               size="sm"
               variant="flat"
-              className="w-full bg-red-50 text-red-600 text-xs"
+              className="w-full bg-red-500/10 text-red-400 text-xs"
               onPress={() => onRemoveSubtitle(selectedSubtitle.id)}
             >
               删除此字幕

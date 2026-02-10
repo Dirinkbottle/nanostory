@@ -18,17 +18,26 @@ const AutoStoryboardModal: React.FC<AutoStoryboardModalProps> = ({
   onConfirm
 }) => {
   return (
-    <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="md">
+    <Modal 
+      isOpen={isOpen} 
+      onOpenChange={onOpenChange} 
+      size="md"
+      classNames={{
+        base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-black/40",
+        header: "border-b border-slate-700/50",
+        footer: "border-t border-slate-700/50"
+      }}
+    >
       <ModalContent>
         {(onClose) => (
           <>
-            <ModalHeader className="flex items-center gap-2 text-amber-600">
+            <ModalHeader className="flex items-center gap-2 text-amber-400">
               <AlertTriangle className="w-5 h-5" />
               确认重新生成分镜
             </ModalHeader>
             <ModalBody>
-              <p className="text-slate-700">
-                重新生成分镜将<span className="text-red-500 font-semibold">覆盖当前所有分镜内容</span>，此操作不可撤销。
+              <p className="text-slate-300">
+                重新生成分镜将<span className="text-red-400 font-semibold">覆盖当前所有分镜内容</span>，此操作不可撤销。
               </p>
               <p className="text-slate-500 text-sm mt-2">
                 确定要继续吗？
@@ -39,12 +48,12 @@ const AutoStoryboardModal: React.FC<AutoStoryboardModalProps> = ({
                   onValueChange={onDontShowAgainChange}
                   size="sm"
                 >
-                  <span className="text-sm text-slate-600">本次登录不再提示</span>
+                  <span className="text-sm text-slate-400">本次登录不再提示</span>
                 </Checkbox>
               </div>
             </ModalBody>
             <ModalFooter>
-              <Button variant="light" onPress={onClose}>
+              <Button variant="light" onPress={onClose} className="text-slate-400">
                 取消
               </Button>
               <Button

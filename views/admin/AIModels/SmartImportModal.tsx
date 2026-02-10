@@ -44,15 +44,15 @@ const SmartImportModal: React.FC<SmartImportModalProps> = ({
   onManualImport
 }) => {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="3xl">
+    <Modal isOpen={isOpen} onClose={onClose} size="3xl" classNames={{ base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50" }}>
       <ModalContent>
-        <ModalHeader className="text-xl font-bold text-slate-800 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-purple-600" />
+        <ModalHeader className="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-purple-400" />
           智能添加模型
         </ModalHeader>
         <ModalBody className="space-y-4">
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
-            <p className="text-sm text-slate-700">
+          <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-lg p-4">
+            <p className="text-sm text-slate-300">
               💡 <strong>使用提示：</strong>
               {importMode === 'ai' ? '将API文档粘贴到下方，AI会自动解析并填充配置信息' : '直接粘贴完整的 JSON 配置，系统会自动清洗并导入'}
             </p>
@@ -61,14 +61,14 @@ const SmartImportModal: React.FC<SmartImportModalProps> = ({
           <div className="flex gap-2 mb-4">
             <Button
               size="sm"
-              className={importMode === 'ai' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-700'}
+              className={importMode === 'ai' ? 'bg-purple-500 text-white' : 'bg-slate-800/60 text-slate-400'}
               onPress={() => setImportMode('ai')}
             >
               🤖 AI 生成
             </Button>
             <Button
               size="sm"
-              className={importMode === 'manual' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-700'}
+              className={importMode === 'manual' ? 'bg-purple-500 text-white' : 'bg-slate-800/60 text-slate-400'}
               onPress={() => setImportMode('manual')}
             >
               📋 手动导入
@@ -78,14 +78,14 @@ const SmartImportModal: React.FC<SmartImportModalProps> = ({
           {importMode === 'ai' && (
             <>
               <div>
-                <label className="text-sm font-medium text-slate-700 mb-2 block">选择解析模型</label>
+                <label className="text-sm font-medium text-slate-400 mb-2 block">选择解析模型</label>
                 <AIModelSelector
                   models={textModels.map(m => ({ ...m, type: 'TEXT' }))}
                   selectedModel={selectedTextModel}
                   onModelChange={onModelChange}
                   filterType="TEXT"
                   placeholder="选择一个文本模型"
-                  className="border-2 border-slate-200 hover:border-blue-400"
+                  className="border-2 border-slate-600/50 hover:border-blue-500/50"
                 />
               </div>
 
@@ -97,7 +97,7 @@ const SmartImportModal: React.FC<SmartImportModalProps> = ({
                 minRows={10}
                 classNames={{
                   input: "font-mono text-sm",
-                  inputWrapper: "bg-slate-50 border-2 border-slate-200"
+                  inputWrapper: "bg-slate-800/60 border-2 border-slate-600/50"
                 }}
                 isRequired
               />
@@ -120,7 +120,7 @@ const SmartImportModal: React.FC<SmartImportModalProps> = ({
               minRows={15}
               classNames={{
                 input: "font-mono text-xs",
-                inputWrapper: "bg-slate-50 border-2 border-slate-200"
+                inputWrapper: "bg-slate-800/60 border-2 border-slate-600/50"
               }}
               isRequired
             />
@@ -128,9 +128,9 @@ const SmartImportModal: React.FC<SmartImportModalProps> = ({
 
           {/* 工作流进度指示器 */}
           {isParseRunning && parseJob && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-blue-700">
+                <span className="text-sm font-medium text-blue-400">
                   AI 解析中...
                 </span>
                 <span className="text-xs text-blue-500">
@@ -150,14 +150,14 @@ const SmartImportModal: React.FC<SmartImportModalProps> = ({
         <ModalFooter>
           <Button
             variant="flat"
-            className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+            className="bg-slate-800/80 text-slate-300 hover:bg-slate-700"
             onPress={onClose}
             isDisabled={parsing}
           >
             取消
           </Button>
           <Button
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:opacity-90"
+            className="bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:opacity-90"
             onPress={importMode === 'ai' ? onSmartParse : onManualImport}
             isLoading={parsing}
             startContent={!parsing && <Sparkles className="w-4 h-4" />}

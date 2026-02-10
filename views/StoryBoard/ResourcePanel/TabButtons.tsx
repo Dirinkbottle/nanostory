@@ -13,7 +13,7 @@ const TabButtons: React.FC<TabButtonsProps> = ({ activeTab, onTabChange }) => {
       <Button
         size="sm"
         variant={activeTab === 'characters' ? 'solid' : 'flat'}
-        className={activeTab === 'characters' ? 'bg-blue-600 text-white' : ''}
+        className={activeTab === 'characters' ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white' : 'bg-slate-800/60 text-slate-400'}
         onPress={() => onTabChange('characters')}
       >
         角色
@@ -21,7 +21,7 @@ const TabButtons: React.FC<TabButtonsProps> = ({ activeTab, onTabChange }) => {
       <Button
         size="sm"
         variant={activeTab === 'locations' ? 'solid' : 'flat'}
-        className={activeTab === 'locations' ? 'bg-blue-600 text-white' : ''}
+        className={activeTab === 'locations' ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white' : 'bg-slate-800/60 text-slate-400'}
         onPress={() => onTabChange('locations')}
       >
         场景
@@ -29,7 +29,7 @@ const TabButtons: React.FC<TabButtonsProps> = ({ activeTab, onTabChange }) => {
       <Button
         size="sm"
         variant={activeTab === 'props' ? 'solid' : 'flat'}
-        className={activeTab === 'props' ? 'bg-blue-600 text-white' : ''}
+        className={activeTab === 'props' ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white' : 'bg-slate-800/60 text-slate-400'}
         onPress={() => onTabChange('props')}
       >
         道具

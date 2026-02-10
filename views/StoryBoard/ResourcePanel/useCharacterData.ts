@@ -32,8 +32,24 @@ export const useCharacterData = (projectId?: number | null, scriptId?: number | 
 
       if (res.ok) {
         const data = await res.json();
-        setDbCharacters(data.characters || []);
-        console.log('[ResourcePanel] 加载了', data.characters?.length || 0, '个角色');
+        // 将后端 snake_case 字段映射为前端 camelCase
+        const mapped: Character[] = (data.characters || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          appearance: c.appearance,
+          personality: c.personality,
+          description: c.description,
+          source: c.source,
+          imageUrl: c.image_url || c.imageUrl,
+          frontViewUrl: c.front_view_url || c.frontViewUrl,
+          sideViewUrl: c.side_view_url || c.sideViewUrl,
+          backViewUrl: c.back_view_url || c.backViewUrl,
+          characterSheetUrl: c.character_sheet_url || c.characterSheetUrl,
+          generationPrompt: c.generation_prompt || c.generationPrompt,
+          generationStatus: c.generation_status || c.generationStatus,
+        }));
+        setDbCharacters(mapped);
+        console.log('[ResourcePanel] 加载了', mapped.length, '个角色');
       }
     } catch (error) {
       console.error('[ResourcePanel] 加载角色失败:', error);

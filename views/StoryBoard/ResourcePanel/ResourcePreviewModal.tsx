@@ -16,15 +16,15 @@ const ResourcePreviewModal: React.FC<ResourcePreviewModalProps> = ({
 }) => {
   return (
     <Modal isOpen={isOpen} onOpenChange={onClose} size="lg">
-      <ModalContent className="bg-white">
+      <ModalContent className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50">
         {(onCloseModal) => (
           <>
-            <ModalHeader className="text-slate-800 font-bold">
+            <ModalHeader className="text-slate-100 font-bold">
               预览 - {selectedResource?.name}
             </ModalHeader>
             <ModalBody>
               <div className="flex items-center justify-center py-8">
-                <div className="w-64 h-64 bg-slate-100 rounded-lg flex items-center justify-center">
+                <div className="w-64 h-64 bg-slate-800/60 rounded-lg flex items-center justify-center">
                   {selectedResource?.imageUrl ? (
                     <img src={selectedResource.imageUrl} alt={selectedResource.name} className="w-full h-full object-cover rounded-lg" />
                   ) : (
@@ -40,7 +40,7 @@ const ResourcePreviewModal: React.FC<ResourcePreviewModalProps> = ({
             <ModalFooter>
               <Button variant="light" onPress={onCloseModal}>关闭</Button>
               <Button 
-                className="bg-blue-600 text-white font-semibold"
+                className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold shadow-lg shadow-blue-500/20"
                 startContent={<Wand2 className="w-4 h-4" />}
               >
                 生成原画

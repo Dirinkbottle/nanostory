@@ -24,9 +24,9 @@ const SceneCardHeader: React.FC<SceneCardHeaderProps> = ({
     <div className="flex flex-col items-center gap-2">
       <button
         onClick={() => onSelect(sceneId)}
-        className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-blue-100 transition-colors"
+        className="w-8 h-8 rounded-full bg-slate-800/80 flex items-center justify-center hover:bg-blue-500/20 transition-colors border border-slate-700/50"
       >
-        <span className="text-sm font-bold text-slate-700">{index + 1}</span>
+        <span className="text-sm font-bold text-slate-300">{index + 1}</span>
       </button>
       <div className="flex flex-col gap-1">
         <button
@@ -35,7 +35,7 @@ const SceneCardHeader: React.FC<SceneCardHeaderProps> = ({
             onMoveUp(sceneId);
           }}
           disabled={isFirst}
-          className="p-1 hover:bg-slate-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-1 hover:bg-slate-700/50 rounded text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronUp className="w-4 h-4" />
         </button>
@@ -45,7 +45,7 @@ const SceneCardHeader: React.FC<SceneCardHeaderProps> = ({
             onMoveDown(sceneId);
           }}
           disabled={isLast}
-          className="p-1 hover:bg-slate-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-1 hover:bg-slate-700/50 rounded text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronDown className="w-4 h-4" />
         </button>

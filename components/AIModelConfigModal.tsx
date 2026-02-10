@@ -47,15 +47,15 @@ const AIModelConfigModal: React.FC<AIModelConfigModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="lg">
-      <ModalContent>
+      <ModalContent className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50">
         {(onClose) => (
           <>
-            <ModalHeader className="flex items-center gap-2 text-slate-800">
-              <Bot className="w-5 h-5 text-blue-500" />
+            <ModalHeader className="flex items-center gap-2 text-slate-100 border-b border-slate-700/50">
+              <Bot className="w-5 h-5 text-blue-400" />
               AI 模型配置
             </ModalHeader>
             <ModalBody className="space-y-4">
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-400">
                 为不同任务选择对应的 AI 模型，所有创作功能将使用这里的配置。
               </p>
               {availableCategories.map(cat => (
@@ -71,12 +71,12 @@ const AIModelConfigModal: React.FC<AIModelConfigModalProps> = ({
                 />
               ))}
               {availableCategories.length === 0 && (
-                <p className="text-center text-slate-400 py-4">暂无可用模型，请先在管理后台配置</p>
+                <p className="text-center text-slate-500 py-4">暂无可用模型，请先在管理后台配置</p>
               )}
             </ModalBody>
-            <ModalFooter>
+            <ModalFooter className="border-t border-slate-700/50">
               <Button
-                className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold"
+                className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold shadow-lg shadow-blue-500/20"
                 onPress={onClose}
               >
                 确定

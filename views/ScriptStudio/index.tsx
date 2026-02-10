@@ -154,9 +154,9 @@ const ScriptStudio: React.FC = () => {
   }
 
   return (
-    <div className="h-full bg-slate-50 overflow-hidden flex flex-col">
+    <div className="h-full bg-[#0a0a0f] overflow-hidden flex flex-col">
       {/* 项目信息和子标签页 */}
-      <div className="bg-white">
+      <div className="bg-slate-900/80 backdrop-blur-xl">
         <div className="px-8 pt-4">
           {selectedProject && (
             <ProjectInfo 
@@ -167,7 +167,7 @@ const ScriptStudio: React.FC = () => {
         </div>
         
         {/* 子标签页 + AI 模型按钮 */}
-        <div className="px-8 border-b border-slate-200 flex items-center">
+        <div className="px-8 border-b border-slate-700/50 flex items-center">
           <div className="flex-1">
             <Tabs
               selectedKey={activeTab}
@@ -175,9 +175,9 @@ const ScriptStudio: React.FC = () => {
               variant="underlined"
               classNames={{
                 tabList: "gap-8 w-full relative p-0",
-                cursor: "w-full bg-blue-600 h-0.5",
+                cursor: "w-full bg-blue-500 h-0.5",
                 tab: "max-w-fit px-0 h-12 data-[hover-unselected=true]:opacity-80",
-                tabContent: "group-data-[selected=true]:text-blue-600 group-data-[selected=false]:text-slate-600 font-medium"
+                tabContent: "group-data-[selected=true]:text-blue-400 group-data-[selected=false]:text-slate-500 font-medium"
               }}
             >
               <Tab
@@ -212,7 +212,7 @@ const ScriptStudio: React.FC = () => {
           <Button
             size="sm"
             variant="flat"
-            className="bg-blue-50 text-blue-600 font-medium"
+            className="bg-slate-800/80 text-blue-400 font-medium border border-slate-700/50"
             startContent={<Bot className="w-4 h-4" />}
             onPress={openModelConfig}
           >
@@ -228,7 +228,7 @@ const ScriptStudio: React.FC = () => {
         ) : activeTab === 'script' ? (
           <div className="h-full flex">
             {/* 左侧：创作区 */}
-            <div className="w-1/2 border-r border-slate-200 flex flex-col bg-white">
+            <div className="w-1/2 border-r border-slate-700/50 flex flex-col bg-slate-900/60">
               <div className="p-8 space-y-6 overflow-auto">
                 {/* 集数选择器 */}
                 <EpisodeSelector
@@ -286,7 +286,7 @@ const ScriptStudio: React.FC = () => {
             </div>
 
             {/* 右侧：预览区 */}
-            <div className="flex-1 flex flex-col bg-slate-50">
+            <div className="flex-1 flex flex-col bg-[#0a0a0f]">
               <ScriptPreview
                 content={content}
                 isEditing={isEditing}

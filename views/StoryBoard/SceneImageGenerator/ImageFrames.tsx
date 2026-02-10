@@ -33,7 +33,7 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
     <>
       <div className="flex gap-2 flex-shrink-0">
         {/* 图片 / 首帧 */}
-        <div className="w-20 h-14 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg flex items-center justify-center group transition-all duration-300 border border-slate-300 relative overflow-hidden">
+        <div className="w-20 h-14 bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg flex items-center justify-center group transition-all duration-300 border border-slate-600/50 relative overflow-hidden">
           {startFrame ? (
             <>
               <img 
@@ -82,7 +82,7 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
 
         {/* 尾帧 - 仅在有动作且首帧已存在时显示 */}
         {showEndFrame && (
-          <div className="w-20 h-14 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg flex items-center justify-center group transition-all duration-300 border border-orange-300 relative overflow-hidden">
+          <div className="w-20 h-14 bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg flex items-center justify-center group transition-all duration-300 border border-orange-500/30 relative overflow-hidden">
             {endFrame ? (
               <>
                 <img 
@@ -128,7 +128,7 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
         {hasImages && (
           <button
             onClick={onOpenGenerateModal}
-            className="w-8 h-14 bg-slate-100 hover:bg-blue-100 rounded-lg flex items-center justify-center transition-colors border border-slate-300"
+            className="w-8 h-14 bg-slate-800/60 hover:bg-blue-500/10 rounded-lg flex items-center justify-center transition-colors border border-slate-600/50"
             title="重新生成"
           >
             <RefreshCw className="w-4 h-4 text-slate-600 hover:text-blue-600" />

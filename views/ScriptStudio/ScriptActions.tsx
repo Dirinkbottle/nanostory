@@ -25,9 +25,9 @@ const ScriptActions: React.FC<ScriptActionsProps> = ({
 }) => {
   if (loadingScript) {
     return (
-      <Card className="bg-blue-50 border border-blue-200">
+      <Card className="bg-slate-800/60 border border-slate-700/50">
         <CardBody className="p-4 text-center">
-          <p className="text-slate-600">加载剧本中...</p>
+          <p className="text-slate-400">加载剧本中...</p>
         </CardBody>
       </Card>
     );
@@ -39,16 +39,15 @@ const ScriptActions: React.FC<ScriptActionsProps> = ({
 
   return (
     <>
-      {/* 已有剧本时显示编辑和删除按钮 */}
-      <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
+      <Card className="bg-slate-800/60 border border-emerald-500/20">
         <CardBody className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <FileText className="w-5 h-5 text-green-600" />
+              <div className="p-2 bg-emerald-500/15 rounded-lg border border-emerald-500/20">
+                <FileText className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <p className="text-slate-700 font-bold">已有剧本</p>
+                <p className="text-slate-200 font-bold">已有剧本</p>
                 <p className="text-xs text-slate-500">可以编辑或删除当前剧本</p>
               </div>
             </div>
@@ -56,7 +55,7 @@ const ScriptActions: React.FC<ScriptActionsProps> = ({
               <Button
                 size="sm"
                 variant="light"
-                className="text-red-600 font-semibold hover:bg-red-50"
+                className="text-red-400 font-semibold hover:bg-red-500/10"
                 onPress={onDelete}
                 isDisabled={loading}
               >
@@ -65,7 +64,7 @@ const ScriptActions: React.FC<ScriptActionsProps> = ({
               {isEditing ? (
                 <Button
                   size="sm"
-                  className="bg-green-600 text-white font-semibold hover:bg-green-700"
+                  className="bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
                   onPress={onSave}
                   isLoading={loading}
                 >
@@ -74,7 +73,7 @@ const ScriptActions: React.FC<ScriptActionsProps> = ({
               ) : (
                 <Button
                   size="sm"
-                  className="bg-blue-600 text-white font-semibold hover:bg-blue-700"
+                  className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold"
                   onPress={onEdit}
                 >
                   编辑剧本
@@ -84,7 +83,6 @@ const ScriptActions: React.FC<ScriptActionsProps> = ({
           </div>
         </CardBody>
       </Card>
-
     </>
   );
 };

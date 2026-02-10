@@ -32,21 +32,21 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
   
   return (
-    <Card className="bg-white border border-slate-200 shadow-sm">
+    <Card className="bg-slate-900/80 border border-slate-700/50 shadow-lg shadow-black/20 rounded-2xl">
       <CardBody className="p-6 space-y-5">
         {/* 标题 + Tab 切换 */}
         <div className="mb-1">
           <div className="flex items-center gap-3 mb-2">
-            <h2 className="text-lg font-bold text-slate-800">
+            <h2 className="text-lg font-bold text-slate-100">
               {isFirstEpisode ? '创作你的故事' : `创作第${nextEpisode}集`}
             </h2>
-            <div className="flex bg-slate-100 rounded-lg p-0.5">
+            <div className="flex bg-slate-800/80 rounded-lg p-0.5 border border-slate-700/30">
               <button
                 onClick={() => setMode('ai')}
                 className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                   mode === 'ai'
-                    ? 'bg-blue-500 text-white shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
                 <Sparkles className="w-3 h-3" />
@@ -56,8 +56,8 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
                 onClick={() => setMode('manual')}
                 className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                   mode === 'manual'
-                    ? 'bg-emerald-500 text-white shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-300'
                 }`}
               >
                 <PenLine className="w-3 h-3" />
@@ -86,9 +86,9 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
               value={title}
               onValueChange={onTitleChange}
               classNames={{
-                input: "bg-white text-slate-800 font-semibold placeholder:text-slate-400",
-                label: "text-slate-600 font-medium",
-                inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 data-[focus=true]:border-blue-500 shadow-sm"
+                input: "bg-transparent text-slate-100 font-semibold placeholder:text-slate-500",
+                label: "text-slate-400 font-medium",
+                inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 data-[focus=true]:border-blue-500 shadow-sm"
               }}
             />
 
@@ -102,9 +102,9 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
               onValueChange={onDescriptionChange}
               minRows={4}
               classNames={{
-                input: "bg-white text-slate-800 font-medium placeholder:text-slate-400",
-                label: "text-slate-600 font-medium",
-                inputWrapper: "bg-white border border-slate-200 hover:border-blue-300 data-[focus=true]:border-blue-500 shadow-sm"
+                input: "bg-transparent text-slate-100 font-medium placeholder:text-slate-500",
+                label: "text-slate-400 font-medium",
+                inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 data-[focus=true]:border-blue-500 shadow-sm"
               }}
             />
 
@@ -114,25 +114,25 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
                 selectedKeys={[length]}
                 onChange={(e) => onLengthChange(e.target.value)}
                 classNames={{
-                  trigger: "bg-white border border-slate-200 text-slate-800 font-semibold hover:border-blue-300 shadow-sm",
-                  label: "text-slate-600 font-medium",
-                  value: "text-slate-800 font-semibold",
-                  selectorIcon: "text-slate-500"
+                  trigger: "bg-slate-800/60 border border-slate-600/50 text-slate-100 font-semibold hover:border-blue-500/50 shadow-sm",
+                  label: "text-slate-400 font-medium",
+                  value: "text-slate-100 font-semibold",
+                  selectorIcon: "text-slate-400"
                 }}
                 popoverProps={{
                   classNames: {
-                    content: "bg-white border border-slate-200 shadow-lg"
+                    content: "bg-slate-900 border border-slate-700/50 shadow-lg shadow-black/30"
                   }
                 }}
               >
-                <SelectItem key="短篇" value="短篇" className="text-slate-800 hover:bg-slate-100">短篇 (1-3分钟)</SelectItem>
-                <SelectItem key="中篇" value="中篇" className="text-slate-800 hover:bg-slate-100">中篇 (3-5分钟)</SelectItem>
-                <SelectItem key="长篇" value="长篇" className="text-slate-800 hover:bg-slate-100">长篇 (5-10分钟)</SelectItem>
+                <SelectItem key="短篇" className="text-slate-200 data-[hover=true]:bg-slate-800">短篇 (1-3分钟)</SelectItem>
+                <SelectItem key="中篇" className="text-slate-200 data-[hover=true]:bg-slate-800">中篇 (3-5分钟)</SelectItem>
+                <SelectItem key="长篇" className="text-slate-200 data-[hover=true]:bg-slate-800">长篇 (5-10分钟)</SelectItem>
               </Select>
             </div>
 
             <Button
-              className="w-full text-white font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-blue-500/25"
+              className="w-full text-white font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 bg-gradient-to-r from-blue-500 to-violet-600 hover:from-blue-600 hover:to-violet-700 shadow-blue-500/20"
               size="lg"
               startContent={<FileText className="w-5 h-5" />}
               isLoading={loading}

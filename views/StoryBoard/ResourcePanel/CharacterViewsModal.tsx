@@ -29,51 +29,51 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onOpenChange={onClose} size="2xl">
-      <ModalContent className="bg-white">
+      <ModalContent className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50">
         {(onCloseModal) => (
           <>
-            <ModalHeader className="text-slate-800 font-bold">
+            <ModalHeader className="text-slate-100 font-bold">
               <div className="flex items-center gap-2">
-                <Layers className="w-5 h-5 text-purple-600" />
+                <Layers className="w-5 h-5 text-purple-400" />
                 角色三视图 - {selectedResource?.name}
               </div>
             </ModalHeader>
             <ModalBody>
               {(selectedResource?.frontViewUrl || selectedResource?.sideViewUrl || selectedResource?.backViewUrl) && (
                 <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-slate-700 mb-3">已生成的三视图</h3>
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3">已生成的三视图</h3>
                   <div className="grid grid-cols-3 gap-4">
                     {/* 正面视图 */}
-                    <div className="border rounded-lg p-2">
-                      <p className="text-xs text-slate-600 mb-2">正面视图</p>
+                    <div className="border border-slate-700/50 rounded-lg p-2">
+                      <p className="text-xs text-slate-400 mb-2">正面视图</p>
                       {selectedResource.frontViewUrl ? (
                         <img src={selectedResource.frontViewUrl} alt="正面视图" className="w-full h-48 object-cover rounded" />
                       ) : (
-                        <div className="w-full h-48 bg-slate-100 rounded flex items-center justify-center text-slate-400 text-sm">
+                        <div className="w-full h-48 bg-slate-800/60 rounded flex items-center justify-center text-slate-500 text-sm">
                           {selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}
                         </div>
                       )}
                     </div>
                     
                     {/* 侧面视图 */}
-                    <div className="border rounded-lg p-2">
-                      <p className="text-xs text-slate-600 mb-2">侧面视图</p>
+                    <div className="border border-slate-700/50 rounded-lg p-2">
+                      <p className="text-xs text-slate-400 mb-2">侧面视图</p>
                       {selectedResource.sideViewUrl ? (
                         <img src={selectedResource.sideViewUrl} alt="侧面视图" className="w-full h-48 object-cover rounded" />
                       ) : (
-                        <div className="w-full h-48 bg-slate-100 rounded flex items-center justify-center text-slate-400 text-sm">
+                        <div className="w-full h-48 bg-slate-800/60 rounded flex items-center justify-center text-slate-500 text-sm">
                           {selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}
                         </div>
                       )}
                     </div>
                     
                     {/* 背面视图 */}
-                    <div className="border rounded-lg p-2">
-                      <p className="text-xs text-slate-600 mb-2">背面视图</p>
+                    <div className="border border-slate-700/50 rounded-lg p-2">
+                      <p className="text-xs text-slate-400 mb-2">背面视图</p>
                       {selectedResource.backViewUrl ? (
                         <img src={selectedResource.backViewUrl} alt="背面视图" className="w-full h-48 object-cover rounded" />
                       ) : (
-                        <div className="w-full h-48 bg-slate-100 rounded flex items-center justify-center text-slate-400 text-sm">
+                        <div className="w-full h-48 bg-slate-800/60 rounded flex items-center justify-center text-slate-500 text-sm">
                           {selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}
                         </div>
                       )}
@@ -84,11 +84,11 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
 
               {/* 模型信息 */}
               <div className="mb-4">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                <h3 className="text-sm font-semibold text-slate-300 mb-3">
                   {selectedResource?.frontViewUrl ? '重新生成三视图' : '生成三视图'}
                 </h3>
                 {imageModel ? (
-                  <p className="text-sm text-slate-500">使用图片模型：<span className="font-medium text-slate-700">{imageModel}</span></p>
+                  <p className="text-sm text-slate-500">使用图片模型：<span className="font-medium text-slate-300">{imageModel}</span></p>
                 ) : (
                   <p className="text-sm text-amber-600">请先点击右上角「AI 模型」按钮选择图片模型</p>
                 )}
@@ -97,8 +97,8 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
               {isGenerating ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-4 border-purple-600 mb-4"></div>
-                    <p className="text-slate-600">正在生成三视图...</p>
+                    <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-4 border-purple-500 mb-4"></div>
+                    <p className="text-slate-400">正在生成三视图...</p>
                   </div>
                 </div>
               ) : generatedPrompts ? (
@@ -107,31 +107,31 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
                     以下是生成的三视图提示词，可用于 AI 绘图工具（如 Stable Diffusion、Midjourney）
                   </p>
                   <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-slate-50 rounded-lg p-4">
-                      <div className="w-full h-32 bg-slate-200 rounded-lg mb-3 flex items-center justify-center">
+                    <div className="bg-slate-800/60 rounded-lg p-4">
+                      <div className="w-full h-32 bg-slate-700/50 rounded-lg mb-3 flex items-center justify-center">
                         <span className="text-4xl">👤</span>
                       </div>
-                      <h4 className="font-bold text-slate-800 mb-2">正面</h4>
-                      <p className="text-xs text-slate-600 line-clamp-3">{generatedPrompts.front}</p>
+                      <h4 className="font-bold text-slate-100 mb-2">正面</h4>
+                      <p className="text-xs text-slate-400 line-clamp-3">{generatedPrompts.front}</p>
                     </div>
-                    <div className="bg-slate-50 rounded-lg p-4">
-                      <div className="w-full h-32 bg-slate-200 rounded-lg mb-3 flex items-center justify-center">
+                    <div className="bg-slate-800/60 rounded-lg p-4">
+                      <div className="w-full h-32 bg-slate-700/50 rounded-lg mb-3 flex items-center justify-center">
                         <span className="text-4xl">👤</span>
                       </div>
-                      <h4 className="font-bold text-slate-800 mb-2">侧面</h4>
-                      <p className="text-xs text-slate-600 line-clamp-3">{generatedPrompts.side}</p>
+                      <h4 className="font-bold text-slate-100 mb-2">侧面</h4>
+                      <p className="text-xs text-slate-400 line-clamp-3">{generatedPrompts.side}</p>
                     </div>
-                    <div className="bg-slate-50 rounded-lg p-4">
-                      <div className="w-full h-32 bg-slate-200 rounded-lg mb-3 flex items-center justify-center">
+                    <div className="bg-slate-800/60 rounded-lg p-4">
+                      <div className="w-full h-32 bg-slate-700/50 rounded-lg mb-3 flex items-center justify-center">
                         <span className="text-4xl">👤</span>
                       </div>
-                      <h4 className="font-bold text-slate-800 mb-2">背面</h4>
-                      <p className="text-xs text-slate-600 line-clamp-3">{generatedPrompts.back}</p>
+                      <h4 className="font-bold text-slate-100 mb-2">背面</h4>
+                      <p className="text-xs text-slate-400 line-clamp-3">{generatedPrompts.back}</p>
                     </div>
                   </div>
-                  <div className="bg-purple-50 rounded-lg p-4 mt-4">
-                    <h4 className="font-bold text-purple-800 mb-2">完整设计稿提示词</h4>
-                    <p className="text-sm text-purple-700">{generatedPrompts.characterSheet}</p>
+                  <div className="bg-purple-500/10 rounded-lg p-4 mt-4 border border-purple-500/20">
+                    <h4 className="font-bold text-purple-300 mb-2">完整设计稿提示词</h4>
+                    <p className="text-sm text-purple-400">{generatedPrompts.characterSheet}</p>
                   </div>
                 </div>
               ) : null}
@@ -139,7 +139,7 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
             <ModalFooter>
               <Button variant="light" onPress={onCloseModal}>关闭</Button>
               <Button 
-                className="bg-purple-600 text-white font-semibold"
+                className="bg-gradient-to-r from-purple-500 to-violet-600 text-white font-semibold shadow-lg shadow-purple-500/20"
                 startContent={<Wand2 className="w-4 h-4" />}
                 onPress={() => onGenerate(selectedResource?.name || '', imageModel, textModel, characterId)}
                 isLoading={isGenerating}

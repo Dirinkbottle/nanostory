@@ -20,9 +20,9 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
   onSave
 }) => {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="5xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} onClose={onClose} size="5xl" scrollBehavior="inside" classNames={{ base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50" }}>
       <ModalContent>
-        <ModalHeader className="text-xl font-bold text-slate-800">
+        <ModalHeader className="text-xl font-bold text-slate-100">
           {editingModel ? '编辑模型' : '添加模型'}
         </ModalHeader>
         <ModalBody className="space-y-4">
@@ -50,10 +50,10 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
               onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
               isRequired
             >
-              <SelectItem key="TEXT" value="TEXT">TEXT (文本)</SelectItem>
-              <SelectItem key="IMAGE" value="IMAGE">IMAGE (图像)</SelectItem>
-              <SelectItem key="VIDEO" value="VIDEO">VIDEO (视频)</SelectItem>
-              <SelectItem key="AUDIO" value="AUDIO">AUDIO (音频)</SelectItem>
+              <SelectItem key="TEXT">TEXT (文本)</SelectItem>
+              <SelectItem key="IMAGE">IMAGE (图像)</SelectItem>
+              <SelectItem key="VIDEO">VIDEO (视频)</SelectItem>
+              <SelectItem key="AUDIO">AUDIO (音频)</SelectItem>
             </Select>
 
             <Select
@@ -61,8 +61,8 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
               selectedKeys={[String(formData.is_active)]}
               onChange={(e) => setFormData({ ...formData, is_active: parseInt(e.target.value) })}
             >
-              <SelectItem key="1" value="1">启用</SelectItem>
-              <SelectItem key="0" value="0">禁用</SelectItem>
+              <SelectItem key="1">启用</SelectItem>
+              <SelectItem key="0">禁用</SelectItem>
             </Select>
 
             <Select
@@ -70,10 +70,10 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
               selectedKeys={[formData.request_method]}
               onChange={(e) => setFormData({ ...formData, request_method: e.target.value })}
             >
-              <SelectItem key="GET" value="GET">GET</SelectItem>
-              <SelectItem key="POST" value="POST">POST</SelectItem>
-              <SelectItem key="PUT" value="PUT">PUT</SelectItem>
-              <SelectItem key="DELETE" value="DELETE">DELETE</SelectItem>
+              <SelectItem key="GET">GET</SelectItem>
+              <SelectItem key="POST">POST</SelectItem>
+              <SelectItem key="PUT">PUT</SelectItem>
+              <SelectItem key="DELETE">DELETE</SelectItem>
             </Select>
           </div>
 
@@ -154,7 +154,7 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
           />
 
           <div className="border-t pt-4 mt-4">
-            <h4 className="font-semibold text-slate-700 mb-3">查询配置（可选）</h4>
+            <h4 className="font-semibold text-slate-300 mb-3">查询配置（可选）</h4>
             
             <div className="grid grid-cols-2 gap-4 mb-4">
               <Input
@@ -168,8 +168,8 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
                 selectedKeys={[formData.query_method]}
                 onChange={(e) => setFormData({ ...formData, query_method: e.target.value })}
               >
-                <SelectItem key="GET" value="GET">GET</SelectItem>
-                <SelectItem key="POST" value="POST">POST</SelectItem>
+                <SelectItem key="GET">GET</SelectItem>
+                <SelectItem key="POST">POST</SelectItem>
               </Select>
             </div>
 
@@ -200,7 +200,7 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
             />
 
             <div className="border-t pt-4 mt-4">
-              <h4 className="font-semibold text-slate-700 mb-1">异步状态判断</h4>
+              <h4 className="font-semibold text-slate-300 mb-1">异步状态判断</h4>
               <p className="text-xs text-slate-400 mb-3">配置异步模型的成功/失败判断条件和结果映射。同步模型无需配置。</p>
 
               <div className="grid grid-cols-2 gap-4">
@@ -242,7 +242,7 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
             </div>
 
             <div className="border-t pt-4 mt-4">
-              <h4 className="font-semibold text-slate-700 mb-1">自定义 Handler（可选）</h4>
+              <h4 className="font-semibold text-slate-300 mb-1">自定义 Handler（可选）</h4>
               <p className="text-xs text-slate-400 mb-3">用于无法通过模板配置覆盖的特殊 API（如特殊认证方式、特殊参数格式等）。留空则走模板流程。</p>
               <div className="grid grid-cols-2 gap-4">
                 <Input
@@ -266,13 +266,13 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
         <ModalFooter>
           <Button
             variant="flat"
-            className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+            className="bg-slate-800/80 text-slate-300 hover:bg-slate-700"
             onPress={onClose}
           >
             取消
           </Button>
           <Button
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className="bg-gradient-to-r from-blue-500 to-violet-600 text-white"
             onPress={onSave}
           >
             保存

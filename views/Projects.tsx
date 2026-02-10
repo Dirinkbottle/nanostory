@@ -93,7 +93,6 @@ const Projects: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      // 将风格字段序列化到 settings_json
       const { visualStyle, visualStylePrompt, storyStyle, storyConstraints, ...rest } = formData;
       const settingsObj: any = {};
       if (visualStyle) settingsObj.visualStyle = visualStyle;
@@ -115,7 +114,6 @@ const Projects: React.FC = () => {
 
   const handleSelectVisualStyle = (label: string) => {
     if (formData.visualStyle === label) {
-      // 取消选择
       setFormData({ ...formData, visualStyle: '', visualStylePrompt: '' });
     } else {
       setFormData({
@@ -137,7 +135,6 @@ const Projects: React.FC = () => {
     }
   };
 
-  // 双击进入项目
   const handleEnterProject = (project: Project) => {
     localStorage.setItem(LAST_PROJECT_KEY, project.id.toString());
     navigate('/');
@@ -150,10 +147,10 @@ const Projects: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft': return 'bg-slate-100 text-slate-600';
-      case 'in_progress': return 'bg-blue-100 text-blue-600';
-      case 'completed': return 'bg-green-100 text-green-600';
-      default: return 'bg-slate-100 text-slate-600';
+      case 'draft': return 'bg-slate-700/50 text-slate-400 border border-slate-600/30';
+      case 'in_progress': return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+      case 'completed': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      default: return 'bg-slate-700/50 text-slate-400 border border-slate-600/30';
     }
   };
 
@@ -171,21 +168,21 @@ const Projects: React.FC = () => {
   };
 
   return (
-    <div className="h-full bg-slate-50 overflow-auto p-6">
+    <div className="h-full bg-[#0a0a0f] overflow-auto p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 头部 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-xl">
-              <FolderOpen className="w-6 h-6 text-purple-600" />
+            <div className="p-2 bg-gradient-to-br from-violet-500/20 to-purple-500/20 rounded-xl border border-violet-500/20">
+              <FolderOpen className="w-6 h-6 text-violet-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">我的工程</h1>
+              <h1 className="text-2xl font-bold text-slate-100">我的工程</h1>
               <p className="text-sm text-slate-500">管理你的漫剧和剧本工程</p>
             </div>
           </div>
           <Button
-            className="bg-purple-600 text-white hover:bg-purple-700 font-semibold"
+            className="bg-gradient-to-r from-blue-500 to-violet-600 text-white hover:from-blue-600 hover:to-violet-700 font-semibold shadow-lg shadow-blue-500/20"
             startContent={<Plus className="w-4 h-4" />}
             onPress={handleAdd}
           >
@@ -198,10 +195,10 @@ const Projects: React.FC = () => {
           placeholder="搜索工程..."
           value={searchQuery}
           onValueChange={setSearchQuery}
-          startContent={<Search className="w-4 h-4 text-slate-400" />}
+          startContent={<Search className="w-4 h-4 text-slate-500" />}
           classNames={{
-            input: "bg-white text-slate-800 placeholder:text-slate-400",
-            inputWrapper: "bg-white border border-slate-200 hover:border-purple-300 shadow-sm"
+            input: "bg-transparent text-slate-200 placeholder:text-slate-500",
+            inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-violet-500/50 shadow-sm"
           }}
         />
 
@@ -210,31 +207,31 @@ const Projects: React.FC = () => {
           <div className="text-center py-12 text-slate-500">加载中...</div>
         ) : filteredProjects.length === 0 ? (
           <div className="text-center py-12">
-            <div className="w-20 h-20 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4">
-              <FolderOpen className="w-10 h-10 text-slate-300" />
+            <div className="w-20 h-20 mx-auto bg-slate-800/50 rounded-full flex items-center justify-center mb-4 border border-slate-700/30">
+              <FolderOpen className="w-10 h-10 text-slate-600" />
             </div>
-            <p className="text-slate-500 font-medium">暂无工程</p>
-            <p className="text-slate-400 text-sm mt-1">点击"新建工程"开始创作</p>
+            <p className="text-slate-400 font-medium">暂无工程</p>
+            <p className="text-slate-600 text-sm mt-1">点击"新建工程"开始创作</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredProjects.map((project) => (
               <Card 
                 key={project.id} 
-                className="bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                className="bg-slate-900/80 backdrop-blur-sm border border-slate-700/50 shadow-lg shadow-black/20 hover:shadow-xl hover:border-slate-600/50 transition-all cursor-pointer group rounded-2xl"
                 onDoubleClick={() => handleEnterProject(project)}
               >
                 <CardBody className="p-0">
                   {/* 封面区域 */}
                   <div 
-                    className="h-32 bg-gradient-to-br from-purple-100 to-pink-100 relative overflow-hidden"
+                    className="h-32 bg-gradient-to-br from-violet-900/30 to-blue-900/30 relative overflow-hidden rounded-t-2xl"
                     onDoubleClick={() => handleEnterProject(project)}
                   >
                     {project.cover_url ? (
                       <img src={project.cover_url} alt={project.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <BookOpen className="w-12 h-12 text-purple-300" />
+                        <BookOpen className="w-12 h-12 text-violet-700/50" />
                       </div>
                     )}
                     {/* 操作按钮 */}
@@ -242,18 +239,18 @@ const Projects: React.FC = () => {
                       <Button
                         size="sm"
                         isIconOnly
-                        className="bg-white/90 hover:bg-white shadow-sm"
+                        className="bg-slate-900/80 backdrop-blur-sm hover:bg-slate-800 shadow-sm border border-slate-700/50"
                         onPress={() => handleEdit(project)}
                       >
-                        <Edit className="w-4 h-4 text-slate-600" />
+                        <Edit className="w-4 h-4 text-slate-300" />
                       </Button>
                       <Button
                         size="sm"
                         isIconOnly
-                        className="bg-white/90 hover:bg-red-50 shadow-sm"
+                        className="bg-slate-900/80 backdrop-blur-sm hover:bg-red-900/50 shadow-sm border border-slate-700/50"
                         onPress={() => handleDelete(project.id)}
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
+                        <Trash2 className="w-4 h-4 text-red-400" />
                       </Button>
                     </div>
                   </div>
@@ -261,7 +258,7 @@ const Projects: React.FC = () => {
                   {/* 信息区域 */}
                   <div className="p-4 space-y-2">
                     <div className="flex items-start justify-between">
-                      <h3 className="text-lg font-semibold text-slate-800 line-clamp-1">{project.name}</h3>
+                      <h3 className="text-lg font-semibold text-slate-100 line-clamp-1">{project.name}</h3>
                       <Chip size="sm" className={getStatusColor(project.status)}>
                         {getStatusText(project.status)}
                       </Chip>
@@ -269,7 +266,7 @@ const Projects: React.FC = () => {
                     <p className="text-sm text-slate-500 line-clamp-2 min-h-[40px]">
                       {project.description || '暂无描述'}
                     </p>
-                    <div className="flex items-center gap-1 text-xs text-slate-400 pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-1 text-xs text-slate-600 pt-2 border-t border-slate-700/30">
                       <Clock className="w-3 h-3" />
                       <span>更新于 {formatDate(project.updated_at)}</span>
                     </div>
@@ -286,15 +283,15 @@ const Projects: React.FC = () => {
           onOpenChange={onOpenChange}
           size="lg"
           classNames={{
-            base: "bg-white border border-slate-200 shadow-xl",
-            header: "border-b border-slate-200",
+            base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-black/50",
+            header: "border-b border-slate-700/50",
             body: "py-6"
           }}
         >
           <ModalContent>
             {(onClose) => (
               <>
-                <ModalHeader className="text-slate-800 font-bold">
+                <ModalHeader className="text-slate-100 font-bold">
                   {editMode ? '编辑工程' : '新建工程'}
                 </ModalHeader>
                 <ModalBody className="space-y-4">
@@ -304,9 +301,9 @@ const Projects: React.FC = () => {
                     value={formData.name}
                     onValueChange={(val) => setFormData({ ...formData, name: val })}
                     classNames={{
-                      input: "bg-white text-slate-800 placeholder:text-slate-400",
-                      label: "text-slate-600 font-medium",
-                      inputWrapper: "bg-white border border-slate-200 hover:border-purple-300 shadow-sm"
+                      input: "bg-transparent text-slate-200 placeholder:text-slate-500",
+                      label: "text-slate-400 font-medium",
+                      inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-violet-500/50 shadow-sm"
                     }}
                   />
                   
@@ -317,15 +314,15 @@ const Projects: React.FC = () => {
                     onValueChange={(val) => setFormData({ ...formData, description: val })}
                     minRows={3}
                     classNames={{
-                      input: "bg-white text-slate-800 placeholder:text-slate-400",
-                      label: "text-slate-600 font-medium",
-                      inputWrapper: "bg-white border border-slate-200 hover:border-purple-300 shadow-sm"
+                      input: "bg-transparent text-slate-200 placeholder:text-slate-500",
+                      label: "text-slate-400 font-medium",
+                      inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-violet-500/50 shadow-sm"
                     }}
                   />
 
                   {/* 工程状态 */}
                   <div>
-                    <label className="text-sm text-slate-600 font-medium mb-2 block">工程状态</label>
+                    <label className="text-sm text-slate-400 font-medium mb-2 block">工程状态</label>
                     <div className="flex gap-2">
                       {(['draft', 'in_progress', 'completed'] as const).map((status) => (
                         <button
@@ -333,8 +330,8 @@ const Projects: React.FC = () => {
                           onClick={() => setFormData({ ...formData, status })}
                           className={`px-4 py-2 rounded-lg border transition-all ${
                             formData.status === status
-                              ? getStatusColor(status) + ' border-current'
-                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              ? getStatusColor(status)
+                              : 'border-slate-700/50 bg-slate-800/40 text-slate-500 hover:border-slate-600/50'
                           }`}
                         >
                           {getStatusText(status)}
@@ -349,18 +346,18 @@ const Projects: React.FC = () => {
                     value={formData.cover_url}
                     onValueChange={(val) => setFormData({ ...formData, cover_url: val })}
                     classNames={{
-                      input: "bg-white text-slate-800 placeholder:text-slate-400",
-                      label: "text-slate-600 font-medium",
-                      inputWrapper: "bg-white border border-slate-200 hover:border-purple-300 shadow-sm"
+                      input: "bg-transparent text-slate-200 placeholder:text-slate-500",
+                      label: "text-slate-400 font-medium",
+                      inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-violet-500/50 shadow-sm"
                     }}
                   />
 
                   {/* 视觉风格选择 */}
                   <div>
-                    <label className="text-sm text-slate-600 font-medium mb-2 flex items-center gap-1.5">
-                      <Palette className="w-4 h-4 text-purple-500" />
+                    <label className="text-sm text-slate-400 font-medium mb-2 flex items-center gap-1.5">
+                      <Palette className="w-4 h-4 text-violet-400" />
                       视觉风格
-                      <span className="text-xs text-slate-400 font-normal">（统一所有图片/视频的画风）</span>
+                      <span className="text-xs text-slate-600 font-normal">（统一所有图片/视频的画风）</span>
                     </label>
                     <div className="grid grid-cols-4 gap-2 mt-2">
                       {Object.keys(VISUAL_STYLE_PRESETS).map((label) => (
@@ -369,8 +366,8 @@ const Projects: React.FC = () => {
                           onClick={() => handleSelectVisualStyle(label)}
                           className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
                             formData.visualStyle === label
-                              ? 'bg-purple-100 border-purple-400 text-purple-700 shadow-sm'
-                              : 'border-slate-200 bg-white text-slate-600 hover:border-purple-200 hover:bg-purple-50'
+                              ? 'bg-violet-500/15 border-violet-500/40 text-violet-400 shadow-sm'
+                              : 'border-slate-700/50 bg-slate-800/40 text-slate-500 hover:border-violet-500/30 hover:bg-violet-500/5'
                           }`}
                         >
                           {label}
@@ -378,7 +375,7 @@ const Projects: React.FC = () => {
                       ))}
                     </div>
                     {formData.visualStyle && (
-                      <p className="text-xs text-slate-400 mt-1.5 truncate" title={formData.visualStylePrompt}>
+                      <p className="text-xs text-slate-600 mt-1.5 truncate" title={formData.visualStylePrompt}>
                         Prompt: {formData.visualStylePrompt}
                       </p>
                     )}
@@ -389,8 +386,8 @@ const Projects: React.FC = () => {
                       onValueChange={(val) => setFormData({ ...formData, visualStylePrompt: val })}
                       className="mt-2"
                       classNames={{
-                        input: "bg-white text-slate-800 placeholder:text-slate-400 text-xs",
-                        inputWrapper: "bg-white border border-slate-200 hover:border-purple-300 shadow-sm h-8 min-h-8"
+                        input: "bg-transparent text-slate-200 placeholder:text-slate-500 text-xs",
+                        inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-violet-500/50 shadow-sm h-8 min-h-8"
                       }}
                     />
                   </div>
@@ -403,9 +400,9 @@ const Projects: React.FC = () => {
                       value={formData.storyStyle}
                       onValueChange={(val) => setFormData({ ...formData, storyStyle: val })}
                       classNames={{
-                        input: "bg-white text-slate-800 placeholder:text-slate-400",
-                        label: "text-slate-600 font-medium",
-                        inputWrapper: "bg-white border border-slate-200 hover:border-purple-300 shadow-sm"
+                        input: "bg-transparent text-slate-200 placeholder:text-slate-500",
+                        label: "text-slate-400 font-medium",
+                        inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-violet-500/50 shadow-sm"
                       }}
                     />
                     <Input
@@ -414,18 +411,18 @@ const Projects: React.FC = () => {
                       value={formData.storyConstraints}
                       onValueChange={(val) => setFormData({ ...formData, storyConstraints: val })}
                       classNames={{
-                        input: "bg-white text-slate-800 placeholder:text-slate-400",
-                        label: "text-slate-600 font-medium",
-                        inputWrapper: "bg-white border border-slate-200 hover:border-purple-300 shadow-sm"
+                        input: "bg-transparent text-slate-200 placeholder:text-slate-500",
+                        label: "text-slate-400 font-medium",
+                        inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-violet-500/50 shadow-sm"
                       }}
                     />
                   </div>
                 </ModalBody>
-                <ModalFooter className="border-t border-slate-200">
-                  <Button variant="light" onPress={onClose} className="text-slate-600 font-semibold hover:bg-slate-100">
+                <ModalFooter className="border-t border-slate-700/50">
+                  <Button variant="light" onPress={onClose} className="text-slate-400 font-semibold hover:bg-slate-800/50">
                     取消
                   </Button>
-                  <Button className="bg-purple-600 text-white font-bold hover:bg-purple-700" onPress={handleSave}>
+                  <Button className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-bold hover:from-blue-600 hover:to-violet-700" onPress={handleSave}>
                     保存
                   </Button>
                 </ModalFooter>

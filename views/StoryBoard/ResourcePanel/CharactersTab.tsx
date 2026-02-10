@@ -26,7 +26,7 @@ const CharactersTab: React.FC<CharactersTabProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-semibold text-slate-700">
+        <span className="text-sm font-semibold text-slate-300">
           全部角色 ({dbCharacters.length > 0 ? dbCharacters.length : characters.length})
         </span>
       </div>
@@ -53,8 +53,8 @@ const CharactersTab: React.FC<CharactersTabProps> = ({
               key={idx}
               name={char}
               scenes={scenes}
-              onGenerateViews={onGenerateViews}
-              onPreview={onPreview || (() => {})}
+              onGenerateViews={(charName) => onGenerateViews(charName, 0)}
+              onPreview={(resource) => onPreview?.({ id: 0, name: resource.name } as Character)}
             />
           ))}
         </>

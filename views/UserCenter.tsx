@@ -90,27 +90,27 @@ const UserCenter: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-50">
-        <div className="text-slate-500">加载中...</div>
+      <div className="h-full flex items-center justify-center bg-[#0a0a0f]">
+        <div className="text-slate-400">加载中...</div>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-auto bg-slate-50 p-6">
+    <div className="h-full overflow-auto bg-[#0a0a0f] p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* 头部：用户信息和余额 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* 用户信息卡片 */}
-          <Card className="bg-white border border-slate-200 shadow-sm">
+          <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm">
             <CardBody className="p-6">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/25">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-violet-600 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/25">
                   <span className="text-2xl font-bold text-white">{profile?.email?.charAt(0)?.toUpperCase() || '?'}</span>
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm text-slate-500">用户名</div>
-                  <div className="text-lg font-semibold text-slate-800">{profile?.email}</div>
+                  <div className="text-sm text-slate-400">用户名</div>
+                  <div className="text-lg font-semibold text-slate-100">{profile?.email}</div>
                   <div className="text-xs text-slate-400 mt-1">
                     注册于 {profile?.created_at ? formatDate(profile.created_at) : ''}
                   </div>
@@ -120,20 +120,20 @@ const UserCenter: React.FC = () => {
           </Card>
 
           {/* 余额卡片 */}
-          <Card className="bg-white border border-emerald-200 shadow-sm">
+          <Card className="bg-slate-900/80 border border-emerald-500/20 shadow-sm">
             <CardBody className="p-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-emerald-100 rounded-lg">
-                  <Wallet className="w-5 h-5 text-emerald-600" />
+                <div className="p-2 bg-emerald-500/10 rounded-lg">
+                  <Wallet className="w-5 h-5 text-emerald-400" />
                 </div>
-                <div className="text-sm text-slate-600 font-medium">账户余额</div>
+                <div className="text-sm text-slate-400 font-medium">账户余额</div>
               </div>
-              <div className="text-3xl font-bold text-slate-800 mb-3">
+              <div className="text-3xl font-bold text-slate-100 mb-3">
                 ¥{formatCurrency(profile?.balance, 2)}
               </div>
               <Button 
                 size="sm" 
-                className="bg-emerald-600 text-white hover:bg-emerald-700 font-semibold"
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold shadow-lg shadow-emerald-500/20"
               >
                 充值
               </Button>
@@ -141,15 +141,15 @@ const UserCenter: React.FC = () => {
           </Card>
 
           {/* 总消费卡片 */}
-          <Card className="bg-white border border-orange-200 shadow-sm">
+          <Card className="bg-slate-900/80 border border-orange-500/20 shadow-sm">
             <CardBody className="p-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <TrendingUp className="w-5 h-5 text-orange-600" />
+                <div className="p-2 bg-orange-500/10 rounded-lg">
+                  <TrendingUp className="w-5 h-5 text-orange-400" />
                 </div>
-                <div className="text-sm text-slate-600 font-medium">累计消费</div>
+                <div className="text-sm text-slate-400 font-medium">累计消费</div>
               </div>
-              <div className="text-3xl font-bold text-slate-800 mb-1">
+              <div className="text-3xl font-bold text-slate-100 mb-1">
                 ¥{formatCurrency(stats?.totalSpent, 2)}
               </div>
               <div className="text-xs text-slate-500">
@@ -166,38 +166,38 @@ const UserCenter: React.FC = () => {
 
         {/* 使用统计 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="bg-white border border-slate-200 shadow-sm">
+          <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm">
             <CardBody className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <FolderOpen className="w-6 h-6 text-blue-600" />
+                  <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
+                    <FolderOpen className="w-6 h-6 text-blue-400" />
                   </div>
                   <div>
-                    <div className="text-sm text-slate-500">工程文件</div>
-                    <div className="text-2xl font-bold text-slate-800">{stats?.projectCount || 0}</div>
+                    <div className="text-sm text-slate-400">工程文件</div>
+                    <div className="text-2xl font-bold text-slate-100">{stats?.projectCount || 0}</div>
                   </div>
                 </div>
-                <Chip size="sm" variant="flat" className="bg-blue-100 text-blue-700 font-medium">
+                <Chip size="sm" variant="flat" className="bg-blue-500/10 text-blue-400 font-medium">
                   项目
                 </Chip>
               </div>
             </CardBody>
           </Card>
 
-          <Card className="bg-white border border-slate-200 shadow-sm">
+          <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm">
             <CardBody className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
-                    <Trophy className="w-6 h-6 text-amber-600" />
+                  <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
+                    <Trophy className="w-6 h-6 text-amber-400" />
                   </div>
                   <div>
-                    <div className="text-sm text-slate-500">我的成就</div>
-                    <div className="text-lg font-semibold text-slate-400">即将开放</div>
+                    <div className="text-sm text-slate-400">我的成就</div>
+                    <div className="text-lg font-semibold text-slate-500">即将开放</div>
                   </div>
                 </div>
-                <Chip size="sm" variant="flat" className="bg-amber-100 text-amber-700 font-medium">
+                <Chip size="sm" variant="flat" className="bg-amber-500/10 text-amber-400 font-medium">
                   成就
                 </Chip>
               </div>
@@ -206,11 +206,11 @@ const UserCenter: React.FC = () => {
         </div>
 
         {/* 最近消费记录 */}
-        <Card className="bg-white border border-slate-200 shadow-sm">
+        <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm">
           <CardBody className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-blue-600" />
+              <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-blue-400" />
                 最近消费
               </h3>
               <div className="text-sm text-slate-500">
@@ -223,8 +223,8 @@ const UserCenter: React.FC = () => {
               className="min-w-full"
               classNames={{
                 wrapper: "bg-transparent shadow-none",
-                th: "bg-slate-100 text-slate-600 font-semibold",
-                td: "text-slate-700"
+                th: "bg-slate-800/60 text-slate-400 font-semibold",
+                td: "text-slate-300"
               }}
             >
               <TableHeader>
@@ -243,20 +243,20 @@ const UserCenter: React.FC = () => {
                         variant="flat"
                         className={
                           record.operation === '剧本生成' 
-                            ? 'bg-blue-100 text-blue-700 font-medium' 
-                            : 'bg-purple-100 text-purple-700 font-medium'
+                            ? 'bg-blue-500/10 text-blue-400 font-medium' 
+                            : 'bg-purple-500/10 text-purple-400 font-medium'
                         }
                       >
                         {record.operation}
                       </Chip>
                     </TableCell>
-                    <TableCell className="text-slate-600 font-medium">{record.model_provider}</TableCell>
+                    <TableCell className="text-slate-400 font-medium">{record.model_provider}</TableCell>
                     <TableCell>
-                      <Chip size="sm" variant="dot" className="text-slate-600">
+                      <Chip size="sm" variant="dot" className="text-slate-400">
                         {record.model_tier || '标准'}
                       </Chip>
                     </TableCell>
-                    <TableCell className="font-mono font-semibold text-emerald-600">
+                    <TableCell className="font-mono font-semibold text-emerald-400">
                       {formatAmount(record.amount)}
                     </TableCell>
                     <TableCell className="text-slate-500 text-sm">

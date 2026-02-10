@@ -32,9 +32,9 @@ const EpisodeSidebar: React.FC<EpisodeSidebarProps> = ({
 }) => {
   if (loading) {
     return (
-      <div className="w-64 flex-shrink-0 border-r border-slate-200 bg-white flex items-center justify-center">
-        <div className="text-center text-slate-400">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3" />
+      <div className="w-64 flex-shrink-0 border-r border-slate-700/50 bg-slate-900/60 flex items-center justify-center">
+        <div className="text-center text-slate-500">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-3" />
           <p className="text-sm">加载中...</p>
         </div>
       </div>
@@ -43,8 +43,8 @@ const EpisodeSidebar: React.FC<EpisodeSidebarProps> = ({
 
   if (episodes.length === 0) {
     return (
-      <div className="w-64 flex-shrink-0 border-r border-slate-200 bg-white flex items-center justify-center">
-        <div className="text-center text-slate-400 px-6">
+      <div className="w-64 flex-shrink-0 border-r border-slate-700/50 bg-slate-900/60 flex items-center justify-center">
+        <div className="text-center text-slate-500 px-6">
           <ListVideo className="w-10 h-10 mx-auto mb-3 opacity-50" />
           <p className="text-sm font-medium">暂无视频</p>
           <p className="text-xs mt-1">请先在分镜页面生成视频</p>
@@ -54,10 +54,10 @@ const EpisodeSidebar: React.FC<EpisodeSidebarProps> = ({
   }
 
   return (
-    <div className="w-64 flex-shrink-0 border-r border-slate-200 bg-white flex flex-col">
+    <div className="w-64 flex-shrink-0 border-r border-slate-700/50 bg-slate-900/60 flex flex-col">
       {/* 标题 */}
-      <div className="p-4 border-b border-slate-200">
-        <h3 className="text-sm font-bold text-slate-800">视频片段</h3>
+      <div className="p-4 border-b border-slate-700/50">
+        <h3 className="text-sm font-bold text-slate-100">视频片段</h3>
         <p className="text-xs text-slate-400 mt-1">
           {episodes.length} 集 · {episodes.reduce((sum, ep) => sum + ep.clips.length, 0)} 个片段
         </p>
@@ -107,13 +107,13 @@ const EpisodeItem: React.FC<EpisodeItemProps> = ({
   const videoCount = episode.clips.length;
 
   return (
-    <div className={`border-b border-slate-100 ${isSelected ? 'bg-blue-50/50' : ''}`}>
+    <div className={`border-b border-slate-700/30 ${isSelected ? 'bg-blue-500/5' : ''}`}>
       {/* 集标题行 */}
       <div
-        className="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors"
+        className="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-slate-800/40 transition-colors"
         onClick={() => { onSelect(); onToggle(); }}
       >
-        <button className="text-slate-400 hover:text-slate-600 flex-shrink-0">
+        <button className="text-slate-500 hover:text-slate-300 flex-shrink-0">
           {episode.expanded ? (
             <ChevronDown className="w-4 h-4" />
           ) : (
@@ -121,15 +121,15 @@ const EpisodeItem: React.FC<EpisodeItemProps> = ({
           )}
         </button>
 
-        <Film className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-blue-600' : 'text-slate-400'}`} />
+        <Film className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-blue-400' : 'text-slate-500'}`} />
 
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium truncate ${isSelected ? 'text-blue-700' : 'text-slate-700'}`}>
+          <p className={`text-sm font-medium truncate ${isSelected ? 'text-blue-400' : 'text-slate-300'}`}>
             第 {episode.episodeNumber} 集
           </p>
         </div>
 
-        <Chip size="sm" variant="flat" className="bg-slate-100 text-slate-500 text-xs">
+        <Chip size="sm" variant="flat" className="bg-slate-800/60 text-slate-400 text-xs">
           {videoCount}
         </Chip>
 
@@ -138,7 +138,7 @@ const EpisodeItem: React.FC<EpisodeItemProps> = ({
             isIconOnly
             size="sm"
             variant="light"
-            className="text-blue-500 hover:text-blue-700 min-w-6 w-6 h-6"
+            className="text-blue-400 hover:text-blue-300 min-w-6 w-6 h-6"
             onPress={(e) => { onAddToTimeline(); }}
             title="添加整集到时间线"
           >
@@ -233,7 +233,7 @@ const ClipItem: React.FC<ClipItemProps> = ({ clip, index, projectName, onPreview
   return (
     <>
       <div
-        className="flex items-center gap-2 px-4 pl-10 py-1.5 cursor-pointer transition-colors group hover:bg-slate-50 text-slate-600"
+        className="flex items-center gap-2 px-4 pl-10 py-1.5 cursor-pointer transition-colors group hover:bg-slate-800/40 text-slate-400"
         onClick={onPreview}
         onContextMenu={handleContextMenu}
       >
@@ -258,11 +258,11 @@ const ClipItem: React.FC<ClipItemProps> = ({ clip, index, projectName, onPreview
       {contextMenu && (
         <div
           ref={menuRef}
-          className="fixed z-50 bg-white rounded-lg shadow-lg border border-slate-200 py-1 min-w-[160px]"
+          className="fixed z-50 bg-slate-900/95 backdrop-blur-xl rounded-lg shadow-lg border border-slate-700/50 py-1 min-w-[160px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           <button
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-300 hover:bg-blue-500/10 hover:text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleDownload}
             disabled={!clip.videoUrl || downloading}
           >

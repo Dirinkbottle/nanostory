@@ -36,22 +36,22 @@ const ClipProperties: React.FC<ClipPropertiesProps> = ({ clip, onUpdate, onRemov
       {/* 片段信息 */}
       <div>
         <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">片段信息</h4>
-        <div className="bg-slate-50 rounded-lg p-3 space-y-1.5">
+        <div className="bg-slate-800/40 rounded-lg p-3 space-y-1.5">
           <div className="flex justify-between text-xs">
             <span className="text-slate-500">集数</span>
-            <span className="text-slate-700 font-medium">第 {clip.episodeNumber} 集</span>
+            <span className="text-slate-300 font-medium">第 {clip.episodeNumber} 集</span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-slate-500">序号</span>
-            <span className="text-slate-700 font-medium">#{clip.order + 1}</span>
+            <span className="text-slate-300 font-medium">#{clip.order + 1}</span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-slate-500">原始时长</span>
-            <span className="text-slate-700 font-medium font-mono">{clip.duration.toFixed(1)}s</span>
+            <span className="text-slate-300 font-medium font-mono">{clip.duration.toFixed(1)}s</span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-slate-500">有效时长</span>
-            <span className="text-blue-600 font-medium font-mono">{effectiveDuration.toFixed(1)}s</span>
+            <span className="text-blue-400 font-medium font-mono">{effectiveDuration.toFixed(1)}s</span>
           </div>
         </div>
       </div>
@@ -60,7 +60,7 @@ const ClipProperties: React.FC<ClipPropertiesProps> = ({ clip, onUpdate, onRemov
       {(clip.description || clip.dialogue) && (
         <div>
           <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">描述</h4>
-          <p className="text-xs text-slate-600 bg-slate-50 rounded-lg p-3 leading-relaxed">
+          <p className="text-xs text-slate-400 bg-slate-800/40 rounded-lg p-3 leading-relaxed">
             {clip.description || clip.dialogue}
           </p>
         </div>
@@ -76,7 +76,7 @@ const ClipProperties: React.FC<ClipPropertiesProps> = ({ clip, onUpdate, onRemov
           <div>
             <div className="flex justify-between text-xs mb-1">
               <span className="text-slate-500">入点</span>
-              <span className="text-slate-700 font-mono">{clip.trimStart.toFixed(1)}s</span>
+              <span className="text-slate-300 font-mono">{clip.trimStart.toFixed(1)}s</span>
             </div>
             <Slider
               size="sm"
@@ -91,7 +91,7 @@ const ClipProperties: React.FC<ClipPropertiesProps> = ({ clip, onUpdate, onRemov
           <div>
             <div className="flex justify-between text-xs mb-1">
               <span className="text-slate-500">出点</span>
-              <span className="text-slate-700 font-mono">{clip.trimEnd.toFixed(1)}s</span>
+              <span className="text-slate-300 font-mono">{clip.trimEnd.toFixed(1)}s</span>
             </div>
             <Slider
               size="sm"
@@ -117,7 +117,7 @@ const ClipProperties: React.FC<ClipPropertiesProps> = ({ clip, onUpdate, onRemov
           selectedKeys={[clip.transition]}
           onChange={(e) => onUpdate(clip.id, { transition: e.target.value as TransitionType })}
           classNames={{
-            trigger: "bg-slate-50 border border-slate-200",
+            trigger: "bg-slate-800/60 border border-slate-600/50",
             value: "text-sm"
           }}
         >
@@ -145,7 +145,7 @@ const ClipProperties: React.FC<ClipPropertiesProps> = ({ clip, onUpdate, onRemov
             onChange={(val) => onUpdate(clip.id, { volume: val as number })}
             className="flex-1"
           />
-          <span className="text-xs text-slate-600 font-mono w-10 text-right">
+          <span className="text-xs text-slate-400 font-mono w-10 text-right">
             {Math.round(clip.volume * 100)}%
           </span>
         </div>
@@ -155,7 +155,7 @@ const ClipProperties: React.FC<ClipPropertiesProps> = ({ clip, onUpdate, onRemov
       <Button
         size="sm"
         variant="flat"
-        className="w-full bg-red-50 text-red-600 font-medium"
+        className="w-full bg-red-500/10 text-red-400 font-medium"
         startContent={<Trash2 className="w-3.5 h-3.5" />}
         onPress={() => onRemove(clip.id)}
       >

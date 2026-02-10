@@ -98,11 +98,15 @@ const ResourceListView: React.FC<ResourceListViewProps> = ({
             {(() => {
               const inUse = filteredChars.filter(c => usedCharacterNames.includes(c.name));
               const notInUse = filteredChars.filter(c => !usedCharacterNames.includes(c.name));
+              // 未入库但在分镜中使用的角色名
+              const dbCharNames = new Set(dbCharacters.map(c => c.name));
+              const unlinkedNames = usedCharacterNames.filter(n => !dbCharNames.has(n) && (!search || n.includes(search)));
+              const totalInUse = inUse.length + unlinkedNames.length;
               return (
                 <>
-                  {inUse.length > 0 && (
+                  {totalInUse > 0 && (
                     <div className="space-y-2">
-                      <div className="text-xs font-semibold text-cyan-400">作品中角色 ({inUse.length})</div>
+                      <div className="text-xs font-semibold text-cyan-400">作品中角色 ({totalInUse})</div>
                       <div className="grid grid-cols-3 gap-2">
                         {inUse.map(c => (
                           <ResourceCard
@@ -114,12 +118,21 @@ const ResourceListView: React.FC<ResourceListViewProps> = ({
                             onClick={() => onCharacterClick(c)}
                           />
                         ))}
+                        {unlinkedNames.map(name => (
+                          <ResourceCard
+                            key={`unlinked-${name}`}
+                            type="character"
+                            name={name}
+                            isActive
+                            onClick={() => onCharacterClick({ id: 0, name } as Character)}
+                          />
+                        ))}
                       </div>
                     </div>
                   )}
 
                   {/* 分割线 */}
-                  {inUse.length > 0 && <div className="border-t border-slate-700/50" />}
+                  {totalInUse > 0 && <div className="border-t border-slate-700/50" />}
 
                   {/* 全部可用角色 */}
                   <div className="space-y-2">

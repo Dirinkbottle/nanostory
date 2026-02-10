@@ -11,35 +11,23 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Custom Dark Palette (Mapping Slate to a cleaner, darker Zinc-like scale)
         slate: {
-          50: '#fafafa',
-          100: '#f4f4f5',
-          200: '#e4e4e7',
-          300: '#d4d4d8',
-          400: '#a1a1aa',
-          500: '#71717a',
-          600: '#52525b',
-          700: '#3f3f46',
-          800: '#27272a', // Card bg
-          850: '#202023', // Intermediate
-          900: '#18181b', // Navbar / Lighter bg
-          950: '#09090b', // Main bg (Zinc 950)
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+          300: '#cbd5e1',
+          400: '#94a3b8',
+          500: '#64748b',
+          600: '#475569',
+          700: '#334155',
+          800: '#1e293b',
+          850: '#172033',
+          900: '#0f172a',
+          950: '#020617',
         },
-        // Mapping Indigo to a vibrant Blue to match the "Image" look
-        indigo: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb', // Primary Blue
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
-          950: '#172554',
-        }
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
       }
     },
   },
@@ -47,21 +35,40 @@ export default {
     themes: {
       dark: {
         colors: {
-          background: "#050505", // Deep black for global bg
-          foreground: "#ECEDEE",
+          background: "#0a0a0f",
+          foreground: "#e2e8f0",
           primary: {
-            DEFAULT: "#3870e7ff", // Blue 600
+            DEFAULT: "#6366f1",
             foreground: "#FFFFFF",
           },
           secondary: {
-            DEFAULT: "#71717a",
+            DEFAULT: "#8b5cf6",
             foreground: "#FFFFFF",
           },
-          content1: "#18181b", // Zinc 900 (Cards)
-          content2: "#27272a", // Zinc 800
-          content3: "#3f3f46",
-          content4: "#52525b",
-          focus: "#3b82f6",
+          content1: "#0f172a",
+          content2: "#1e293b",
+          content3: "#334155",
+          content4: "#475569",
+          focus: "#6366f1",
+        }
+      },
+      light: {
+        colors: {
+          background: "#f8fafc",
+          foreground: "#1e293b",
+          primary: {
+            DEFAULT: "#4f46e5",
+            foreground: "#FFFFFF",
+          },
+          secondary: {
+            DEFAULT: "#7c3aed",
+            foreground: "#FFFFFF",
+          },
+          content1: "#ffffff",
+          content2: "#f1f5f9",
+          content3: "#e2e8f0",
+          content4: "#cbd5e1",
+          focus: "#4f46e5",
         }
       }
     }

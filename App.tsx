@@ -14,6 +14,7 @@ import UserManagement from './views/admin/UserManagement';
 import { ToastProvider } from './contexts/ToastContext';
 import { PreviewProvider } from './components/PreviewProvider';
 import TaskQueueBubble from './components/TaskQueueBubble';
+import Settings from './views/Settings';
 
 const App: React.FC = () => {
   return (
@@ -36,6 +37,7 @@ const App: React.FC = () => {
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/assets" element={<AssetsManager />} />
                 <Route path="/projects" element={<Projects />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="/user-center" element={<UserCenter />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

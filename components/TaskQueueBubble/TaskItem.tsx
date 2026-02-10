@@ -81,9 +81,9 @@ const TaskItem: React.FC<TaskItemProps> = ({ job, progress, statusColor, statusL
   const taskName = getTaskName(job);
   
   return (
-    <div className="rounded-xl p-3 border bg-blue-50/50 border-blue-100">
+    <div className="rounded-xl p-3 border bg-blue-500/5 border-blue-500/20">
       <div className="flex items-center gap-2 mb-1">
-        <span className="text-sm font-medium text-slate-800 truncate flex-1">
+        <span className="text-sm font-medium text-slate-200 truncate flex-1">
           {taskName}
         </span>
         <span className={`text-[10px] font-semibold ${statusColor}`}>
