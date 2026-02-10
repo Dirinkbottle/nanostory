@@ -26,7 +26,7 @@ const handleFrameGeneration = require('./frameGeneration');
 const handleSingleFrameGeneration = require('./singleFrameGeneration');
 
 /**
- * 获取分镜的“最终帧” URL
+ * 获取分镜的"最终帧" URL
  * - 动作镜头（hasAction=true）→ 尾帧 last_frame_url
  * - 静态镜头（hasAction=false）→ 首帧 first_frame_url
  */
@@ -57,7 +57,7 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
   if (overwriteFrames) {
     console.log('[BatchFrameGen] 覆盖模式：清除所有已有首尾帧...');
     await execute(
-      'UPDATE storyboards SET first_frame_url = NULL, last_frame_url = NULL WHERE script_id = ?',
+      'UPDATE storyboards SET first_frame_url = NULL, last_frame_url = NULL, updated_scene_url = NULL WHERE script_id = ?',
       [scriptId]
     );
     console.log('[BatchFrameGen] 已清除所有首尾帧');

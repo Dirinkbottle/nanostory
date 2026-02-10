@@ -20,6 +20,7 @@ const { execute, queryOne, queryAll } = require('../../../dbHelper');
 const { downloadAndStore } = require('../../../utils/fileStorage');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const { requireVisualStyle } = require('../../../utils/getProjectStyle');
+const { generateUpdatedSceneImage, queryActiveSceneUrl } = require('./sceneRefUtils');
 
 /**
  * 生成单张图片（通过 submitAndPoll 自动处理同步/异步）
@@ -171,7 +172,7 @@ async function collectReferenceImages(storyboard, variables) {
  * @param {string} [opts.endState] - 当前镜头的 endState（用于尾帧目标状态）
  */
 async function generateFramePrompt(opts) {
-  const { textModel, description, frameType, characterInfo, sceneInfo, shotType, emotion, prevDescription, visualStyle, startFrameDesc, endFrameDesc, dialogue, prevEndState, endState } = opts;
+  const { textModel, description, frameType, characterInfo, sceneInfo, shotType, emotion, prevDescription, visualStyle, startFrameDesc, endFrameDesc, dialogue, prevEndState, endState, sceneState, environmentChange } = opts;
 
   // 角色信息：有角色时提供详细外貌，无角色时明确排除
   let charBlock;
@@ -181,7 +182,7 @@ async function generateFramePrompt(opts) {
 角色名称: ${characterInfo.name}
 外貌特征: ${characterInfo.appearance}
 角色描述: ${characterInfo.description}
-（已提供角色参考图，画面中的角色必须与参考图完全一致）`;
+（已提供角色参考图，角色的发型、发色、瞳色、服装款式和颜色、体型比例、配饰必须与参考图一致。但角色的姿势、位置、朝向、表情以文字描述和上一帧尾帧为准，不要从角色立绘中复制姿态。）`;
     charConstraint = `- 角色外貌、服装、发型必须与参考图完全一致，不得自行创造角色形象
 - 严禁出现参考图中不存在的额外人物
 - 角色身体结构必须正常：头部在肩膀上方，四肢正常连接，禁止畸变`;
@@ -192,6 +193,13 @@ async function generateFramePrompt(opts) {
   }
 
   // 场景信息
+  // 场景约束根据 sceneState 动态调整
+  let sceneConstraint = '（已提供场景参考图，画面场景必须与参考图一致）';
+  if (sceneState === 'modified') {
+    sceneConstraint = `（⚠️ 本镜头环境正在发生变化：${environmentChange || 'unknown change'}。不要参考原始场景图的物品状态，以上一帧尾帧为基准，在此基础上呈现上述变化）`;
+  } else if (sceneState === 'inherit') {
+    sceneConstraint = `（已提供更新后的场景参考图，场景已发生过变化：${environmentChange || ''}。画面必须保持这些变化，不要恢复到原始状态）`;
+  }
   const sceneBlock = sceneInfo
     ? `【场景信息】
 场景名称: ${sceneInfo.name}
@@ -199,7 +207,7 @@ async function generateFramePrompt(opts) {
 环境: ${sceneInfo.environment}
 光照: ${sceneInfo.lighting}
 氛围: ${sceneInfo.mood}
-（已提供场景参考图，画面场景必须与参考图一致）`
+${sceneConstraint}`
     : '';
 
   const shotInfo = shotType ? `镜头类型: ${shotType}` : '';
@@ -291,7 +299,7 @@ ${frameHint}
 }
 
 async function handleFrameGeneration(inputParams, onProgress) {
-  const { storyboardId, prompt, imageModel: modelName, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene } = inputParams;
+  const { storyboardId, prompt, imageModel: modelName, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene, sceneState: inputSceneState, environmentChange: inputEnvironmentChange, activeSceneUrl } = inputParams;
 
   if (!storyboardId) {
     throw new Error('缺少必要参数: storyboardId');
@@ -329,6 +337,42 @@ async function handleFrameGeneration(inputParams, onProgress) {
   // 2. 收集参考图（角色正面图 + 场景图），多角色会抛异常
   if (onProgress) onProgress(10);
   const { imageUrls, characterName, characterInfo, location, sceneInfo } = await collectReferenceImages(storyboard, variables);
+
+  // 场景状态（优先用调用方传入，否则从 variables_json 读取）
+  const sceneState = inputSceneState || variables.scene_state || 'normal';
+  const environmentChange = inputEnvironmentChange || variables.environment_change || 'none';
+
+  // 动态参考图决策：弹出原始场景图，根据 sceneState 决定是否/如何加回
+  // imageUrls 当前顺序: [角色正面图, (侧面图?), (背面图?), 场景图]
+  const originalSceneUrl = imageUrls.pop(); // 最后一个是场景图
+  // imageUrls 现在只包含角色参考图
+
+  // 根据场景状态决定场景参考图
+  switch (sceneState) {
+    case 'modified':
+      // 环境正在被改变 → 不传场景图，靠 prompt 中的 environmentChange 描述引导
+      console.log(`[FrameGen] 场景状态: modified，不传原始场景图，依赖提示词描述变化: ${environmentChange}`);
+      break;
+    case 'inherit': {
+      // 环境已被改变 → 优先用调用方传入，否则自查 DB
+      let resolvedActiveUrl = activeSceneUrl;
+      if (!resolvedActiveUrl) {
+        resolvedActiveUrl = await queryActiveSceneUrl(storyboard.script_id, storyboard.idx, variables.location || location);
+      }
+      if (resolvedActiveUrl) {
+        imageUrls.push(resolvedActiveUrl);
+        console.log(`[FrameGen] 场景状态: inherit，使用滚动更新场景图: ${resolvedActiveUrl}`);
+      } else {
+        imageUrls.push(originalSceneUrl);
+        console.log('[FrameGen] 场景状态: inherit，无滚动图，fallback 原始场景图');
+      }
+      break;
+    }
+    default:
+      // normal 或未设置 → 使用原始场景图
+      imageUrls.push(originalSceneUrl);
+      break;
+  }
 
   // 2.5 自动查询上一镜头的尾帧（如果调用方没有传入）
   let resolvedPrevEndFrameUrl = prevEndFrameUrl || null;
@@ -392,7 +436,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
   let startPrompt = description;
   if (textModel) {
     console.log('[FrameGen] 使用文本模型生成首帧提示词...');
-    startPrompt = await generateFramePrompt({ textModel, description, frameType: 'start', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: resolvedPrevDescription || null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: resolvedPrevEndState, endState: variables.endState });
+    startPrompt = await generateFramePrompt({ textModel, description, frameType: 'start', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: resolvedPrevDescription || null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: resolvedPrevEndState, endState: variables.endState, sceneState, environmentChange });
     console.log('[FrameGen] 首帧提示词:', startPrompt.substring(0, 100) + '...');
   } else {
     const prevHint = resolvedPrevDescription ? `，承接上一镜头「${resolvedPrevDescription}」的结束状态` : '';
@@ -424,7 +468,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
   let endPrompt = description;
   if (textModel) {
     console.log('[FrameGen] 使用文本模型生成尾帧提示词...');
-    endPrompt = await generateFramePrompt({ textModel, description, frameType: 'end', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: null, endState: variables.endState });
+    endPrompt = await generateFramePrompt({ textModel, description, frameType: 'end', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: null, endState: variables.endState, sceneState, environmentChange });
     console.log('[FrameGen] 尾帧提示词:', endPrompt.substring(0, 100) + '...');
   } else {
     endPrompt = `${description}，画面结束时刻，动作完成状态，延续前一帧的场景和角色`;
@@ -433,10 +477,10 @@ async function handleFrameGeneration(inputParams, onProgress) {
   // 6. 生成尾帧（参考图 = 首帧 + 角色图 + 场景图）
   if (onProgress) onProgress(60);
   console.log('[FrameGen] 开始生成尾帧...');
-  // 首帧放最前面（权重最高），再追加原始角色图和场景图保持一致性
+  // 首帧放最前面（权重最高），再追加角色图 + 场景图
   const endFrameRefs = [];
   if (startFrame) endFrameRefs.push(startFrame);
-  // imageUrls 中包含 [上一帧尾帧?, 角色正面图?, 侧/背面图?, 场景图]
+  // imageUrls 中包含 [上一帧尾帧?, 角色正面图?, 侧/背面图?, (场景图 - 已经根据 sceneState 动态决策)]
   // 从中提取角色图和场景图（跳过上一帧尾帧和首帧本身）
   for (const url of imageUrls) {
     if (url !== resolvedPrevEndFrameUrl && url !== startFrame && !endFrameRefs.includes(url)) {
@@ -459,6 +503,22 @@ async function handleFrameGeneration(inputParams, onProgress) {
     [persistedEndFrame, storyboardId]
   );
   console.log('[FrameGen] 尾帧已保存:', persistedEndFrame);
+
+  // modified 镜头：自动生成更新版空镜场景图并存入 DB（供后续 inherit 镜头使用）
+  if (sceneState === 'modified' && (variables.location || location)) {
+    try {
+      await generateUpdatedSceneImage({
+        storyboardId,
+        location: variables.location || location,
+        environmentChange,
+        imageModel: modelName,
+        textModel,
+        width, height
+      });
+    } catch (e) {
+      console.warn('[FrameGen] 更新版场景图生成失败，不影响帧生成结果:', e.message);
+    }
+  }
 
   if (onProgress) onProgress(100);
   console.log('[FrameGen] 首尾帧生成完成');

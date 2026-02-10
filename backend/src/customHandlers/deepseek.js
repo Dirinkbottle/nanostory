@@ -29,7 +29,7 @@ module.exports = {
     // think 标志：注入 thinking 模式
     if (params.think === true || params.think === 'true') {
       body.thinking = { type: 'enabled' };
-      console.log('[DeepSeek Handler] Thinking 模式已启用, max_tokens:', body.max_tokens);
+      console.log('\x1b[32m [DeepSeek Handler] Thinking 模式已启用, max_tokens:', body.max_tokens, '\x1b[0m');
     }
 
     console.log(`[DeepSeek Handler] Call ${rendered.url}`);

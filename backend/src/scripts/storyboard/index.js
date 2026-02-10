@@ -17,10 +17,12 @@ const deleteStoryboard = require('./deleteStoryboard');
 const reorderStoryboards = require('./reorderStoryboards');
 const validateReadiness = require('./validateReadiness');
 const updateMedia = require('./updateMedia');
+const cleanBeforeRegenerate = require('./cleanBeforeRegenerate');
 
 // 注册路由（顺序很重要！具体路由在前，通用路由在后）
 
 // 单个分镜操作（必须在 /:scriptId 之前）
+router.post('/clean-before-regenerate', authMiddleware, cleanBeforeRegenerate);
 router.post('/add', authMiddleware, addStoryboard);
 router.delete('/scene/:storyboardId', authMiddleware, deleteStoryboard);
 router.patch('/reorder', authMiddleware, reorderStoryboards);

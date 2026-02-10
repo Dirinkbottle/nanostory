@@ -47,6 +47,11 @@ export interface ExportProgress {
   stage: 'idle' | 'loading' | 'processing' | 'done' | 'error';
   percent: number;
   message: string;
+  detail?: string;
+  currentStep?: number;
+  totalSteps?: number;
+  startTime?: number;
+  debugLogs?: string[];
 }
 
 export interface SubtitleItem {

@@ -162,7 +162,9 @@ async function handleSceneVideoGeneration(inputParams, onProgress) {
     const locInfo = variables.location ? `场景: ${variables.location}` : '无特定场景';
     const shotInfo = variables.shotType ? `镜头类型: ${variables.shotType}` : '';
     const emotionInfo = variables.emotion ? `情绪/氛围: ${variables.emotion}` : '';
-    const dialogueInfo = variables.dialogue ? `对话/台词: ${variables.dialogue}` : '';
+    const dialogueInfo = variables.dialogue
+      ? `对话/台词: ${variables.dialogue}`
+      : '【无对白镜头】此镜头没有任何角色对白或语音，视频必须完全没有人声';
     const actionInfo = hasAction ? '这是一个有动作的镜头，需要描述动作的完整过程' : '这是一个静态镜头，画面变化较小';
     const styleInfo = visualStyle ? `视觉风格: ${visualStyle}` : '';
     // 上下文传递：传结构化字段（endState/emotion/shotType/location），不传完整描述以避免环境效果污染
@@ -272,7 +274,12 @@ ${extraInfo}
    - 室内镜头中，室外天气效果必须大幅衰减：室外暴风雪→室内仅有微量雪粒从缝隙飘入
    - 室内不可能出现：直接的闪电光照、室外级别的暴风雪、大面积降雨
    - 室内火焰（篝火/蜡烛）受微风影响只会轻微摇曳，不会猛烈晃动或熄灭
-11. 只输出英文提示词，不要其他解释
+11. 【音频控制 - 极其重要】
+   - 如果标注为「无对白镜头」，提示词中必须加入 "no speech, no voice, no dialogue, silent" 关键词
+   - 涉及口部动作但无对白时："默念"/"默读"/"无声地念" 必须翻译为 "silently mouthing without any audible sound"，绝对不能翻译为 murmuring/muttering/whispering/reciting（这些词都暗示有声音）
+   - "叹息"/"呼吸" 等非语言声音：仅在对白字段明确标注时才可出现
+   - 无对白的镜头中，角色的任何口部动作都必须用 "silently" 修饰
+12. 只输出英文提示词，不要其他解释
 
 提示词：`;
 

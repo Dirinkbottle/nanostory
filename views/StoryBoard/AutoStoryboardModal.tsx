@@ -37,10 +37,10 @@ const AutoStoryboardModal: React.FC<AutoStoryboardModalProps> = ({
             </ModalHeader>
             <ModalBody>
               <p className="text-slate-300">
-                重新生成分镜将<span className="text-red-400 font-semibold">覆盖当前所有分镜内容</span>，此操作不可撤销。
+                重新生成分镜将<span className="text-red-400 font-semibold">删除当前所有分镜</span>，以及仅被本集使用的<span className="text-red-400 font-semibold">角色和场景</span>，此操作不可撤销。
               </p>
               <p className="text-slate-500 text-sm mt-2">
-                确定要继续吗？
+                跨集共享的角色和场景不会被删除。确定要继续吗？
               </p>
               <div className="mt-4">
                 <Checkbox

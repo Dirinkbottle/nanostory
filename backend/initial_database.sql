@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS storyboards (
   first_frame_url TEXT COMMENT '首帧图片URL',
   last_frame_url TEXT COMMENT '尾帧图片URL',
   video_url TEXT COMMENT '生成的视频URL',
+  updated_scene_url TEXT DEFAULT NULL COMMENT '更新版空镜场景图URL（modified镜头生成，供后续 inherit 镜头作为场景参考）',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
@@ -373,5 +374,8 @@ ON DUPLICATE KEY UPDATE
 
 -- 迁移：为已有数据库添加 use_models 字段（幂等，列已存在则忽略）
 -- ALTER TABLE projects ADD COLUMN use_models JSON DEFAULT NULL COMMENT 'AI模型选择配置' AFTER settings_json;
+
+-- 迁移：为已有数据库添加 updated_scene_url 字段（State-Aware Dynamic Asset Flow）
+-- ALTER TABLE storyboards ADD COLUMN updated_scene_url TEXT DEFAULT NULL COMMENT '更新版空镜场景图URL（modified镜头生成，供后续 inherit 镜头作为场景参考）' AFTER video_url;
 
 SET FOREIGN_KEY_CHECKS = 1;

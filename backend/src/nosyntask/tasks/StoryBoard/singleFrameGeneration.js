@@ -18,6 +18,7 @@ const { downloadAndStore } = require('../../../utils/fileStorage');
 const baseTextModelCall = require('../base/baseTextModelCall');
 const imageGeneration = require('../base/imageGeneration');
 const { requireVisualStyle } = require('../../../utils/getProjectStyle');
+const { generateUpdatedSceneImage, queryActiveSceneUrl } = require('./sceneRefUtils');
 
 /**
  * 从分镜数据中收集参考图 URL 数组（角色正面图 + 场景图）
@@ -118,7 +119,7 @@ async function collectReferenceImages(storyboard, variables) {
 }
 
 async function handleSingleFrameGeneration(inputParams, onProgress) {
-  const { storyboardId, description, imageModel: modelName, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene } = inputParams;
+  const { storyboardId, description, imageModel: modelName, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene, sceneState: inputSceneState, environmentChange: inputEnvironmentChange, activeSceneUrl } = inputParams;
 
   if (!storyboardId) {
     throw new Error('缺少必要参数: storyboardId');
@@ -158,9 +159,40 @@ async function handleSingleFrameGeneration(inputParams, onProgress) {
   if (onProgress) onProgress(10);
   const { imageUrls, characterName, characterInfo, location, sceneInfo } = await collectReferenceImages(storyboard, variables);
 
+  // 场景状态（优先用调用方传入，否则从 variables_json 读取）
+  const sceneState = inputSceneState || variables.scene_state || 'normal';
+  const environmentChange = inputEnvironmentChange || variables.environment_change || 'none';
+
+  // 动态参考图决策：弹出原始场景图，根据 sceneState 决定是否/如何加回
+  const originalSceneUrl = imageUrls.pop(); // 最后一个是场景图
+
+  switch (sceneState) {
+    case 'modified':
+      console.log(`[SingleFrameGen] 场景状态: modified，不传原始场景图，依赖提示词描述变化: ${environmentChange}`);
+      break;
+    case 'inherit': {
+      let resolvedActiveUrl = activeSceneUrl;
+      if (!resolvedActiveUrl) {
+        resolvedActiveUrl = await queryActiveSceneUrl(storyboard.script_id, storyboard.idx, variables.location || location);
+      }
+      if (resolvedActiveUrl) {
+        imageUrls.push(resolvedActiveUrl);
+        console.log(`[SingleFrameGen] 场景状态: inherit，使用滚动更新场景图: ${resolvedActiveUrl}`);
+      } else {
+        imageUrls.push(originalSceneUrl);
+        console.log('[SingleFrameGen] 场景状态: inherit，无滚动图，fallback 原始场景图');
+      }
+      break;
+    }
+    default:
+      imageUrls.push(originalSceneUrl);
+      break;
+  }
+
   // 2.5 自动查询上一镜头的尾帧（如果调用方没有传入）
   let resolvedPrevEndFrameUrl = prevEndFrameUrl || null;
   let resolvedPrevDescription = prevDescription || null;
+  let resolvedPrevEndState = null;
   let resolvedIsFirstScene = isFirstScene;
 
   if (resolvedIsFirstScene === undefined || resolvedIsFirstScene === null) {
@@ -193,7 +225,9 @@ async function handleSingleFrameGeneration(inputParams, onProgress) {
           ? prevSb.last_frame_url
           : (prevSb.first_frame_url || null);
         resolvedPrevDescription = prevSb.prompt_template || null;
+        resolvedPrevEndState = prevVars.endState || null;
         console.log('[SingleFrameGen] 自动查询到上一镜头尾帧:', resolvedPrevEndFrameUrl);
+        if (resolvedPrevEndState) console.log('[SingleFrameGen] 上一镜头 endState:', resolvedPrevEndState);
       }
     }
   }
@@ -223,7 +257,7 @@ async function handleSingleFrameGeneration(inputParams, onProgress) {
 角色名称: ${characterInfo.name}
 外貌特征: ${characterInfo.appearance}
 角色描述: ${characterInfo.description}
-（已提供角色参考图，画面中的角色必须与参考图完全一致）`;
+（已提供角色参考图，角色的发型、发色、瞳色、服装款式和颜色、体型比例、配饰必须与参考图一致。但角色的姿势、位置、朝向、表情以文字描述和上一帧尾帧为准，不要从角色立绘中复制姿态。）`;
       charConstraint = `- 角色外貌、服装、发型必须与参考图完全一致，不得自行创造角色形象
 - 严禁出现参考图中不存在的额外人物
 - 角色身体结构必须正常：头部在肩膀上方，四肢正常连接，禁止畸变`;
@@ -234,6 +268,13 @@ async function handleSingleFrameGeneration(inputParams, onProgress) {
     }
 
     // 场景信息
+    // 场景约束根据 sceneState 动态调整
+    let sceneConstraint = '（已提供场景参考图，画面场景必须与参考图一致）';
+    if (sceneState === 'modified') {
+      sceneConstraint = `（⚠️ 本镜头环境正在发生变化：${environmentChange || 'unknown change'}。不要参考原始场景图的物品状态，以上一帧尾帧为基准，在此基础上呈现上述变化）`;
+    } else if (sceneState === 'inherit') {
+      sceneConstraint = `（已提供更新后的场景参考图，场景已发生过变化：${environmentChange || ''}。画面必须保持这些变化，不要恢复到原始状态）`;
+    }
     const sceneBlock = sceneInfo
       ? `【场景信息】
 场景名称: ${sceneInfo.name}
@@ -241,16 +282,20 @@ async function handleSingleFrameGeneration(inputParams, onProgress) {
 环境: ${sceneInfo.environment}
 光照: ${sceneInfo.lighting}
 氛围: ${sceneInfo.mood}
-（已提供场景参考图，画面场景必须与参考图一致）`
+${sceneConstraint}`
       : '';
 
     const shotInfo = variables.shotType ? `镜头类型: ${variables.shotType}` : '';
     const emotionInfo = variables.emotion ? `情绪/氛围: ${variables.emotion}` : '';
     const styleInfo = visualStyle ? `视觉风格: ${visualStyle}` : '';
+    const prevEndStateBlock = resolvedPrevEndState
+      ? `【上一镜头结束状态 - 必须衔接】\n${resolvedPrevEndState}\n（当前画面的角色姿势、位置、朝向必须与上述状态完全一致，不得出现任何跳变）`
+      : '';
     const prevContext = resolvedPrevDescription
       ? `上一个镜头描述：${resolvedPrevDescription}\n注意：当前画面需要自然衔接上一个镜头的结束状态，保持角色、场景、光线的连续性。`
       : '';
-    const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, charConstraint, prevContext].filter(Boolean).join('\n');
+    const dialogueBlock = variables.dialogue ? `【角色对白】"${variables.dialogue}"（请根据对白内容调整角色的面部表情和嘴型状态）` : '';
+    const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, prevEndStateBlock, dialogueBlock, charConstraint, prevContext].filter(Boolean).join('\n');
 
     const promptGenerationResult = await baseTextModelCall({
       prompt: `你是一个专业的图片生成提示词专家。
@@ -314,6 +359,22 @@ ${extraInfo}
     'UPDATE storyboards SET first_frame_url = ? WHERE id = ?',
     [persistedUrl, storyboardId]
   );
+
+  // modified 镜头：自动生成更新版空镜场景图并存入 DB（供后续 inherit 镜头使用）
+  if (sceneState === 'modified' && (variables.location || location)) {
+    try {
+      await generateUpdatedSceneImage({
+        storyboardId,
+        location: variables.location || location,
+        environmentChange,
+        imageModel: modelName,
+        textModel,
+        width, height
+      });
+    } catch (e) {
+      console.warn('[SingleFrameGen] 更新版场景图生成失败，不影响帧生成结果:', e.message);
+    }
+  }
 
   if (onProgress) onProgress(100);
   console.log('[SingleFrameGen] 单帧生成完成');
