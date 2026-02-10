@@ -100,7 +100,6 @@ ${contentForAnalysis}
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
     textModel: modelName,
-    maxTokens: 4096,
     temperature: 0.3
   }, onProgress);
 

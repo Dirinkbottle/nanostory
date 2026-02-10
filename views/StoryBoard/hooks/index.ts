@@ -4,4 +4,6 @@
 
 export { useSceneImageGeneration } from './useSceneImageGeneration';
 export { useCharacterViewsGeneration } from './useCharacterViewsGeneration';
-export { useFrameGeneration } from './useFrameGeneration';
+export { useWorkflowRecovery } from './useWorkflowRecovery';
+export { useBatchFrameGeneration } from './useBatchFrameGeneration';
+export { useBatchSceneVideoGeneration } from './useBatchSceneVideoGeneration';

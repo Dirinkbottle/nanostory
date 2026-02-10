@@ -1,12 +1,13 @@
 /**
  * 批量分镜帧生成 Hook
  * 一键生成一集所有分镜的首帧/首尾帧图片
+ * 支持页面刷新后自动恢复状态和进度
  */
 
-import { useState, useCallback } from 'react';
-import { useWorkflow } from '../../../hooks/useWorkflow';
+import { useCallback } from 'react';
 import { getAuthToken } from '../../../services/auth';
 import { validateBatchFrameReadiness, formatValidationMessage } from '../utils/validateFrameReadiness';
+import { useWorkflowRecovery } from './useWorkflowRecovery';
 
 interface UseBatchFrameGenerationProps {
   scriptId: number | null;
@@ -25,18 +26,19 @@ export function useBatchFrameGeneration({
   scenes,
   onComplete
 }: UseBatchFrameGenerationProps) {
-  const [jobId, setJobId] = useState<number | null>(null);
-
-  const { job, isRunning, isCompleted, isFailed, overallProgress } = useWorkflow(jobId, {
+  const recovery = useWorkflowRecovery({
+    projectId,
+    workflowTypes: ['batch_frame_generation'],
+    isActive: true,
     onCompleted: () => {
       console.log('[useBatchFrameGen] 批量生成完成');
-      setJobId(null);
       onComplete?.();
     },
     onFailed: (failedJob) => {
       console.error('[useBatchFrameGen] 批量生成失败:', failedJob.error_message);
-      setJobId(null);
-    }
+      alert('批量帧生成失败: ' + (failedJob.error_message || '未知错误'));
+    },
+    logPrefix: '[useBatchFrameGen]'
   });
 
   const startBatchGeneration = useCallback(async (overwriteFrames: boolean) => {
@@ -82,7 +84,7 @@ export function useBatchFrameGeneration({
 
       if (res.ok && data.jobId) {
         console.log('[useBatchFrameGen] 任务已启动, jobId:', data.jobId);
-        setJobId(data.jobId);
+        recovery.startJob(data.jobId);
       } else {
         alert(data.message || '启动批量生成失败');
       }
@@ -90,14 +92,14 @@ export function useBatchFrameGeneration({
       console.error('[useBatchFrameGen] 启动失败:', error);
       alert('启动批量生成失败，请检查网络连接');
     }
-  }, [scriptId, imageModel, projectId, scenes]);
+  }, [scriptId, imageModel, projectId, scenes, recovery.startJob]);
 
   return {
     startBatchGeneration,
-    isGenerating: isRunning,
-    isCompleted,
-    isFailed,
-    progress: overallProgress,
-    job
+    isGenerating: recovery.isGenerating,
+    isCompleted: recovery.isCompleted,
+    isFailed: recovery.isFailed,
+    progress: recovery.overallProgress,
+    job: recovery.job
   };
 }

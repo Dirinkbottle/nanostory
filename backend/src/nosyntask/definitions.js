@@ -29,7 +29,8 @@ const {
   handleBatchSceneVideoGeneration,
   handleSceneStyleAnalysis,
   handleCameraRunGeneration,
-  handleSceneStateAnalysis
+  handleSceneStateAnalysis,
+  handleSaveStoryboards
 } = require('./tasks');
 
 const { createBuildInput } = require('./buildInputFactory');
@@ -96,6 +97,15 @@ const WORKFLOW_DEFINITIONS = {
         buildInput: createBuildInput([
           { key: 'scenes', from: ctx => ctx.previousResults[0]?.scenes || [] },
           'scriptContent', 'projectId', 'scriptId', 'userId', 'textModel'
+        ])
+      },
+      {
+        type: 'save_storyboards',
+        targetType: 'storyboard',
+        handler: handleSaveStoryboards,
+        buildInput: createBuildInput([
+          { key: 'scenes', from: ctx => ctx.previousResults[0]?.scenes || [] },
+          'scriptId', 'projectId'
         ])
       },
       {

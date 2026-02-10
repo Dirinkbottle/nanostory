@@ -1,6 +1,7 @@
 import { useEffect, Dispatch, SetStateAction } from 'react';
 import { getAuthToken } from '../../services/auth';
 import { useTaskRunner, TaskState } from '../../hooks/useTaskRunner';
+import { WorkflowJob } from '../../hooks/useWorkflow';
 import { StoryboardScene } from './useSceneManager';
 
 interface UseSceneGenerationOptions {
@@ -14,8 +15,31 @@ interface UseSceneGenerationOptions {
   videoModel: string;
 }
 
+// 从工作流 job 中提取 storyboardId，映射到 task key
+function jobToTaskKey(job: WorkflowJob): string | null {
+  const params = typeof job.input_params === 'string'
+    ? JSON.parse(job.input_params)
+    : job.input_params;
+  const storyboardId = params?.storyboardId;
+  if (!storyboardId) return null;
+
+  if (job.workflow_type === 'scene_video') {
+    return `vid_${storyboardId}`;
+  }
+  return `img_${storyboardId}`;
+}
+
 export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes, setScenes, imageModel, textModel, videoModel }: UseSceneGenerationOptions) {
-  const { tasks, runTask, clearTask, isRunning } = useTaskRunner({ projectId: projectId || 0 });
+  const { tasks, runTask, recoverTasks, clearTask, isRunning } = useTaskRunner({ projectId: projectId || 0 });
+
+  // 页面加载时恢复未完成的单帧/视频任务
+  useEffect(() => {
+    if (!projectId) return;
+    recoverTasks(
+      ['frame_generation', 'single_frame_generation', 'scene_video'],
+      jobToTaskKey
+    );
+  }, [projectId]);
 
   // 监听任务完成 → 更新 scene 状态 + 保存数据库
   useEffect(() => {

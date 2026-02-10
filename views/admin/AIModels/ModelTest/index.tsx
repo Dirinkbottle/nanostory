@@ -14,7 +14,6 @@ interface ModelTestModalProps {
 const DEFAULT_PARAMS: Record<string, any> = {
   TEXT: {
     prompt: "你好，请简单介绍一下自己。",
-    maxTokens: 500,
     temperature: 0.7
   },
   IMAGE: {

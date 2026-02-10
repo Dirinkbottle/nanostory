@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Progress } from '@heroui/react';
-import { WorkflowJob } from '../../hooks/useWorkflow';
+import { X } from 'lucide-react';
+import { WorkflowJob, cancelWorkflow } from '../../hooks/useWorkflow';
 
 // 任务类型中文映射
 const WORKFLOW_TYPE_NAMES: Record<string, string> = {
@@ -14,6 +15,20 @@ const WORKFLOW_TYPE_NAMES: Record<string, string> = {
   'batch_frame_generation': '批量帧生成',
   'batch_scene_video_generation': '批量视频生成',
   'smart_parse': 'AI 智能解析',
+};
+
+// 相对时间格式化
+const formatRelativeTime = (dateStr: string): string => {
+  const now = Date.now();
+  const created = new Date(dateStr).getTime();
+  const diff = Math.max(0, now - created);
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return '刚刚';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}分钟前`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}小时前`;
+  return `${Math.floor(hours / 24)}天前`;
 };
 
 // 解析 input_params
@@ -75,13 +90,31 @@ interface TaskItemProps {
   progress: number;
   statusColor: string;
   statusLabel: string;
+  onCancelled?: () => void;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ job, progress, statusColor, statusLabel }) => {
+const TaskItem: React.FC<TaskItemProps> = ({ job, progress, statusColor, statusLabel, onCancelled }) => {
   const taskName = getTaskName(job);
-  
+  const [cancelling, setCancelling] = useState(false);
+  const canCancel = job.status === 'pending' || job.status === 'running';
+
+  const handleCancel = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (cancelling || !canCancel) return;
+    if (!window.confirm(`确定要取消任务「${getTaskName(job)}」吗？`)) return;
+    setCancelling(true);
+    try {
+      await cancelWorkflow(job.id);
+      onCancelled?.();
+    } catch (err) {
+      console.error('[TaskItem] 取消失败:', err);
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   return (
-    <div className="rounded-xl p-3 border bg-blue-500/5 border-blue-500/20">
+    <div className="rounded-xl p-3 border bg-blue-500/5 border-blue-500/20 group">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-sm font-medium text-slate-200 truncate flex-1">
           {taskName}
@@ -89,9 +122,27 @@ const TaskItem: React.FC<TaskItemProps> = ({ job, progress, statusColor, statusL
         <span className={`text-[10px] font-semibold ${statusColor}`}>
           {statusLabel}
         </span>
+        {canCancel && (
+          <button
+            onClick={handleCancel}
+            disabled={cancelling}
+            className="opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-all"
+            title="取消任务"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
-      <div className="text-[11px] text-slate-400 mb-1.5">
-        #{job.id} · {job.current_step_index + 1}/{job.total_steps} 步
+      <div className="text-[11px] text-slate-400 mb-1.5 flex items-center gap-1.5">
+        <span>#{job.id}</span>
+        <span>·</span>
+        <span>{job.current_step_index + 1}/{job.total_steps} 步</span>
+        {job.created_at && (
+          <>
+            <span>·</span>
+            <span>{formatRelativeTime(job.created_at)}</span>
+          </>
+        )}
       </div>
       <Progress
         size="sm"

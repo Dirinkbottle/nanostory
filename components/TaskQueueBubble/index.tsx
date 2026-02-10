@@ -101,6 +101,7 @@ const TaskQueueBubble: React.FC = () => {
                     progress={getJobProgress(job)}
                     statusColor={getStatusColor(job.status)}
                     statusLabel={getStatusLabel(job.status)}
+                    onCancelled={() => fetchJobs(false)}
                   />
                 ))}
               </>

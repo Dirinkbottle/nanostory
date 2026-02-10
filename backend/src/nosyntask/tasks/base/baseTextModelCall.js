@@ -21,7 +21,6 @@ async function handleBaseTextModelCall(params, onProgress) {
     message,
     messages,
     textModel: modelName,
-    maxTokens = 500,
     temperature = 0.7,
     think
   } = params;
@@ -37,7 +36,6 @@ async function handleBaseTextModelCall(params, onProgress) {
   console.log('[BaseTextModelCall] 开始调用文本模型:', {
     modelName,
     promptLength: (prompt || message || '').length,
-    maxTokens,
     temperature
   });
 
@@ -51,7 +49,6 @@ async function handleBaseTextModelCall(params, onProgress) {
       prompt,
       message,
       messages,
-      maxTokens,
       temperature,
       think
     };

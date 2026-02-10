@@ -112,12 +112,12 @@ ${shotsText}
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
     textModel,
-    think, // 需要思考
-    maxTokens: 4096,
+    think,
+    maxTokens,
     temperature: 0.2
   });
 
-  if (onProgress) onProgress(70);
+  if (onProgress) onProgress(60);
 
   // 5. 解析结果
   let analysisResults = [];
@@ -127,11 +127,35 @@ ${shotsText}
       analysisResults = parsed;
       console.log('[SceneStateAnalysis] ✅ 解析成功，共', analysisResults.length, '条结果');
     } else {
-      console.warn('[SceneStateAnalysis] 解析结果非数组，使用空结果');
+      console.warn('[SceneStateAnalysis] 解析结果非数组，内容为空或截断');
     }
   } catch (e) {
     console.error('[SceneStateAnalysis] ❌ 解析失败:', e.message);
   }
+
+  // 5.1 空结果回退：关闭 thinking 重试一次
+  if (analysisResults.length === 0 && think) {
+    console.log('[SceneStateAnalysis] 思考模式输出为空，关闭 thinking 重试...');
+    const retryTokens = Math.max(4096, shotsForAnalysis.length * 200);
+    const retryResult = await handleBaseTextModelCall({
+      prompt: fullPrompt,
+      textModel,
+      think: false,
+      maxTokens: retryTokens,
+      temperature: 0.2
+    });
+    try {
+      const retryParsed = washForJSON(retryResult.content);
+      if (Array.isArray(retryParsed)) {
+        analysisResults = retryParsed;
+        console.log('[SceneStateAnalysis] ✅ 重试解析成功，共', analysisResults.length, '条结果');
+      }
+    } catch (e2) {
+      console.error('[SceneStateAnalysis] ❌ 重试解析也失败:', e2.message);
+    }
+  }
+
+  if (onProgress) onProgress(70);
 
   // 6. 写入每个分镜的 variables_json
   let updated = 0;

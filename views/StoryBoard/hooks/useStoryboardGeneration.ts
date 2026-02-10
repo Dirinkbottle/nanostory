@@ -76,40 +76,10 @@ export function useStoryboardGeneration({
       console.log('[useStoryboardGeneration] 工作流完成:', completedJob);
       
       try {
-        // 从工作流参数中获取正确的 scriptId（而不是使用当前页面的 scriptId）
-        const workflowParams = typeof completedJob.input_params === 'string' 
-          ? JSON.parse(completedJob.input_params) 
-          : completedJob.input_params;
-        const targetScriptId = workflowParams?.scriptId || scriptId;
-        
-        console.log('[useStoryboardGeneration] 保存到 scriptId:', targetScriptId);
-        console.log('[useStoryboardGeneration] 当前页面 scriptId:', scriptId);
-        console.log('[useStoryboardGeneration] 工作流参数:', workflowParams);
-        
-        // 保存工作流结果
-        const token = getAuthToken();
-        const res = await fetch('/api/storyboards/save-from-workflow', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({
-            scriptId: targetScriptId,  // 使用工作流参数中的 scriptId
-            jobId: completedJob.id
-          })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.message || '保存失败');
-        }
-
-        // 标记工作流已消费
+        // 标记工作流已消费（分镜已在工作流内 save_storyboards 步骤中保存到 DB）
         await consumeWorkflow(completedJob.id);
 
-        alert(`成功生成 ${data.count} 个分镜！`);
+        alert('分镜生成完成！');
         
         // 通知完成
         onComplete();
@@ -118,8 +88,7 @@ export function useStoryboardGeneration({
         console.log('[useStoryboardGeneration] 检查是否有其他活跃工作流...');
         await checkAndResumeNextWorkflow();
       } catch (error: any) {
-        alert('保存分镜失败: ' + error.message);
-        // 即使保存失败，也检查下一个工作流
+        alert('处理工作流结果失败: ' + error.message);
         await checkAndResumeNextWorkflow();
       } finally {
         setIsGenerating(false);

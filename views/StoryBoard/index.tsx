@@ -4,7 +4,6 @@ import { Wand2, RefreshCw, Upload } from 'lucide-react';
 import { useSceneManager } from './useSceneManager';
 import { useAutoStoryboard } from './useAutoStoryboard';
 import { useSceneGeneration } from './useSceneGeneration';
-import { useFrameGeneration } from './hooks/useFrameGeneration';
 import { useBatchFrameGeneration } from './hooks/useBatchFrameGeneration';
 import { useBatchSceneVideoGeneration } from './hooks/useBatchSceneVideoGeneration';
 import EpisodeSelector from './EpisodeSelector';
@@ -123,19 +122,6 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     }
   });
 
-  // 10. 首尾帧生成轮询
-  const frameGeneration = useFrameGeneration({
-    sceneId: null,
-    projectId: currentProjectId,
-    isActive: true,
-    onComplete: () => {
-      console.log('[StoryBoard] 首尾帧生成完成，重新加载分镜');
-      // 重新加载分镜以获取最新的首尾帧 URL
-      if (currentScriptId) {
-        loadStoryboards(currentScriptId);
-      }
-    }
-  });
 
   // 4. 集数切换
   const handleEpisodeSelect = (script: Script) => {

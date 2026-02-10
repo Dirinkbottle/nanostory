@@ -5,7 +5,6 @@ const router = express.Router();
 // 导入所有端点处理器
 const getTemplates = require('./getTemplates');
 const autoGenerate = require('./autoGenerate');
-const saveFromWorkflow = require('./saveFromWorkflow');
 const getByScriptId = require('./getByScriptId');
 const saveManual = require('./saveManual');
 const batchGenerateFrames = require('./batchGenerateFrames');
@@ -33,7 +32,6 @@ getTemplates(router);
 autoGenerate(router);
 batchGenerateFrames(router);
 batchGenerateVideos(router);
-saveFromWorkflow(router);
 saveManual(router);
 getByScriptId(router);  // 必须放在最后，因为 /:scriptId 会匹配所有路径
 
