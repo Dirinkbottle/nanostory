@@ -6,7 +6,7 @@ const { initializeDatabase } = require('./db');
 
 const authRoutes = require('./auth');
 const scriptRoutes = require('./scripts');
-const storyboardRoutes = require('./scripts/Storyboard');
+const storyboardRoutes = require('./scripts/storyboard');
 const billingRoutes = require('./billing');
 const userRoutes = require('./users');
 const characterRoutes = require('./scripts/Characters');

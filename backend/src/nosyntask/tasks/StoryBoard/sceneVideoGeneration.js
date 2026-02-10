@@ -300,7 +300,9 @@ ${extraInfo}
   const submitParams = {
     prompt: promptUsed,
     duration: duration || (hasAction ? 3 : 2),
-    imageUrls
+    imageUrls,
+    startFrame: firstFrameUrl,
+    endFrame: lastFrameUrl || '_REMOVE_'
   };
 
   const result = await submitAndPoll(modelName, submitParams, {

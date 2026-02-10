@@ -197,11 +197,13 @@ function renderWithFallback(type, template, runtimeParams, fallbackParams, label
 
   // 自动派生缺失字段（多传不会报错，模板只用它引用的占位符）
   // 图片/视频参数派生：imageUrl ↔ imageUrls ↔ startFrame ↔ endFrame
+  // 派生前过滤 _REMOVE_ 标识符，避免把它当成有效值传入派生函数
+  const _r = v => v === '_REMOVE_' ? undefined : v;
   const imgDerived = deriveImageParams({
-    imageUrl: mergedData.imageUrl,
+    imageUrl: _r(mergedData.imageUrl),
     imageUrls: mergedData.imageUrls,
-    startFrame: mergedData.startFrame,
-    endFrame: mergedData.endFrame
+    startFrame: _r(mergedData.startFrame),
+    endFrame: _r(mergedData.endFrame)
   });
   if (imgDerived.imageUrl && !mergedData.imageUrl)     mergedData.imageUrl = imgDerived.imageUrl;
   if (imgDerived.imageUrls && !mergedData.imageUrls)   mergedData.imageUrls = imgDerived.imageUrls;
@@ -210,8 +212,8 @@ function renderWithFallback(type, template, runtimeParams, fallbackParams, label
 
   // 文本参数派生：prompt ↔ message ↔ messages
   const txtDerived = deriveTextParams({
-    prompt: mergedData.prompt,
-    message: mergedData.message,
+    prompt: _r(mergedData.prompt),
+    message: _r(mergedData.message),
     messages: mergedData.messages
   });
   if (txtDerived.prompt && !mergedData.prompt)     mergedData.prompt = txtDerived.prompt;

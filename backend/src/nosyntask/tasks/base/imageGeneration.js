@@ -7,7 +7,6 @@
  */
 
 const { submitAndPoll } = require('../pollUtils');
-const { deriveImageParams } = require('../../../utils/deriveImageParams');
 
 async function handleImageGeneration(inputParams, onProgress) {
   const { prompt, imageModel: modelName, width, height, imageUrl, imageUrls, startFrame, endFrame } = inputParams;
@@ -18,20 +17,17 @@ async function handleImageGeneration(inputParams, onProgress) {
 
   if (onProgress) onProgress(10);
 
-  // 自动派生图片相关参数
-  const derived = deriveImageParams({ imageUrl, imageUrls, startFrame, endFrame });
-
-  // 构建提交参数
+  // 构建提交参数（图片参数派生由 templateRenderer.renderWithFallback 统一处理）
   const submitParams = {
     prompt,
     width: width || 1024,
     height: height || 1024
   };
 
-  if (derived.imageUrl)   submitParams.imageUrl = derived.imageUrl;
-  if (derived.imageUrls)  submitParams.imageUrls = derived.imageUrls;
-  if (derived.startFrame) submitParams.startFrame = derived.startFrame;
-  if (derived.endFrame)   submitParams.endFrame = derived.endFrame;
+  if (imageUrl)    submitParams.imageUrl = imageUrl;
+  if (imageUrls)   submitParams.imageUrls = imageUrls;
+  if (startFrame)  submitParams.startFrame = startFrame;
+  if (endFrame)    submitParams.endFrame = endFrame;
 
   const result = await submitAndPoll(modelName, submitParams, {
     intervalMs: 3000,

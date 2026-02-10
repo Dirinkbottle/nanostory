@@ -14,7 +14,6 @@
 
 const { callAIModel } = require('../../../aiModelService');
 const { washForText } = require('../../../utils/washBody');
-const { deriveTextParams } = require('../../../utils/deriveTextParams');
 
 async function handleBaseTextModelCall(params, onProgress) {
   const {
@@ -27,10 +26,7 @@ async function handleBaseTextModelCall(params, onProgress) {
     think
   } = params;
 
-  // 自动派生文本参数
-  const derived = deriveTextParams({ prompt, message, messages });
-
-  if (!derived.prompt) {
+  if (!prompt && !message && !(messages && messages.length > 0)) {
     throw new Error('prompt 参数是必需的');
   }
 
@@ -40,7 +36,7 @@ async function handleBaseTextModelCall(params, onProgress) {
 
   console.log('[BaseTextModelCall] 开始调用文本模型:', {
     modelName,
-    promptLength: derived.prompt.length,
+    promptLength: (prompt || message || '').length,
     maxTokens,
     temperature
   });
@@ -50,18 +46,18 @@ async function handleBaseTextModelCall(params, onProgress) {
   if (onProgress) onProgress(20);
 
   try {
-    // 构建请求参数（deriveTextParams 已自动派生 prompt/message/messages）
+    // 构建请求参数（文本参数派生由 templateRenderer.renderWithFallback 统一处理）
     const requestParams = {
-      prompt: derived.prompt,
-      message: derived.message,
-      messages: derived.messages,
+      prompt,
+      message,
+      messages,
       maxTokens,
       temperature,
       think
     };
 
     console.log('[BaseTextModelCall] 调用 AI 模型...');
-    console.log('[BaseTextModelCall] 提示词预览:', derived.prompt.substring(0, 200) + '...');
+    console.log('[BaseTextModelCall] 提示词预览:', (prompt || message || '').substring(0, 200) + '...');
 
     if (onProgress) onProgress(40);
 
