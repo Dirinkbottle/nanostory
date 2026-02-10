@@ -23,6 +23,7 @@ export interface Scene {
   lighting: string;
   mood: string;
   image_url: string;
+  reverse_image_url?: string;
   tags: string;
   project_name?: string;
   created_at: string;

@@ -20,12 +20,15 @@ const { execute, queryOne, queryAll } = require('../../../dbHelper');
 const { downloadAndStore } = require('../../../utils/fileStorage');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const { requireVisualStyle } = require('../../../utils/getProjectStyle');
-const { generateUpdatedSceneImage, queryActiveSceneUrl } = require('./sceneRefUtils');
+const { generateUpdatedSceneImage } = require('./sceneRefUtils');
+const { selectReferenceImages } = require('./referenceImageSelector');
+const { collectCandidateImages, appendContextCandidates } = require('./collectCandidateImages');
+const { traced, trace } = require('../../engine/generationTrace');
 
 /**
  * 生成单张图片（通过 submitAndPoll 自动处理同步/异步）
  */
-async function generateSingleImage(modelName, prompt, width, height, logTag, imageUrls) {
+const generateSingleImage = traced('图片生成', async function _generateSingleImage(modelName, prompt, width, height, logTag, imageUrls) {
   const submitParams = {
     prompt,
     width: width || 1024,
@@ -49,109 +52,12 @@ async function generateSingleImage(modelName, prompt, width, height, logTag, ima
     throw new Error('任务成功但未找到图片 URL');
   }
   return imageUrl;
-}
+}, {
+  extractInput: (modelName, prompt, w, h, logTag, urls) => ({ model: modelName, logTag, refCount: urls?.length || 0, prompt: prompt?.substring(0, 100) }),
+  extractOutput: (url) => ({ imageUrl: url })
+});
 
-/**
- * 从分镜数据中收集参考图 URL 数组（角色正面图 + 场景图）
- * @returns {{ imageUrls: string[], characterName: string|null, location: string|null }}
- */
-async function collectReferenceImages(storyboard, variables) {
-  const storyboardId = storyboard.id;
-  const characterNames = variables.characters || [];
-  const location = variables.location || '';
-  const shotType = variables.shotType || '';
-  const imageUrls = [];
-
-  function assertNonEmptyString(value, fieldName, entityLabel) {
-    if (typeof value !== 'string' || value.trim() === '') {
-      throw new Error(`${entityLabel}字段不完整: ${fieldName} 不能为空`);
-    }
-  }
-
-  // 校验：多角色镜头阻止
-  if (characterNames.length > 1) {
-    throw new Error(`当前仅支持单角色镜头，该镜头包含 ${characterNames.length} 个角色: ${characterNames.join('、')}。请拆分镜头或手动处理。`);
-  }
-
-  if (!location || String(location).trim() === '') {
-    throw new Error('该镜头未指定场景：首尾帧生成要求必须提供场景 location');
-  }
-
-  // 通过关联表查询角色（含三视图 URL）
-  let characterName = null;
-  let characterInfo = null; // 角色详细信息，用于提示词
-  if (characterNames.length === 1) {
-    characterName = characterNames[0];
-    const linkedChar = await queryOne(
-      `SELECT c.name, c.description, c.appearance, c.personality,
-              c.image_url, c.front_view_url, c.side_view_url, c.back_view_url
-       FROM storyboard_characters sc
-       JOIN characters c ON sc.character_id = c.id
-       WHERE sc.storyboard_id = ? AND c.name = ?`,
-      [storyboardId, characterName]
-    );
-    if (!linkedChar) {
-      throw new Error(`角色「${characterName}」未与该分镜建立关联。请先运行智能分镜生成以建立资源关联。`);
-    }
-    assertNonEmptyString(linkedChar.description, 'description', `角色「${characterName}」`);
-    assertNonEmptyString(linkedChar.appearance, 'appearance', `角色「${characterName}」`);
-    assertNonEmptyString(linkedChar.personality, 'personality', `角色「${characterName}」`);
-    assertNonEmptyString(linkedChar.image_url, 'image_url', `角色「${characterName}」`);
-
-    // 保存角色详细信息供提示词使用
-    characterInfo = {
-      name: linkedChar.name,
-      appearance: linkedChar.appearance,
-      description: linkedChar.description,
-      personality: linkedChar.personality
-    };
-
-    // 正面图（主参考图，必须有）
-    imageUrls.push(linkedChar.image_url);
-    console.log(`[FrameGen] 关联角色「${characterName}」正面图:`, linkedChar.image_url);
-
-    // 根据镜头类型智能加入额外视图参考图
-    const shotLower = shotType.toLowerCase();
-    if (linkedChar.side_view_url && (shotLower.includes('侧') || shotLower.includes('side'))) {
-      imageUrls.push(linkedChar.side_view_url);
-      console.log(`[FrameGen] 侧面镜头，加入侧面视图参考:`, linkedChar.side_view_url);
-    }
-    if (linkedChar.back_view_url && (shotLower.includes('背') || shotLower.includes('back') || shotLower.includes('rear'))) {
-      imageUrls.push(linkedChar.back_view_url);
-      console.log(`[FrameGen] 背面镜头，加入背面视图参考:`, linkedChar.back_view_url);
-    }
-  }
-
-  // 通过关联表查询场景
-  const linkedScene = await queryOne(
-    `SELECT s.name, s.description, s.environment, s.lighting, s.mood, s.image_url
-     FROM storyboard_scenes ss
-     JOIN scenes s ON ss.scene_id = s.id
-     WHERE ss.storyboard_id = ? AND s.name = ?`,
-    [storyboardId, location]
-  );
-  if (!linkedScene) {
-    throw new Error(`场景「${location}」未与该分镜建立关联。请先运行智能分镜生成以建立资源关联。`);
-  }
-  assertNonEmptyString(linkedScene.description, 'description', `场景「${location}」`);
-  assertNonEmptyString(linkedScene.environment, 'environment', `场景「${location}」`);
-  assertNonEmptyString(linkedScene.lighting, 'lighting', `场景「${location}」`);
-  assertNonEmptyString(linkedScene.mood, 'mood', `场景「${location}」`);
-  assertNonEmptyString(linkedScene.image_url, 'image_url', `场景「${location}」`);
-  imageUrls.push(linkedScene.image_url);
-  console.log(`[FrameGen] 关联场景「${location}」图片:`, linkedScene.image_url);
-
-  // 保存场景详细信息供提示词使用
-  const sceneInfo = {
-    name: linkedScene.name,
-    description: linkedScene.description,
-    environment: linkedScene.environment,
-    lighting: linkedScene.lighting,
-    mood: linkedScene.mood
-  };
-
-  return { imageUrls, characterName, characterInfo, location, sceneInfo };
-}
+// collectReferenceImages 已提取到 collectCandidateImages.js 共享模块
 
 /**
  * 调用文本模型生成帧提示词
@@ -171,7 +77,7 @@ async function collectReferenceImages(storyboard, variables) {
  * @param {string} [opts.prevEndState] - 上一镜头的 endState（用于首帧起始状态约束）
  * @param {string} [opts.endState] - 当前镜头的 endState（用于尾帧目标状态）
  */
-async function generateFramePrompt(opts) {
+const generateFramePrompt = traced('生成帧提示词', async function _generateFramePrompt(opts) {
   const { textModel, description, frameType, characterInfo, sceneInfo, shotType, emotion, prevDescription, visualStyle, startFrameDesc, endFrameDesc, dialogue, prevEndState, endState, sceneState, environmentChange } = opts;
 
   // 角色信息：有角色时提供详细外貌，无角色时明确排除
@@ -182,7 +88,7 @@ async function generateFramePrompt(opts) {
 角色名称: ${characterInfo.name}
 外貌特征: ${characterInfo.appearance}
 角色描述: ${characterInfo.description}
-（已提供角色参考图，角色的发型、发色、瞳色、服装款式和颜色、体型比例、配饰必须与参考图一致。但角色的姿势、位置、朝向、表情以文字描述和上一帧尾帧为准，不要从角色立绘中复制姿态。）`;
+（已提供角色参考图，角色的发型、发色、瞳色、服装款式和颜色、体型比例、配饰必须与参考图一致。但角色的姿势、位置、朝向、表情以文字描述和上一镜头结束状态为准，不要从角色立绘中复制姿态。）`;
     charConstraint = `- 角色外貌、服装、发型必须与参考图完全一致，不得自行创造角色形象
 - 严禁出现参考图中不存在的额外人物
 - 角色身体结构必须正常：头部在肩膀上方，四肢正常连接，禁止畸变`;
@@ -193,10 +99,14 @@ async function generateFramePrompt(opts) {
   }
 
   // 场景信息
-  // 场景约束根据 sceneState 动态调整
-  let sceneConstraint = '（已提供场景参考图，画面场景必须与参考图一致）';
+  // 场景约束根据 sceneState + frameType 动态调整
+  let sceneConstraint = '（已提供场景参考图，画面的色调、光照、氛围必须与参考图一致。注意：参考图展示的是场景全貌，当前镜头可能仅展示场景的某个视角方向）';
   if (sceneState === 'modified') {
-    sceneConstraint = `（⚠️ 本镜头环境正在发生变化：${environmentChange || 'unknown change'}。不要参考原始场景图的物品状态，以上一帧尾帧为基准，在此基础上呈现上述变化）`;
+    if (frameType === 'start') {
+      sceneConstraint = `（⚠️ 本镜头环境即将发生变化：${environmentChange || 'unknown change'}。不要参考原始场景图的物品状态，以上一镜头尾帧为基准，呈现变化发生前/发生中的状态）`;
+    } else {
+      sceneConstraint = `（⚠️ 本镜头环境已经发生了不可逆变化：${environmentChange || 'unknown change'}。尾帧必须呈现变化完成后的最终结果。严禁恢复到变化前的原始状态——参考图中的首帧展示的是变化前/中的瞬间，不要复制首帧的环境状态，要展示变化的最终结果）`;
+    }
   } else if (sceneState === 'inherit') {
     sceneConstraint = `（已提供更新后的场景参考图，场景已发生过变化：${environmentChange || ''}。画面必须保持这些变化，不要恢复到原始状态）`;
   }
@@ -224,13 +134,17 @@ ${sceneConstraint}`
 
   // 上一镜头结束状态（首帧必须与此衔接）
   const prevEndStateBlock = (frameType === 'start' && prevEndState)
-    ? `【上一镜头结束状态 - 必须衔接】\n${prevEndState}\n（当前首帧的角色姿势、位置、朝向必须与上述状态完全一致，不得出现任何跳变）`
+    ? `【上一镜头结束状态 - 必须衔接】\n${prevEndState}\n（严格衔接要求：\n① 角色姿势、位置、朝向必须与上述状态完全一致，不得出现不可接受的跳变\n② 光线/时间必须与上述【时空】描述一致：如上一镜头是深夜就不能变成白天，黄昏就不能变成正午\n③ 如果上一镜头有持续性环境效果（篝火、风雪等），当前画面必须保持一致）`
     : '';
 
   // 当前镜头结束状态（尾帧的目标状态）
-  const endStateBlock = (frameType === 'end' && endState)
-    ? `【本镜头目标结束状态】\n${endState}\n（尾帧画面必须准确呈现上述结束状态）`
-    : '';
+  let endStateBlock = '';
+  if (frameType === 'end' && endState) {
+    const envWarning = (sceneState === 'modified' && environmentChange)
+      ? `\n⚠️ 本镜头发生了环境变化「${environmentChange}」，尾帧必须体现变化后的环境结果，严禁画面恢复到变化前的状态。`
+      : '';
+    endStateBlock = `【本镜头目标结束状态 - 尾帧必须精确呈现】\n${endState}${envWarning}\n（尾帧是动作完成后的最终画面，所有环境变化、角色姿态都必须是完成态，不是过程态）`;
+  }
 
   // 每帧只描述一个冻结瞬间，不提及另一帧的存在
   let frameHint;
@@ -258,7 +172,24 @@ ${sceneConstraint}`
     ? `上一个镜头描述：${prevDescription}\n注意：当前画面需要自然衍接上一个镜头的结束状态，保持角色、场景、光线的连续性。`
     : '';
 
-  const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, frameDescBlock, dialogueBlock, prevEndStateBlock, endStateBlock, charConstraint, prevContext].filter(Boolean).join('\n');
+  // 摄像机空间推理（反打镜头感知）— 仅首帧需要（尾帧无需与上一镜头衔接视角）
+  let cameraPositionBlock = '';
+  if (frameType === 'start' && prevEndState && characterInfo) {
+    cameraPositionBlock = `【摄像机位置与背景推理 - 非常重要】
+你必须根据角色朝向和镜头类型推导摄像机位置，从而确定正确的背景内容：
+① 从【上一镜头结束状态】中提取角色的朝向（面朝X方向，背对Y方向）
+② 当前镜头的景别和描述决定了摄像机在角色的哪一侧：
+   - 正面特写/正面中景 → 摄像机在角色正面（X方向）
+   - 背面镜头 → 摄像机在角色背后（Y方向）
+   - 侧面镜头 → 摄像机在角色侧面
+③ 画面背景 = 摄像机正对方向的远处 = 角色身后的方向。即：
+   - 正面拍角色 → 背景是角色背后（Y方向）的场景元素
+   - 背面拍角色 → 背景是角色面朝（X方向）的场景元素
+④ 【关键】角色面朝的物体（如佛像、窗户）在正面拍时位于摄像机身后，不应出现在画面背景中。请在提示词中用具体描述替代笼统场景名（如 "background shows the wooden temple doors and dim corridor" 而不是 "temple interior"），并用否定词排除不应出现的元素（如 "the Buddha statue is behind the camera, NOT visible in frame"）
+⑤ 光线方向：如果上一镜头光线从画面左侧打来，180°反打后光线应从画面右侧打来（因为摄像机转了180°，光源相对位置镜像翻转）`;
+  }
+
+  const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, frameDescBlock, dialogueBlock, prevEndStateBlock, cameraPositionBlock, endStateBlock, charConstraint, prevContext].filter(Boolean).join('\n');
 
   const promptRequest = `你是一个专业的图片生成提示词专家。你的任务是描述一个完全静止的画面瞬间。
 
@@ -278,7 +209,7 @@ ${frameHint}
 1. 【最重要】提取分镜描述中动作${frameType === 'start' ? '发生前' : '完成后'}的一个静止姿态，用静态语言描述
 2. 明确描述角色此刻的具体姿势（seated/standing/crouching/lying 等）、肢体位置、身体朝向
 3. 【细节保留】角色的每一个外貌细节都必须原样写入提示词：发色、发型、瞳色、服装款式、服装颜色、配饰等，不得省略或概括。例如"黑色双马尾、红色水手服、蓝色百褶裙"必须逐项写出，不能简化为"a girl in school uniform"
-4. 【细节保留】场景的每一个环境细节都必须原样写入提示词：建筑结构、物品摆设、光源方向、色调等，不得省略
+4. 【细节保留】场景中从当前摄像机角度可见的环境细节都必须写入提示词：建筑结构、物品摆设、光源方向、色调等。摄像机背后的元素不应出现在描述中
 5. 镜头类型决定构图（如特写聚焦面部，远景展示全貌）
 6. 如果有上一镜头信息，确保画面与上一镜头自然衔接
 7. 如果有视觉风格要求，提示词必须体现该风格特征
@@ -291,15 +222,17 @@ ${frameHint}
   const result = await handleBaseTextModelCall({
     prompt: promptRequest,
     textModel,
-    maxTokens: 500,
     temperature: 0.7
   });
 
   return result.content || description;
-}
+}, {
+  extractInput: (opts) => ({ frameType: opts.frameType, sceneState: opts.sceneState, hasCharacter: !!opts.characterInfo, hasPrevEndState: !!opts.prevEndState }),
+  extractOutput: (prompt) => ({ prompt: typeof prompt === 'string' ? prompt.substring(0, 150) : '' })
+});
 
 async function handleFrameGeneration(inputParams, onProgress) {
-  const { storyboardId, prompt, imageModel: modelName, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene, sceneState: inputSceneState, environmentChange: inputEnvironmentChange, activeSceneUrl } = inputParams;
+  const { storyboardId, prompt, imageModel: modelName, textModel, width, height, prevEndFrameUrl, prevDescription, prevEndState: inputPrevEndState, isFirstScene, sceneState: inputSceneState, environmentChange: inputEnvironmentChange, activeSceneUrl } = inputParams;
 
   if (!storyboardId) {
     throw new Error('缺少必要参数: storyboardId');
@@ -333,103 +266,34 @@ async function handleFrameGeneration(inputParams, onProgress) {
   }
 
   const description = prompt || storyboard.prompt_template || '';
+  trace('查询分镜数据', { storyboardId, idx: storyboard.idx, sceneState: inputSceneState || variables.scene_state, hasAction: variables.hasAction, location: variables.location });
 
-  // 2. 收集参考图（角色正面图 + 场景图），多角色会抛异常
+  // 2. 收集候选参考图（角色三视图 + 场景图），多角色会抛异常
   if (onProgress) onProgress(10);
-  const { imageUrls, characterName, characterInfo, location, sceneInfo } = await collectReferenceImages(storyboard, variables);
+  const { candidateImages, characterName, characterInfo, location, sceneInfo } = await collectCandidateImages(storyboard, variables);
 
   // 场景状态（优先用调用方传入，否则从 variables_json 读取）
   const sceneState = inputSceneState || variables.scene_state || 'normal';
   const environmentChange = inputEnvironmentChange || variables.environment_change || 'none';
 
-  // 动态参考图决策：弹出原始场景图，根据 sceneState 决定是否/如何加回
-  // imageUrls 当前顺序: [角色正面图, (侧面图?), (背面图?), 场景图]
-  const originalSceneUrl = imageUrls.pop(); // 最后一个是场景图
-  // imageUrls 现在只包含角色参考图
+  // 2.3~2.5 追加上下文候选图（更新版空镜 + 上一镜头尾帧）
+  const { prevShotData, resolvedPrevEndState, resolvedPrevDescription, resolvedIsFirstScene } = await appendContextCandidates({
+    candidateImages, storyboard, variables, location,
+    activeSceneUrl, prevEndFrameUrl: prevEndFrameUrl, prevDescription,
+    prevEndState: inputPrevEndState, isFirstScene
+  });
 
-  // 根据场景状态决定场景参考图
-  switch (sceneState) {
-    case 'modified':
-      // 环境正在被改变 → 不传场景图，靠 prompt 中的 environmentChange 描述引导
-      console.log(`[FrameGen] 场景状态: modified，不传原始场景图，依赖提示词描述变化: ${environmentChange}`);
-      break;
-    case 'inherit': {
-      // 环境已被改变 → 优先用调用方传入，否则自查 DB
-      let resolvedActiveUrl = activeSceneUrl;
-      if (!resolvedActiveUrl) {
-        resolvedActiveUrl = await queryActiveSceneUrl(storyboard.script_id, storyboard.idx, variables.location || location);
-      }
-      if (resolvedActiveUrl) {
-        imageUrls.push(resolvedActiveUrl);
-        console.log(`[FrameGen] 场景状态: inherit，使用滚动更新场景图: ${resolvedActiveUrl}`);
-      } else {
-        imageUrls.push(originalSceneUrl);
-        console.log('[FrameGen] 场景状态: inherit，无滚动图，fallback 原始场景图');
-      }
-      break;
-    }
-    default:
-      // normal 或未设置 → 使用原始场景图
-      imageUrls.push(originalSceneUrl);
-      break;
-  }
-
-  // 2.5 自动查询上一镜头的尾帧（如果调用方没有传入）
-  let resolvedPrevEndFrameUrl = prevEndFrameUrl || null;
-  let resolvedPrevDescription = prevDescription || null;
-  let resolvedPrevEndState = null;
-  let resolvedIsFirstScene = isFirstScene;
-
-  // 如果没有显式传入 isFirstScene，自动判断
-  if (resolvedIsFirstScene === undefined || resolvedIsFirstScene === null) {
-    const scriptId = storyboard.script_id;
-    const currentIdx = storyboard.idx;
-    if (scriptId != null && currentIdx != null && currentIdx > 0) {
-      resolvedIsFirstScene = false;
-    } else {
-      resolvedIsFirstScene = true;
-    }
-  }
-
-  // 非首镜头且没有传入前一帧时，自动从数据库查询
-  if (!resolvedIsFirstScene && !resolvedPrevEndFrameUrl) {
-    const scriptId = storyboard.script_id;
-    const currentIdx = storyboard.idx;
-    if (scriptId != null && currentIdx != null) {
-      const prevSb = await queryOne(
-        'SELECT id, prompt_template, variables_json, first_frame_url, last_frame_url FROM storyboards WHERE script_id = ? AND idx = ?',
-        [scriptId, currentIdx - 1]
-      );
-      if (prevSb) {
-        let prevVars = {};
-        try {
-          prevVars = typeof prevSb.variables_json === 'string'
-            ? JSON.parse(prevSb.variables_json || '{}')
-            : (prevSb.variables_json || {});
-        } catch (e) { prevVars = {}; }
-        const prevHasAction = prevVars.hasAction || false;
-        // 动作镜头取尾帧，静态镜头取首帧
-        resolvedPrevEndFrameUrl = (prevHasAction && prevSb.last_frame_url)
-          ? prevSb.last_frame_url
-          : (prevSb.first_frame_url || null);
-        resolvedPrevDescription = prevSb.prompt_template || null;
-        resolvedPrevEndState = prevVars.endState || null;
-        console.log('[FrameGen] 自动查询到上一镜头尾帧:', resolvedPrevEndFrameUrl);
-        if (resolvedPrevEndState) console.log('[FrameGen] 上一镜头 endState:', resolvedPrevEndState);
-      }
-    }
-  }
-
-  // 加入上一镜头尾帧作为参考图（保持镜头间连续性）
-  if (!resolvedIsFirstScene) {
-    if (resolvedPrevEndFrameUrl) {
-      imageUrls.unshift(resolvedPrevEndFrameUrl);
-      console.log('[FrameGen] 加入上一镜头尾帧作为参考:', resolvedPrevEndFrameUrl);
-    } else {
-      throw new Error('非首镜头缺少上一镜头的尾帧参考图（上一镜头未生成帧图片），无法保证镜头连续性。请先确保上一镜头已生成帧图片。');
-    }
-  }
-  console.log('[FrameGen] 参考图数组:', imageUrls);
+  // 2.8 AI 选择首帧参考图
+  if (onProgress) onProgress(13);
+  const currentShotData = { prompt_template: description, variables_json: variables, first_frame_url: null, last_frame_url: null };
+  const startRefResult = await selectReferenceImages({
+    textModel,
+    frameType: 'start',
+    currentShot: currentShotData,
+    prevShot: prevShotData,
+    availableImages: candidateImages
+  });
+  console.log('[FrameGen] AI 选择首帧参考图:', startRefResult.selectedUrls.length, '张 |', startRefResult.reasoning);
 
   // 3. 生成首帧提示词（加入上一镜头描述作为上下文）
   if (onProgress) onProgress(15);
@@ -437,7 +301,8 @@ async function handleFrameGeneration(inputParams, onProgress) {
   if (textModel) {
     console.log('[FrameGen] 使用文本模型生成首帧提示词...');
     startPrompt = await generateFramePrompt({ textModel, description, frameType: 'start', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: resolvedPrevDescription || null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: resolvedPrevEndState, endState: variables.endState, sceneState, environmentChange });
-    console.log('[FrameGen] 首帧提示词:', startPrompt.substring(0, 100) + '...');
+    trace('首帧提示词', { prompt: startPrompt });
+    console.log(`\x1b[32m[FrameGen] 首帧提示词: ${startPrompt}\x1b[0m`);
   } else {
     const prevHint = resolvedPrevDescription ? `，承接上一镜头「${resolvedPrevDescription}」的结束状态` : '';
     startPrompt = `${description}，画面开始时刻，动作起始状态${prevHint}`;
@@ -447,7 +312,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
   // 4. 生成首帧
   if (onProgress) onProgress(25);
   console.log('[FrameGen] 开始生成首帧...');
-  const startFrame = await generateSingleImage(modelName, startPrompt, width, height, 'FrameGen-Start', imageUrls);
+  const startFrame = await generateSingleImage(modelName, startPrompt, width, height, 'FrameGen-Start', startRefResult.selectedUrls);
 
   // 持久化首帧到 MinIO
   const persistedStartFrame = await downloadAndStore(
@@ -462,6 +327,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
     [persistedStartFrame, storyboardId]
   );
   console.log('[FrameGen] 首帧已保存:', persistedStartFrame);
+  trace('首帧持久化完成', { url: persistedStartFrame, promptUsed: startPrompt, refImages: startRefResult.selectedUrls });
 
   // 5. 生成尾帧提示词
   if (onProgress) onProgress(50);
@@ -469,26 +335,29 @@ async function handleFrameGeneration(inputParams, onProgress) {
   if (textModel) {
     console.log('[FrameGen] 使用文本模型生成尾帧提示词...');
     endPrompt = await generateFramePrompt({ textModel, description, frameType: 'end', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: null, endState: variables.endState, sceneState, environmentChange });
-    console.log('[FrameGen] 尾帧提示词:', endPrompt.substring(0, 100) + '...');
+    trace('尾帧提示词', { prompt: endPrompt });
+    console.log(`\x1b[32m[FrameGen] 尾帧提示词: ${endPrompt}\x1b[0m`);
   } else {
     endPrompt = `${description}，画面结束时刻，动作完成状态，延续前一帧的场景和角色`;
   }
 
-  // 6. 生成尾帧（参考图 = 首帧 + 角色图 + 场景图）
+  // 6. AI 选择尾帧参考图（加入首帧作为候选）
+  if (onProgress) onProgress(55);
+  const endCandidates = [...candidateImages];
+  endCandidates.push({ id: 'current_start_frame', label: '本镜头首帧（刚生成）', url: startFrame, description: '本镜头刚生成的首帧画面，展示动作开始前的状态。注意：如果环境在本镜头中发生变化，首帧是变化前/中的状态，尾帧应展示变化后的结果' });
+  const endRefResult = await selectReferenceImages({
+    textModel,
+    frameType: 'end',
+    currentShot: { prompt_template: description, variables_json: variables, first_frame_url: persistedStartFrame, last_frame_url: null },
+    prevShot: prevShotData,
+    availableImages: endCandidates
+  });
+  console.log('[FrameGen] AI 选择尾帧参考图:', endRefResult.selectedUrls.length, '张 |', endRefResult.reasoning);
+
+  // 7. 生成尾帧
   if (onProgress) onProgress(60);
   console.log('[FrameGen] 开始生成尾帧...');
-  // 首帧放最前面（权重最高），再追加角色图 + 场景图
-  const endFrameRefs = [];
-  if (startFrame) endFrameRefs.push(startFrame);
-  // imageUrls 中包含 [上一帧尾帧?, 角色正面图?, 侧/背面图?, (场景图 - 已经根据 sceneState 动态决策)]
-  // 从中提取角色图和场景图（跳过上一帧尾帧和首帧本身）
-  for (const url of imageUrls) {
-    if (url !== resolvedPrevEndFrameUrl && url !== startFrame && !endFrameRefs.includes(url)) {
-      endFrameRefs.push(url);
-    }
-  }
-  console.log('[FrameGen] 尾帧参考图:', endFrameRefs);
-  const endFrame = await generateSingleImage(modelName, endPrompt, width, height, 'FrameGen-End', endFrameRefs);
+  const endFrame = await generateSingleImage(modelName, endPrompt, width, height, 'FrameGen-End', endRefResult.selectedUrls);
 
   // 持久化尾帧到 MinIO
   const persistedEndFrame = await downloadAndStore(
@@ -503,9 +372,12 @@ async function handleFrameGeneration(inputParams, onProgress) {
     [persistedEndFrame, storyboardId]
   );
   console.log('[FrameGen] 尾帧已保存:', persistedEndFrame);
+  trace('尾帧持久化完成', { url: persistedEndFrame, promptUsed: endPrompt, refImages: endRefResult.selectedUrls });
 
   // modified 镜头：自动生成更新版空镜场景图并存入 DB（供后续 inherit 镜头使用）
   if (sceneState === 'modified' && (variables.location || location)) {
+    trace('触发空镜场景图生成', { sceneState, location: variables.location || location, environmentChange });
+    console.error(`\x1b[31m[FrameGen][DEBUG] 镜头 storyboardId=${storyboardId} 触发空镜生成→ 场景: ${variables.location || location} | 变化: ${environmentChange}\x1b[0m`);
     try {
       await generateUpdatedSceneImage({
         storyboardId,

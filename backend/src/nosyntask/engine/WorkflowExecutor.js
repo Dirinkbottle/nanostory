@@ -7,6 +7,7 @@ const { queryOne, queryAll, execute } = require('../../dbHelper');
 const { getWorkflowDefinition } = require('../definitions');
 const ContextBuilder = require('./ContextBuilder');
 const JobStatusManager = require('./JobStatusManager');
+const { runWithTrace } = require('./generationTrace');
 
 class WorkflowExecutor {
   constructor() {
@@ -103,18 +104,18 @@ class WorkflowExecutor {
         await execute('UPDATE generation_tasks SET progress = ? WHERE id = ?', [progress, taskId]);
       };
 
-      // 调用 handler（纯 AI 调用，返回 result_data）
-      const resultData = await stepDef.handler(inputParams, onProgress);
+      // 用追踪系统包裹 handler 调用，自动记录开始/结束/耗时
+      const { result: resultData, trace: traceData } = await runWithTrace(taskId, stepDef.type, () => stepDef.handler(inputParams, onProgress));
 
-      // 任务成功
-      await this.jobStatusManager.completeTask(taskId, resultData);
+      // 任务成功：保存 result_data + trace
+      await this.jobStatusManager.completeTask(taskId, resultData, traceData);
 
       // 触发下一步
       await this.runNextStep(jobId);
 
     } catch (error) {
       console.error(`[WorkflowExecutor] 任务执行失败: taskId=${taskId}`, error);
-      await this.jobStatusManager.failTask(taskId, error.message);
+      await this.jobStatusManager.failTask(taskId, error.message, error._trace || null);
       await this.jobStatusManager.failJob(jobId, `步骤执行失败: ${error.message}`);
     }
   }

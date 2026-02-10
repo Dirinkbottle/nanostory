@@ -82,6 +82,7 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
   // 链式传递的上一镜头信息
   let prevEndFrameUrl = null;
   let prevDescription = null;
+  let prevEndState = null;
 
   if (onProgress) onProgress(5);
 
@@ -101,6 +102,7 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
       console.log(`[BatchFrameGen] [${i + 1}/${total}] 分镜 ${sb.id} 已有帧图片，跳过（传递尾帧给下一镜头）`);
       prevEndFrameUrl = getFinalFrameUrl(sb, vars);
       prevDescription = description;
+      prevEndState = vars.endState || null;
       skipped++;
       results.push({ storyboardId: sb.id, status: 'skipped' });
       continue;
@@ -119,6 +121,7 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
           height: height || 576,
           prevEndFrameUrl,
           prevDescription,
+          prevEndState,
           isFirstScene
         }, null);
         // 动作镜头的最终帧 = 尾帧
@@ -134,6 +137,7 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
           height: height || 576,
           prevEndFrameUrl,
           prevDescription,
+          prevEndState,
           isFirstScene
         }, null);
         // 静态镜头的最终帧 = 首帧
@@ -141,6 +145,7 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
       }
 
       prevDescription = description;
+      prevEndState = vars.endState || null;
       completed++;
       console.log(`[BatchFrameGen] 分镜 ${sb.id} 生成成功`);
       results.push({

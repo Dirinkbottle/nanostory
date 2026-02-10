@@ -41,7 +41,7 @@ export interface WorkflowJob {
 }
 
 interface UseWorkflowOptions {
-  /** 轮询间隔（毫秒），默认 2000 */
+  /** 轮询间隔（毫秒），默认 500 */
   interval?: number;
   /** 工作流完成回调 */
   onCompleted?: (job: WorkflowJob) => void;
@@ -129,7 +129,7 @@ export async function consumeWorkflow(jobId: number): Promise<void> {
 // ============================================================
 
 export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = {}) {
-  const { interval = 2000, onCompleted, onFailed, onProgress } = options;
+  const { interval = 500, onCompleted, onFailed, onProgress } = options;
 
   const [job, setJob] = useState<WorkflowJob | null>(null);
   const [loading, setLoading] = useState(false);

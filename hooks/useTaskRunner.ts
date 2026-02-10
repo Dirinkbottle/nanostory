@@ -22,7 +22,7 @@ export interface TaskState {
 }
 
 interface UseTaskRunnerOptions {
-  /** 轮询间隔（毫秒），默认 2000 */
+  /** 轮询间隔（毫秒），默认 500 */
   interval?: number;
   /** projectId，默认 0 */
   projectId?: number;
@@ -44,7 +44,7 @@ interface UseTaskRunnerOptions {
  * const task = tasks['img_123']; // { status, progress, result, error }
  */
 export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
-  const { interval = 2000, projectId = 0 } = options;
+  const { interval = 500, projectId = 0 } = options;
 
   const [tasks, setTasks] = useState<Record<string, TaskState>>({});
   const timersRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});

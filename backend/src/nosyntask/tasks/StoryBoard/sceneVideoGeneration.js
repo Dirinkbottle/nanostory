@@ -21,6 +21,8 @@ const { downloadAndStore } = require('../../../utils/fileStorage');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const { requireVisualStyle } = require('../../../utils/getProjectStyle');
 const handleCameraRunGeneration = require('./cameraRunGeneration');
+const { generateMotionBreakdown } = require('./motionBreakdown');
+const { trace } = require('../../engine/generationTrace');
 
 async function handleSceneVideoGeneration(inputParams, onProgress) {
   const { storyboardId, videoModel: modelName, textModel, duration, think } = inputParams;
@@ -60,6 +62,7 @@ async function handleSceneVideoGeneration(inputParams, onProgress) {
   const description = storyboard.prompt_template || '';
   const firstFrameUrl = storyboard.first_frame_url || null;
   const lastFrameUrl = storyboard.last_frame_url || null;
+  trace('查询分镜数据', { storyboardId, idx: storyboard.idx, hasAction, location: variables.location, hasFirstFrame: !!firstFrameUrl, hasLastFrame: !!lastFrameUrl });
 
   // 2. 校验帧完整性
   if (hasAction) {
@@ -147,9 +150,32 @@ async function handleSceneVideoGeneration(inputParams, onProgress) {
         (p) => { if (onProgress) onProgress(10 + p * 0.1); }
       );
       cameraRunPrompt = cameraResult.cameraRunPrompt || '';
-      console.log('[SceneVideoGen] 精细运镜提示词:', cameraRunPrompt.substring(0, 100) + '...');
+      trace('精细运镜生成完成', { prompt: cameraRunPrompt });
+      console.log(`\x1b[32m[SceneVideoGen] 精细运镜提示词: ${cameraRunPrompt}\x1b[0m`);
     } catch (e) {
       console.warn('[SceneVideoGen] 精细运镜生成失败，降级使用基础运镜:', e.message);
+    }
+  }
+
+  // 3.9 生成运动分解清单（明确每个元素的运动行为，防止视频幻觉）
+  let motionBreakdownText = '';
+  if (textModel) {
+    try {
+      trace('开始生成运动分解清单');
+      motionBreakdownText = await generateMotionBreakdown({
+        textModel,
+        description,
+        variables,
+        hasAction,
+        characterAppearance,
+        sceneDetail,
+        startFrameDesc: variables.startFrame || '',
+        endFrameDesc: variables.endFrame || ''
+      });
+      trace('运动分解清单结果', { content: motionBreakdownText });
+    } catch (e) {
+      trace('运动分解生成失败', { error: e.message });
+      console.warn('[SceneVideoGen] 运动分解生成失败，继续生成视频:', e.message);
     }
   }
 
@@ -190,7 +216,11 @@ async function handleSceneVideoGeneration(inputParams, onProgress) {
 情绪: ${prevEmotion}
 动作: ${prevHasAction ? '有动作' : '静态'}
 结束状态: ${prevEndState}
-（注意：仅用于角色姿态/位置/情绪的衔接过渡。上一镜头的天气、闪电、爆炸等环境效果不得带入当前镜头，除非当前镜头描述中明确提到）`;
+（衔接规则：
+① 角色姿态/位置/朝向必须与上述结束状态一致
+② 光线和时间必须连续：上一镜头是深夜则当前不能变白天，黄昏不能变正午
+③ 持续性环境效果（篝火燃烧、风雪等）必须保持一致
+④ 一次性瞬时事件（闪电、爆炸闪光等）不得带入当前镜头，除非当前镜头描述中明确提到）`;
         }
       } catch (e) {
         prevContext = '';
@@ -246,7 +276,7 @@ async function handleSceneVideoGeneration(inputParams, onProgress) {
       ? `【场景详情】\n${sceneDetail}\n（已提供场景参考图作为首帧背景，视频场景必须一致）`
       : '';
 
-    const extraInfo = [charBlock, locInfo, sceneBlock, shotInfo, emotionInfo, dialogueInfo, actionInfo, cameraInfo, endStateInfo, styleInfo, charConstraint, prevContext, nextContext].filter(Boolean).join('\n');
+    const extraInfo = [charBlock, locInfo, sceneBlock, shotInfo, emotionInfo, dialogueInfo, actionInfo, cameraInfo, endStateInfo, styleInfo, charConstraint, prevContext, nextContext, motionBreakdownText].filter(Boolean).join('\n');
 
     const promptRequest = `你是一个专业的视频生成提示词专家。
 
@@ -260,7 +290,7 @@ ${extraInfo}
 2. 【细节保留】角色的每一个外貌细节都必须原样写入提示词：发色、发型、瞳色、服装款式、服装颜色、配饰等，不得省略或概括。例如"黑色双马尾、红色水手服"必须逐项翻译写出，不能简化为"a girl"
 3. 【细节保留】场景的每一个环境细节都必须原样写入提示词：建筑结构、物品摆设、光源方向、色调等，不得省略
 4. 镜头类型决定视角和运镜方式
-5. 如果有前后镜头衔接信息，确保视频开头与上一镜头结束状态自然衔接。但【严禁】将上一镜头的环境效果（天气、闪电、爆炸等）带入当前镜头，除非当前镜头描述中明确提到
+5. 如果有前后镜头衔接信息，确保视频开头与上一镜头结束状态自然衔接。注意区分：持续性环境效果（篝火、风雪、时间光线等）应保持连续，一次性瞬时事件（闪电闪光、爆炸冲击波等）不得带入当前镜头，除非当前镜头描述中明确提到
 6. 如果有视觉风格要求，视频必须体现该风格特征
 7. 严格遵守角色约束：有角色时保持与参考图一致，无角色时绝对不能出现人物
 8. 【环境持续性 - 极其重要】
@@ -279,19 +309,24 @@ ${extraInfo}
    - 涉及口部动作但无对白时："默念"/"默读"/"无声地念" 必须翻译为 "silently mouthing without any audible sound"，绝对不能翻译为 murmuring/muttering/whispering/reciting（这些词都暗示有声音）
    - "叹息"/"呼吸" 等非语言声音：仅在对白字段明确标注时才可出现
    - 无对白的镜头中，角色的任何口部动作都必须用 "silently" 修饰
-12. 只输出英文提示词，不要其他解释
+12. 【运动分解约束 - 极其重要】如果提供了 Motion Breakdown 清单：
+   - MOVING 元素：必须按清单描述的方式运动，不得自行增加或减少运动
+   - STATIC 元素：必须在整个视频中保持静止且全程可见，禁止消失、移动或变形
+   - 禁止出现清单中未列出的新元素（物品/角色/效果）
+   - 角色在任何情况下都不得消失，即使发生剧烈环境事件
+13. 只输出英文提示词，不要其他解释
 
 提示词：`;
 
     const result = await handleBaseTextModelCall({
       prompt: promptRequest,
       textModel,
-      maxTokens: 500,
       temperature: 0.7
     });
 
     promptUsed = result.content || description;
-    console.log('[SceneVideoGen] 视频提示词:', promptUsed.substring(0, 100) + '...');
+    trace('生成视频提示词', { prompt: promptUsed });
+    console.log(`\x1b[32m[SceneVideoGen] 视频提示词: ${promptUsed}\x1b[0m`);
   } else {
     console.log('[SceneVideoGen] 无文本模型，使用原始描述作为视频提示词');
   }
@@ -302,6 +337,7 @@ ${extraInfo}
   if (hasAction && lastFrameUrl) {
     imageUrls.push(lastFrameUrl);
   }
+  trace('构建视频参考图', { imageUrls, duration: duration || (hasAction ? 3 : 2) });
   console.log('[SceneVideoGen] imageUrls:', imageUrls);
 
   const submitParams = {
@@ -337,6 +373,7 @@ ${extraInfo}
     'UPDATE storyboards SET video_url = ? WHERE id = ?',
     [persistedVideoUrl, storyboardId]
   );
+  trace('视频持久化完成', { url: persistedVideoUrl, model: modelName, promptUsed, refImages: imageUrls });
   console.log('[SceneVideoGen] 视频已保存:', persistedVideoUrl);
 
   if (onProgress) onProgress(100);

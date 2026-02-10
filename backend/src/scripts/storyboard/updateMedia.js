@@ -31,7 +31,7 @@ async function updateMedia(req, res) {
     const params = [];
 
     if (imageUrl !== undefined) {
-      updates.push('image_url = ?');
+      updates.push('first_frame_url = ?');
       params.push(imageUrl);
     }
     if (videoUrl !== undefined) {

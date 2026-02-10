@@ -131,10 +131,12 @@ CREATE TABLE IF NOT EXISTS scenes (
   environment TEXT COMMENT '环境描述',
   lighting TEXT COMMENT '光照描述',
   mood TEXT COMMENT '氛围描述',
-  image_url TEXT COMMENT '场景图片URL',
+  image_url TEXT COMMENT '场景图片URL（A面/正打：主视角空镜）',
+  reverse_image_url TEXT COMMENT '场景图片URL（B面/反打：180°反向视角空镜）',
   tags TEXT COMMENT '标签（逗号分隔）',
   source VARCHAR(50) DEFAULT 'manual' COMMENT '来源：manual=手动创建, ai_extracted=AI从剧本提取, ai_generated=AI生成',
-  generation_prompt TEXT COMMENT '图片生成提示词',
+  generation_prompt TEXT COMMENT '图片生成提示词（A面）',
+  reverse_generation_prompt TEXT COMMENT '图片生成提示词（B面）',
   generation_params JSON COMMENT '图片生成参数',
   generation_status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT NULL COMMENT '图片生成状态',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -320,6 +322,7 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
   status ENUM('pending', 'processing', 'completed', 'failed') DEFAULT 'pending' COMMENT '任务状态',
   progress INT DEFAULT 0 COMMENT '进度百分比（0-100）',
   result_data JSON COMMENT '结果数据',
+  work_result JSON DEFAULT NULL COMMENT '任务执行追踪日志（引擎自动记录：步骤、耗时、参考图选择等）',
   error_message TEXT COMMENT '错误信息',
   external_task_id VARCHAR(255) COMMENT '外部任务ID（如API返回的task_id）',
   started_at DATETIME DEFAULT NULL COMMENT '开始时间',
@@ -377,5 +380,12 @@ ON DUPLICATE KEY UPDATE
 
 -- 迁移：为已有数据库添加 updated_scene_url 字段（State-Aware Dynamic Asset Flow）
 -- ALTER TABLE storyboards ADD COLUMN updated_scene_url TEXT DEFAULT NULL COMMENT '更新版空镜场景图URL（modified镜头生成，供后续 inherit 镜头作为场景参考）' AFTER video_url;
+
+-- 迁移：为已有数据库添加 work_result 字段（任务执行追踪日志）
+-- ALTER TABLE generation_tasks ADD COLUMN work_result JSON DEFAULT NULL COMMENT '任务执行追踪日志（引擎自动记录：步骤、耗时、参考图选择等）' AFTER result_data;
+
+-- 迁移：为已有数据库添加场景 A/B 面字段（180°轴线原则）
+-- ALTER TABLE scenes ADD COLUMN reverse_image_url TEXT COMMENT '场景图片URL（B面/反打：180°反向视角空镜）' AFTER image_url;
+-- ALTER TABLE scenes ADD COLUMN reverse_generation_prompt TEXT COMMENT '图片生成提示词（B面）' AFTER generation_prompt;
 
 SET FOREIGN_KEY_CHECKS = 1;

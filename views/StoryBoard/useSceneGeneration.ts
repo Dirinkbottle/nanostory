@@ -41,10 +41,28 @@ export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes,
     );
   }, [projectId]);
 
-  // 监听任务完成 → 更新 scene 状态 + 保存数据库
+  // 监听任务完成/失败 → 更新 scene 状态 + 保存数据库
   useEffect(() => {
     for (const [key, task] of Object.entries(tasks) as [string, TaskState][]) {
       if (!key.startsWith('img_') && !key.startsWith('vid_')) continue;
+
+      // 失败/取消：清理任务 + localStorage 生成状态
+      if (task.status === 'failed' || task.status === 'cancelled') {
+        const sceneId = Number(key.split('_')[1]);
+        console.warn(`[useSceneGeneration] 任务${task.status}: key=${key}, error=${task.error}`);
+        // 清理 localStorage 中的图片生成状态
+        if (key.startsWith('img_')) {
+          try {
+            const GENERATING_KEY = 'nanostory_generating_images';
+            const items = JSON.parse(localStorage.getItem(GENERATING_KEY) || '[]');
+            const filtered = items.filter((item: any) => item.id !== sceneId);
+            localStorage.setItem(GENERATING_KEY, JSON.stringify(filtered));
+          } catch {}
+        }
+        clearTask(key);
+        continue;
+      }
+
       if (task.status !== 'completed' || !task.result) continue;
 
       const sceneId = Number(key.split('_')[1]);

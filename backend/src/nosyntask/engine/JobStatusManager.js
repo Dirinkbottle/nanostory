@@ -9,12 +9,12 @@ class JobStatusManager {
   /**
    * 标记任务完成
    */
-  async completeTask(taskId, resultData) {
+  async completeTask(taskId, resultData, traceData = null) {
     await execute(
       `UPDATE generation_tasks 
-       SET status = 'completed', progress = 100, result_data = ?, completed_at = NOW() 
+       SET status = 'completed', progress = 100, result_data = ?, work_result = ?, completed_at = NOW() 
        WHERE id = ?`,
-      [JSON.stringify(resultData), taskId]
+      [JSON.stringify(resultData), traceData ? JSON.stringify(traceData) : null, taskId]
     );
     console.log(`[JobStatusManager] 任务完成: taskId=${taskId}`);
   }
@@ -22,12 +22,12 @@ class JobStatusManager {
   /**
    * 标记任务失败
    */
-  async failTask(taskId, errorMessage) {
+  async failTask(taskId, errorMessage, traceData = null) {
     await execute(
       `UPDATE generation_tasks 
-       SET status = 'failed', error_message = ?, completed_at = NOW() 
+       SET status = 'failed', error_message = ?, work_result = ?, completed_at = NOW() 
        WHERE id = ?`,
-      [errorMessage, taskId]
+      [errorMessage, traceData ? JSON.stringify(traceData) : null, taskId]
     );
     console.log(`[JobStatusManager] 任务失败: taskId=${taskId}, error=${errorMessage}`);
   }
