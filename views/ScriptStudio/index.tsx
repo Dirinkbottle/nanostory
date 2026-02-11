@@ -216,7 +216,7 @@ const ScriptStudio: React.FC = () => {
             startContent={<Bot className="w-4 h-4" />}
             onPress={openModelConfig}
           >
-            {aiModels.selected.text || 'AI 模型'}
+            模型选择
           </Button>
         </div>
       </div>
