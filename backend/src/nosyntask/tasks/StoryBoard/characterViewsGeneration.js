@@ -1,22 +1,32 @@
 /**
- * 角色三视图生成任务（拆分为 3 个独立步骤）
+ * 角色三视图生成任务
+ * 生成角色的正面、侧面、背面三视图
  * 
- * 步骤 0: 正面视图生成 (character_front_view)
- * 步骤 1: 侧面视图生成 (character_side_view) — 依赖正面结果作为参考
- * 步骤 2: 背面视图生成 (character_back_view) — 依赖正面+侧面结果作为参考
+ * input: {
+ *   characterId: number,
+ *   characterName: string,
+ *   appearance: string,
+ *   personality: string,
+ *   description: string,
+ *   style: string,
+ *   imageModel: string
+ * }
  * 
- * 每个步骤独立执行，失败不影响已完成的步骤。
- * 工作流引擎通过 ContextBuilder 自动传递前序步骤的 result_data。
+ * output: {
+ *   frontViewUrl: string,
+ *   sideViewUrl: string,
+ *   backViewUrl: string,
+ *   imageUrl: string (same as frontViewUrl)
+ * }
  */
 
 const handleImageGeneration = require('../base/imageGeneration');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const { requireVisualStyle } = require('../../../utils/getProjectStyle');
 const { downloadAndStore } = require('../../../utils/fileStorage');
-const { execute } = require('../../../dbHelper');
 
 /**
- * 使用 AI 生成视图提示词（共享工具函数）
+ * 使用 AI 生成视图提示词
  */
 async function generateViewPrompt(view, characterName, appearance, description, style, textModel) {
   const viewConfig = {
@@ -87,6 +97,7 @@ ${isNonFront ? '\n【再次强调】提示词中必须完整重复上面的「�
   console.log(`[CharacterViews] baseTextModelCall 响应:`, JSON.stringify(response).substring(0, 500));
 
   // 提取生成的提示词
+  // 注意：response 可能是 { content: "..." } 或直接是字符串
   let prompt = '';
   
   if (typeof response === 'string') {
@@ -98,6 +109,7 @@ ${isNonFront ? '\n【再次强调】提示词中必须完整重复上面的「�
   } else if (response && response.message) {
     prompt = response.message;
   } else if (response && response.taskId) {
+    // 如果返回的是 taskId，说明调用了错误的模型（图片模型而非文本模型）
     throw new Error(`错误：调用了图片生成模型而非文本模型。请检查模型配置。响应: ${JSON.stringify(response).substring(0, 200)}`);
   }
   
@@ -118,226 +130,215 @@ ${isNonFront ? '\n【再次强调】提示词中必须完整重复上面的「�
   return prompt;
 }
 
-// ================================================================
-//  步骤 0：正面视图生成
-// ================================================================
-async function handleCharacterFrontView(inputParams, onProgress) {
+/**
+ * 主处理函数
+ */
+async function handleCharacterViewsGeneration(inputParams, onProgress) {
   const {
-    characterId, characterName,
-    appearance = '', description = '',
-    projectId, imageModel, textModel,
-    width = 512, height = 768
+    characterId,
+    characterName,
+    appearance = '',
+    personality = '',
+    description = '',
+    style: inputStyle = '动漫风格',
+    projectId,
+    imageModel,
+    textModel,
+    width = 512,
+    height = 768
   } = inputParams;
 
+
+  // 项目视觉风格（必填，未设置则报错）
   const style = await requireVisualStyle(projectId);
 
-  console.log('[CharacterViews:正面] 开始生成正面视图:', {
-    characterId, characterName, imageModel,
+  console.log('[CharacterViews] 开始生成三视图:', {
+    characterId,
+    characterName,
+    imageModel,
     style: style.substring(0, 60) + (style.length > 60 ? '...' : '')
   });
 
-  if (!imageModel) throw new Error('imageModel 参数是必需的');
+  if (!imageModel) {
+    throw new Error('imageModel 参数是必需的');
+  }
+
+  console.log('[CharacterViews] 使用的模型:', {
+    imageModel,
+    textModel
+  });
 
   if (onProgress) onProgress(5);
 
-  // 生成正面提示词
+  // 生成正面视图
+  console.log('[CharacterViews] 生成正面视图...');
   const frontPrompt = await generateViewPrompt('front', characterName, appearance, description, style, textModel);
-  if (onProgress) onProgress(15);
-
-  // 生成正面图片
   const frontResult = await handleImageGeneration({
     prompt: frontPrompt,
-    imageModel,
+    imageModel: imageModel,
     width,
     height
   }, (progress) => {
-    if (onProgress) onProgress(15 + progress * 0.55); // 15% -> 70%
+    if (onProgress) onProgress(5 + progress * 0.2); // 5% -> 25%
+  });
+  const frontViewUrl = frontResult.image_url;
+  console.log('[CharacterViews] ✅ 正面视图生成完成');
+  console.log('[CharacterViews] DEBUG - 正面视图结果:', {
+    prompt: frontPrompt.substring(0, 150) + '...',
+    imageUrl: frontViewUrl,
+    imageModel,
+    textModel,
+    dimensions: `${width}x${height}`
   });
 
-  const frontViewUrl = frontResult.image_url;
-  console.log('[CharacterViews:正面] ✅ 正面视图生成完成');
-  if (onProgress) onProgress(75);
-
-  // 持久化到 MinIO
+  // 持久化正面视图到 MinIO
   const persistedFrontUrl = await downloadAndStore(
     frontViewUrl,
     `images/characters/${characterId}/front_view`,
     { fallbackExt: '.png' }
   );
-  if (onProgress) onProgress(85);
 
-  // 保存到数据库（正面视图同时作为主图片）
+  // 立即保存正面视图到数据库
   if (characterId && persistedFrontUrl) {
+    const { execute } = require('../../../dbHelper');
     await execute(
-      'UPDATE characters SET front_view_url = ?, image_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [persistedFrontUrl, persistedFrontUrl, characterId]
+      'UPDATE characters SET front_view_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [persistedFrontUrl, characterId]
     );
-    console.log('[CharacterViews:正面] ✅ 正面视图已保存到数据库（同时设为主图片）');
+    console.log('[CharacterViews] ✅ 正面视图已保存到数据库');
   }
 
-  if (onProgress) onProgress(100);
+  if (onProgress) onProgress(30);
 
-  return {
-    frontViewUrl: persistedFrontUrl,
-    imageModel,
-    textModel
-  };
-}
+  // 收集参考图片 URL（用于保持角色一致性）
+  const referenceUrls = [];
+  if (persistedFrontUrl) {
+    referenceUrls.push(persistedFrontUrl);
+    console.log('[CharacterViews] 正面视图将作为参考图传递给后续生成');
+  }
 
-// ================================================================
-//  步骤 1：侧面视图生成
-// ================================================================
-async function handleCharacterSideView(inputParams, onProgress) {
-  const {
-    characterId, characterName,
-    appearance = '', description = '',
-    projectId, imageModel, textModel,
-    width = 512, height = 768,
-    frontViewUrl // 来自步骤 0 的 result_data
-  } = inputParams;
-
-  const style = await requireVisualStyle(projectId);
-
-  console.log('[CharacterViews:侧面] 开始生成侧面视图:', {
-    characterId, characterName, imageModel,
-    hasFrontRef: !!frontViewUrl
-  });
-
-  if (!imageModel) throw new Error('imageModel 参数是必需的');
-
-  if (onProgress) onProgress(5);
-
-  // 生成侧面提示词
+  // 生成侧面视图（带正面参考图）
+  console.log('[CharacterViews] 生成侧面视图...');
   const sidePrompt = await generateViewPrompt('side', characterName, appearance, description, style, textModel);
-  if (onProgress) onProgress(15);
-
-  // 生成侧面图片（带正面参考图）
   const sideGenParams = {
     prompt: sidePrompt,
-    imageModel,
+    imageModel: imageModel,
     width,
     height
   };
-  if (frontViewUrl) {
-    sideGenParams.imageUrls = [frontViewUrl];
-    console.log('[CharacterViews:侧面] 参考图:', [frontViewUrl]);
+  if (referenceUrls.length > 0) {
+    sideGenParams.imageUrls = referenceUrls;
+    console.log('[CharacterViews] 侧面视图参考图:', referenceUrls);
   }
-
   const sideResult = await handleImageGeneration(sideGenParams, (progress) => {
-    if (onProgress) onProgress(15 + progress * 0.55); // 15% -> 70%
+    if (onProgress) onProgress(30 + progress * 0.25); // 30% -> 55%
+  });
+  const sideViewUrl = sideResult.image_url;
+  console.log('[CharacterViews] ✅ 侧面视图生成完成');
+  console.log('[CharacterViews] DEBUG - 侧面视图结果:', {
+    prompt: sidePrompt.substring(0, 150) + '...',
+    imageUrl: sideViewUrl,
+    imageModel,
+    dimensions: `${width}x${height}`
   });
 
-  const sideViewUrl = sideResult.image_url;
-  console.log('[CharacterViews:侧面] ✅ 侧面视图生成完成');
-  if (onProgress) onProgress(75);
-
-  // 持久化到 MinIO
+  // 持久化侧面视图到 MinIO
   const persistedSideUrl = await downloadAndStore(
     sideViewUrl,
     `images/characters/${characterId}/side_view`,
     { fallbackExt: '.png' }
   );
-  if (onProgress) onProgress(85);
 
-  // 保存到数据库
+  // 立即保存侧面视图到数据库
   if (characterId && persistedSideUrl) {
+    const { execute } = require('../../../dbHelper');
     await execute(
       'UPDATE characters SET side_view_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [persistedSideUrl, characterId]
     );
-    console.log('[CharacterViews:侧面] ✅ 侧面视图已保存到数据库');
+    console.log('[CharacterViews] ✅ 侧面视图已保存到数据库');
   }
 
-  if (onProgress) onProgress(100);
+  if (onProgress) onProgress(60);
 
-  return {
-    sideViewUrl: persistedSideUrl,
-    imageModel,
-    textModel
-  };
-}
+  // 累加侧面视图到参考图
+  if (persistedSideUrl) {
+    referenceUrls.push(persistedSideUrl);
+  }
 
-// ================================================================
-//  步骤 2：背面视图生成
-// ================================================================
-async function handleCharacterBackView(inputParams, onProgress) {
-  const {
-    characterId, characterName,
-    appearance = '', description = '',
-    projectId, imageModel, textModel,
-    width = 512, height = 768,
-    frontViewUrl, // 来自步骤 0 的 result_data
-    sideViewUrl   // 来自步骤 1 的 result_data
-  } = inputParams;
-
-  const style = await requireVisualStyle(projectId);
-
-  console.log('[CharacterViews:背面] 开始生成背面视图:', {
-    characterId, characterName, imageModel,
-    hasFrontRef: !!frontViewUrl,
-    hasSideRef: !!sideViewUrl
-  });
-
-  if (!imageModel) throw new Error('imageModel 参数是必需的');
-
-  if (onProgress) onProgress(5);
-
-  // 生成背面提示词
+  // 生成背面视图（带正面+侧面参考图）
+  console.log('[CharacterViews] 生成背面视图...');
   const backPrompt = await generateViewPrompt('back', characterName, appearance, description, style, textModel);
-  if (onProgress) onProgress(15);
-
-  // 生成背面图片（带正面+侧面参考图）
   const backGenParams = {
     prompt: backPrompt,
-    imageModel,
+    imageModel: imageModel,
     width,
     height
   };
-  const referenceUrls = [];
-  if (frontViewUrl) referenceUrls.push(frontViewUrl);
-  if (sideViewUrl) referenceUrls.push(sideViewUrl);
   if (referenceUrls.length > 0) {
     backGenParams.imageUrls = referenceUrls;
-    console.log('[CharacterViews:背面] 参考图:', referenceUrls);
+    console.log('[CharacterViews] 背面视图参考图:', referenceUrls);
   }
-
   const backResult = await handleImageGeneration(backGenParams, (progress) => {
-    if (onProgress) onProgress(15 + progress * 0.55); // 15% -> 70%
+    if (onProgress) onProgress(60 + progress * 0.25); // 60% -> 85%
+  });
+  const backViewUrl = backResult.image_url;
+  console.log('[CharacterViews] ✅ 背面视图生成完成');
+  console.log('[CharacterViews] DEBUG - 背面视图结果:', {
+    prompt: backPrompt.substring(0, 150) + '...',
+    imageUrl: backViewUrl,
+    imageModel,
+    dimensions: `${width}x${height}`
   });
 
-  const backViewUrl = backResult.image_url;
-  console.log('[CharacterViews:背面] ✅ 背面视图生成完成');
-  if (onProgress) onProgress(75);
-
-  // 持久化到 MinIO
+  // 持久化背面视图到 MinIO
   const persistedBackUrl = await downloadAndStore(
     backViewUrl,
     `images/characters/${characterId}/back_view`,
     { fallbackExt: '.png' }
   );
-  if (onProgress) onProgress(85);
 
-  // 保存到数据库 + 标记三视图全部完成
+  // 立即保存背面视图到数据库
   if (characterId && persistedBackUrl) {
+    const { execute } = require('../../../dbHelper');
     await execute(
-      `UPDATE characters SET back_view_url = ?, generation_status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      'UPDATE characters SET back_view_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [persistedBackUrl, characterId]
     );
-    console.log('[CharacterViews:背面] ✅ 背面视图已保存到数据库，三视图全部完成');
+    console.log('[CharacterViews] ✅ 背面视图已保存到数据库');
   }
+
+  if (onProgress) onProgress(90);
+
+  // 将正面视图同时保存为主图片 (image_url)，并标记生成完成
+  if (characterId && persistedFrontUrl) {
+    const { execute } = require('../../../dbHelper');
+    await execute(
+      `UPDATE characters 
+       SET image_url = ?, generation_status = 'completed', updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [persistedFrontUrl, characterId]
+    );
+    console.log('[CharacterViews] ✅ 正面视图已保存为主图片 (image_url)');
+  }
+
+  if (onProgress) onProgress(95);
 
   if (onProgress) onProgress(100);
 
-  return {
+  const finalResult = {
+    frontViewUrl: persistedFrontUrl,
+    sideViewUrl: persistedSideUrl,
     backViewUrl: persistedBackUrl,
-    imageUrl: frontViewUrl, // 主图片仍为正面视图
+    imageUrl: persistedFrontUrl, // 主图片使用正面视图
     imageModel,
     textModel
   };
+
+  console.log('[CharacterViews] ✅ 三视图生成完成');
+  console.log('[CharacterViews] DEBUG - 最终输出:', JSON.stringify(finalResult, null, 2));
+
+  return finalResult;
 }
 
-module.exports = {
-  handleCharacterFrontView,
-  handleCharacterSideView,
-  handleCharacterBackView
-};
+module.exports = handleCharacterViewsGeneration;

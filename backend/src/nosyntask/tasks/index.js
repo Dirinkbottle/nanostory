@@ -13,11 +13,7 @@ const handleFrameGeneration = require('./StoryBoard/frameGeneration');
 const handleSingleFrameGeneration = require('./StoryBoard/singleFrameGeneration');
 const handleSceneVideoGeneration = require('./StoryBoard/sceneVideoGeneration');
 const handleStoryboardGeneration = require('./StoryBoard/storyboardGeneration');
-const {
-  handleCharacterFrontView,
-  handleCharacterSideView,
-  handleCharacterBackView
-} = require('./StoryBoard/characterViewsGeneration');
+const handleCharacterViewsGeneration = require('./StoryBoard/characterViewsGeneration');
 const handleSceneImageGeneration = require('./StoryBoard/sceneImageGeneration');
 const handleBaseTextModelCall = require('./base/baseTextModelCall');
 const handleBatchFrameGeneration = require('./StoryBoard/batchFrameGeneration');
@@ -39,9 +35,7 @@ module.exports = {
   handleSingleFrameGeneration,
   handleSceneVideoGeneration,
   handleStoryboardGeneration,
-  handleCharacterFrontView,
-  handleCharacterSideView,
-  handleCharacterBackView,
+  handleCharacterViewsGeneration,
   handleSceneImageGeneration,
   handleBaseTextModelCall,
   handleBatchFrameGeneration,
