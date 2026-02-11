@@ -87,6 +87,75 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
     onEpisodeChange?.(script.episode_number, script.id);
   };
 
+  // 角色图片生成
+  const handleGenerateCharacterImage = async (characterId: number, imageModel: string) => {
+    if (!characterId || !imageModel) {
+      console.warn('缺少必要参数：characterId 或 imageModel');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/characters/${characterId}/generate-views`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          imageModel,
+          textModel,
+          style: '', // 可以从项目设置中获取
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        console.log('角色图片生成已启动:', data);
+        // 刷新角色数据
+        loadCharacters();
+      } else {
+        console.error('生成失败:', data.message);
+      }
+    } catch (error) {
+      console.error('生成角色图片出错:', error);
+    }
+  };
+
+  // 场景图片生成
+  const handleGenerateSceneImage = async (sceneId: number, imageModel: string) => {
+    if (!sceneId || !imageModel) {
+      console.warn('缺少必要参数：sceneId 或 imageModel');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/scenes/${sceneId}/generate-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          imageModel,
+          textModel,
+          width: 1024,
+          height: 576,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        console.log('场景图片生成已启动:', data);
+        // 刷新场景数据
+        loadScenes();
+      } else {
+        console.error('生成失败:', data.message);
+      }
+    } catch (error) {
+      console.error('生成场景图片出错:', error);
+    }
+  };
+
 
   return (
     <div className="h-full flex flex-col bg-slate-900 text-slate-200">
@@ -147,6 +216,8 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
             selectedCharacterName={selectedCharName}
             selectedSceneName={selectedSceneName}
             onClearSelection={() => { setSelectedCharName(null); setSelectedSceneName(null); }}
+            onGenerateCharacterImage={handleGenerateCharacterImage}
+            onGenerateSceneImage={handleGenerateSceneImage}
           />
         </div>
       )}
