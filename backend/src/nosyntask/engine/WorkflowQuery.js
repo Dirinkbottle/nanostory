@@ -81,6 +81,27 @@ class WorkflowQuery {
 
     const jobs = await queryAll(sql, params);
 
+    // 批量获取所有 job 的子任务
+    const jobIds = jobs.map(j => j.id);
+    let tasksMap = {};
+    if (jobIds.length > 0) {
+      const tasks = await queryAll(
+        `SELECT * FROM generation_tasks WHERE job_id IN (${jobIds.map(() => '?').join(',')}) ORDER BY step_index ASC`,
+        jobIds
+      );
+      tasksMap = tasks.reduce((map, t) => {
+        if (t.input_params && typeof t.input_params === 'string') {
+          try { t.input_params = JSON.parse(t.input_params); } catch(e) {}
+        }
+        if (t.result_data && typeof t.result_data === 'string') {
+          try { t.result_data = JSON.parse(t.result_data); } catch(e) {}
+        }
+        if (!map[t.job_id]) map[t.job_id] = [];
+        map[t.job_id].push(t);
+        return map;
+      }, {});
+    }
+
     return jobs.map(job => {
       if (job.input_params && typeof job.input_params === 'string') {
         try { job.input_params = JSON.parse(job.input_params); } catch(e) {}
@@ -88,6 +109,8 @@ class WorkflowQuery {
       // 添加工作流名称
       const definition = getWorkflowDefinition(job.workflow_type);
       job.workflowName = definition?.name || job.workflow_type;
+      // 添加子任务数据
+      job.tasks = tasksMap[job.id] || [];
       return job;
     });
   }

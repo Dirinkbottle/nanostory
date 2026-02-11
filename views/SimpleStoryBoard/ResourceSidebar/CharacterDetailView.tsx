@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Button, Textarea } from '@heroui/react';
-import { ArrowLeft, Upload, Mic, Sparkles } from 'lucide-react';
+import { ArrowLeft, Upload, Mic, Sparkles, ZoomIn } from 'lucide-react';
 import { Character } from '../../StoryBoard/ResourcePanel/types';
+import { usePreview } from '../../../components/PreviewProvider';
 
 interface CharacterDetailViewProps {
   character: Character;
@@ -14,8 +15,25 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
   const [description, setDescription] = useState(
     character.description || character.appearance || ''
   );
+  const { openPreview } = usePreview();
 
   const mainImage = character.imageUrl || character.frontViewUrl || character.characterSheetUrl;
+
+  // 构建三视图 slides 用于灯箱预览
+  const buildViewSlides = (startIndex: number = 0) => {
+    const slides: { src: string; alt?: string }[] = [];
+    const views = [
+      { url: character.frontViewUrl, label: '正面视图' },
+      { url: character.sideViewUrl, label: '侧面视图' },
+      { url: character.backViewUrl, label: '背面视图' },
+    ];
+    views.forEach(v => {
+      if (v.url) slides.push({ src: v.url, alt: v.label });
+    });
+    return { slides, index: Math.min(startIndex, slides.length - 1) };
+  };
+
+  const hasThreeViews = character.frontViewUrl || character.sideViewUrl || character.backViewUrl;
 
   return (
     <div className="flex flex-col h-full">
@@ -31,9 +49,26 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
       {/* 内容 */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* 角色图片 */}
-        <div className="rounded-xl border-2 border-dashed border-slate-600 overflow-hidden bg-slate-800/50 aspect-square flex items-center justify-center">
+        <div
+          className="rounded-xl border-2 border-dashed border-slate-600 overflow-hidden bg-slate-800/50 aspect-square flex items-center justify-center group relative cursor-pointer"
+          onClick={() => {
+            if (mainImage) {
+              const { slides, index } = buildViewSlides(0);
+              if (slides.length > 0) {
+                openPreview(slides, index);
+              } else {
+                openPreview([{ src: mainImage, alt: character.name }], 0);
+              }
+            }
+          }}
+        >
           {mainImage ? (
-            <img src={mainImage} alt={character.name} className="w-full h-full object-cover" />
+            <>
+              <img src={mainImage} alt={character.name} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <ZoomIn className="w-6 h-6 text-white" />
+              </div>
+            </>
           ) : (
             <div className="flex flex-col items-center gap-2 text-slate-500">
               <div className="w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center">
@@ -44,6 +79,42 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
             </div>
           )}
         </div>
+
+        {/* 三视图预览 */}
+        {hasThreeViews && (
+          <div>
+            <p className="text-xs font-semibold text-slate-400 mb-2">三视图</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { url: character.frontViewUrl, label: '正面', idx: 0 },
+                { url: character.sideViewUrl, label: '侧面', idx: 1 },
+                { url: character.backViewUrl, label: '背面', idx: 2 },
+              ].map(view => (
+                <div key={view.label} className="relative group">
+                  <p className="text-[10px] text-slate-500 mb-1 text-center">{view.label}</p>
+                  {view.url ? (
+                    <div
+                      className="aspect-[3/4] rounded-lg overflow-hidden border border-slate-700/50 cursor-pointer"
+                      onClick={() => {
+                        const { slides, index } = buildViewSlides(view.idx);
+                        openPreview(slides, index);
+                      }}
+                    >
+                      <img src={view.url} alt={view.label} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 mt-4 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <ZoomIn className="w-4 h-4 text-white" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="aspect-[3/4] rounded-lg bg-slate-800/60 border border-slate-700/50 flex items-center justify-center">
+                      <span className="text-[10px] text-slate-600">未生成</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 名字 + 语音 + 本地图 */}
         <div className="flex items-center gap-2">

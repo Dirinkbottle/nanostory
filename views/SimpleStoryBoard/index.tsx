@@ -4,6 +4,7 @@ import { useAutoStoryboard } from '../StoryBoard/useAutoStoryboard';
 import { useSceneGeneration } from '../StoryBoard/useSceneGeneration';
 import { useCharacterData } from '../StoryBoard/ResourcePanel/useCharacterData';
 import { useSceneData } from '../StoryBoard/ResourcePanel/useSceneData';
+import { useToast } from '../../contexts/ToastContext';
 import DarkEpisodeSelector from './DarkEpisodeSelector';
 import AutoStoryboardModal from '../StoryBoard/AutoStoryboardModal';
 import StoryboardTable from './StoryboardTable';
@@ -41,6 +42,7 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
   const [currentScriptId, setCurrentScriptId] = useState<number | null>(scriptId || null);
   const [currentProjectId, setCurrentProjectId] = useState<number | null>(projectId || null);
   const [currentEpisode, setCurrentEpisode] = useState(episodeNumber);
+  const { showToast } = useToast();
 
   // 右侧面板联动状态
   const [selectedCharName, setSelectedCharName] = useState<string | null>(null);
@@ -90,11 +92,12 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
   // 角色图片生成
   const handleGenerateCharacterImage = async (characterId: number, imageModel: string) => {
     if (!characterId || !imageModel) {
-      console.warn('缺少必要参数：characterId 或 imageModel');
+      showToast('缺少必要参数，请选择角色和模型', 'warning');
       return;
     }
 
     try {
+      showToast('正在生成角色三视图...', 'info');
       const response = await fetch(`http://localhost:4000/api/characters/${characterId}/generate-views`, {
         method: 'POST',
         headers: {
@@ -110,13 +113,14 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
 
       const data = await response.json();
       if (response.ok) {
-        console.log('角色图片生成已启动:', data);
+        showToast('角色三视图生成任务已启动！', 'success');
         // 刷新角色数据
         loadCharacters();
       } else {
-        console.error('生成失败:', data.message);
+        showToast(data.message || '生成失败', 'error');
       }
     } catch (error) {
+      showToast('生成角色图片时出错', 'error');
       console.error('生成角色图片出错:', error);
     }
   };
@@ -124,11 +128,12 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
   // 场景图片生成
   const handleGenerateSceneImage = async (sceneId: number, imageModel: string) => {
     if (!sceneId || !imageModel) {
-      console.warn('缺少必要参数：sceneId 或 imageModel');
+      showToast('缺少必要参数，请选择场景和模型', 'warning');
       return;
     }
 
     try {
+      showToast('正在生成场景图片...', 'info');
       const response = await fetch(`http://localhost:4000/api/scenes/${sceneId}/generate-image`, {
         method: 'POST',
         headers: {
@@ -145,13 +150,14 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
 
       const data = await response.json();
       if (response.ok) {
-        console.log('场景图片生成已启动:', data);
+        showToast('场景图片生成任务已启动！', 'success');
         // 刷新场景数据
         loadScenes();
       } else {
-        console.error('生成失败:', data.message);
+        showToast(data.message || '生成失败', 'error');
       }
     } catch (error) {
+      showToast('生成场景图片时出错', 'error');
       console.error('生成场景图片出错:', error);
     }
   };

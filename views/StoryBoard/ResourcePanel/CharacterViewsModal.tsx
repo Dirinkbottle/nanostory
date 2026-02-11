@@ -1,7 +1,8 @@
 import React from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from '@heroui/react';
-import { Layers, Wand2 } from 'lucide-react';
+import { Layers, Wand2, ZoomIn } from 'lucide-react';
 import { ResourceItem } from './types';
+import { usePreview } from '../../../components/PreviewProvider';
 
 interface CharacterViewsModalProps {
   isOpen: boolean;
@@ -27,6 +28,24 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
   textModel
 }) => {
 
+  const { openPreview } = usePreview();
+
+  // 构建三视图 slides
+  const openViewPreview = (startIndex: number) => {
+    const slides: { src: string; alt?: string }[] = [];
+    const views = [
+      { url: selectedResource?.frontViewUrl, label: '正面视图' },
+      { url: selectedResource?.sideViewUrl, label: '侧面视图' },
+      { url: selectedResource?.backViewUrl, label: '背面视图' },
+    ];
+    views.forEach(v => {
+      if (v.url) slides.push({ src: v.url, alt: v.label });
+    });
+    if (slides.length > 0) {
+      openPreview(slides, Math.min(startIndex, slides.length - 1));
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onOpenChange={onClose} size="2xl">
       <ModalContent className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50">
@@ -47,7 +66,12 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
                     <div className="border border-slate-700/50 rounded-lg p-2">
                       <p className="text-xs text-slate-400 mb-2">正面视图</p>
                       {selectedResource.frontViewUrl ? (
-                        <img src={selectedResource.frontViewUrl} alt="正面视图" className="w-full h-48 object-cover rounded" />
+                        <div className="relative group cursor-pointer" onClick={() => openViewPreview(0)}>
+                          <img src={selectedResource.frontViewUrl} alt="正面视图" className="w-full h-48 object-cover rounded" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
+                            <ZoomIn className="w-5 h-5 text-white" />
+                          </div>
+                        </div>
                       ) : (
                         <div className="w-full h-48 bg-slate-800/60 rounded flex items-center justify-center text-slate-500 text-sm">
                           {selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}
@@ -59,7 +83,12 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
                     <div className="border border-slate-700/50 rounded-lg p-2">
                       <p className="text-xs text-slate-400 mb-2">侧面视图</p>
                       {selectedResource.sideViewUrl ? (
-                        <img src={selectedResource.sideViewUrl} alt="侧面视图" className="w-full h-48 object-cover rounded" />
+                        <div className="relative group cursor-pointer" onClick={() => openViewPreview(1)}>
+                          <img src={selectedResource.sideViewUrl} alt="侧面视图" className="w-full h-48 object-cover rounded" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
+                            <ZoomIn className="w-5 h-5 text-white" />
+                          </div>
+                        </div>
                       ) : (
                         <div className="w-full h-48 bg-slate-800/60 rounded flex items-center justify-center text-slate-500 text-sm">
                           {selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}
@@ -71,7 +100,12 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
                     <div className="border border-slate-700/50 rounded-lg p-2">
                       <p className="text-xs text-slate-400 mb-2">背面视图</p>
                       {selectedResource.backViewUrl ? (
-                        <img src={selectedResource.backViewUrl} alt="背面视图" className="w-full h-48 object-cover rounded" />
+                        <div className="relative group cursor-pointer" onClick={() => openViewPreview(2)}>
+                          <img src={selectedResource.backViewUrl} alt="背面视图" className="w-full h-48 object-cover rounded" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center">
+                            <ZoomIn className="w-5 h-5 text-white" />
+                          </div>
+                        </div>
                       ) : (
                         <div className="w-full h-48 bg-slate-800/60 rounded flex items-center justify-center text-slate-500 text-sm">
                           {selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}

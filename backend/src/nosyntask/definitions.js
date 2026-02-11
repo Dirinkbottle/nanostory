@@ -23,7 +23,9 @@ const {
   handleSingleFrameGeneration,
   handleSceneVideoGeneration,
   handleStoryboardGeneration,
-  handleCharacterViewsGeneration,
+  handleCharacterFrontView,
+  handleCharacterSideView,
+  handleCharacterBackView,
   handleSceneImageGeneration,
   handleBatchFrameGeneration,
   handleBatchSceneVideoGeneration,
@@ -271,14 +273,39 @@ const WORKFLOW_DEFINITIONS = {
     name: '角色三视图生成',
     steps: [
       {
-        type: 'character_views_generation',
+        type: 'character_front_view',
         targetType: 'character',
-        handler: handleCharacterViewsGeneration,
+        handler: handleCharacterFrontView,
         buildInput: createBuildInput([
           'characterId', 'characterName', 'appearance', 'personality',
           'description', 'style', 'projectId', 'imageModel', 'textModel',
           { key: 'width', defaultValue: 512 },
           { key: 'height', defaultValue: 768 }
+        ])
+      },
+      {
+        type: 'character_side_view',
+        targetType: 'character',
+        handler: handleCharacterSideView,
+        buildInput: createBuildInput([
+          'characterId', 'characterName', 'appearance', 'personality',
+          'description', 'style', 'projectId', 'imageModel', 'textModel',
+          { key: 'width', defaultValue: 512 },
+          { key: 'height', defaultValue: 768 },
+          { key: 'frontViewUrl', from: ctx => ctx.previousResults[0]?.frontViewUrl || null }
+        ])
+      },
+      {
+        type: 'character_back_view',
+        targetType: 'character',
+        handler: handleCharacterBackView,
+        buildInput: createBuildInput([
+          'characterId', 'characterName', 'appearance', 'personality',
+          'description', 'style', 'projectId', 'imageModel', 'textModel',
+          { key: 'width', defaultValue: 512 },
+          { key: 'height', defaultValue: 768 },
+          { key: 'frontViewUrl', from: ctx => ctx.previousResults[0]?.frontViewUrl || null },
+          { key: 'sideViewUrl', from: ctx => ctx.previousResults[1]?.sideViewUrl || null }
         ])
       }
     ]
