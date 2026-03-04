@@ -101,7 +101,7 @@ ${envBlock ? `【环境状态】\n${envBlock}` : ''}
   const result = await handleBaseTextModelCall({
     prompt,
     textModel,
-    maxTokens: 800,
+    maxTokens: 4096,
     think: true,
     temperature: 0.3
   });

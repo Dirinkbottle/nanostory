@@ -149,6 +149,15 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
         const bodyObj = JSON.parse(requestOptions.body);
         const fields = Object.keys(bodyObj);
         console.log(`[AI Model] Request Body 字段列表: [${fields.join(', ')}]`);
+
+        // 特别打印content数组的完整内容（用于调试）
+        if (bodyObj.content && Array.isArray(bodyObj.content)) {
+          console.log('[AI Model] Content数组详情:');
+          bodyObj.content.forEach((item, index) => {
+            console.log(`[AI Model]   content[${index}]:`, JSON.stringify(item, null, 2));
+          });
+        }
+
         for (const key of fields) {
           const val = typeof bodyObj[key] === 'string' ? bodyObj[key] : JSON.stringify(bodyObj[key]);
           console.log(`[AI Model]   ${key}: ${val.substring(0, 200)}${val.length > 200 ? '...' : ''}`);
