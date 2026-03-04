@@ -1,5 +1,5 @@
 import React, { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardBody, Button, Input, Divider } from '@heroui/react';
 import { User, Lock, ArrowRight, Sparkles } from 'lucide-react';
 import { login, register } from '../services/auth';
@@ -7,12 +7,16 @@ import { useToast } from '../contexts/ToastContext';
 
 const Auth: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 获取登录前想访问的页面
+  const from = (location.state as any)?.from?.pathname || '/';
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -30,7 +34,8 @@ const Auth: React.FC = () => {
         await login(username, password);
         showToast('登录成功！', 'success');
       }
-      navigate('/');
+      // 登录成功后返回之前想访问的页面
+      navigate(from, { replace: true });
     } catch (err: any) {
       showToast(err?.message || '操作失败', 'error');
     } finally {

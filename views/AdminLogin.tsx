@@ -2,47 +2,33 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardBody, Input, Button } from '@heroui/react';
 import { Lock, User, Shield } from 'lucide-react';
+import { login } from '../services/auth';
+import { useToast } from '../contexts/ToastContext';
 
 const AdminLogin: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
+      const user = await login(email, password);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || '登录失败');
+      if (user.role !== 'admin') {
+        showToast('权限不足，仅管理员可访问', 'error');
         setLoading(false);
         return;
       }
 
-      if (data.user.role !== 'admin') {
-        setError('权限不足，仅管理员可访问');
-        setLoading(false);
-        return;
-      }
-
-      localStorage.setItem('authToken', data.token);
-      localStorage.setItem('userRole', data.user.role);
-      localStorage.setItem('userEmail', data.user.email);
-      
+      showToast('登录成功！', 'success');
       navigate('/admin/dashboard');
-    } catch (err) {
-      setError('网络错误，请稍后重试');
+    } catch (err: any) {
+      showToast(err?.message || '登录失败', 'error');
       setLoading(false);
     }
   };
@@ -93,12 +79,6 @@ const AdminLogin: React.FC = () => {
                 required
               />
             </div>
-
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
 
             <Button
               type="submit"

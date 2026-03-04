@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(ls -la /mnt/d/Oherfile/Users/Desktop/nanostory/backend/.env*)",
-      "Bash(sqlite3 nanostory.db \"SELECT name, body_template, default_params FROM ai_model_configs WHERE name = ''Grok Imagine'';\")"
-    ]
-  }
-}

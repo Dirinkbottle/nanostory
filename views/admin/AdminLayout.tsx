@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronRight, LogOut, Settings, Users, Cpu, LayoutDashboard } from 'lucide-react';
-import { getAuthUser } from '../../services/auth';
+import { getAuthUser, logout } from '../../services/auth';
 
 interface MenuItem {
   id: string;
@@ -59,9 +59,7 @@ const AdminLayout: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');
+    logout();
     navigate('/admin/login');
   };
 

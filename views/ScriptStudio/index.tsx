@@ -198,7 +198,7 @@ const ScriptStudio: React.FC = () => {
                   </div>
                 }
               />
-              <Tab
+              {/* <Tab
                 key="composition"
                 title={
                   <div className="flex items-center gap-2">
@@ -206,7 +206,7 @@ const ScriptStudio: React.FC = () => {
                     <span>合成</span>
                   </div>
                 }
-              />
+              /> */}
             </Tabs>
           </div>
           <Button
