@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Progress } from '@heroui/react';
 import { Download, Image, Video } from 'lucide-react';
-import { StoryboardScene } from '../useSceneManager';
-import { batchDownloadMedia, DownloadType } from '../utils/batchDownload';
+import { StoryboardScene } from './useSceneManager';
+import { batchDownloadMedia, DownloadType } from './utils/batchDownload';
 
 interface BatchDownloadModalProps {
   isOpen: boolean;

@@ -11,6 +11,7 @@ import AdminLayout from './views/admin/AdminLayout';
 import Dashboard from './views/admin/Dashboard';
 import AIModels from './views/admin/AIModels';
 import UserManagement from './views/admin/UserManagement';
+import AdminRoute from './components/AdminRoute';
 import { ToastProvider } from './contexts/ToastContext';
 import { PreviewProvider } from './components/PreviewProvider';
 import TaskQueueBubble from './components/TaskQueueBubble';
@@ -22,8 +23,12 @@ const App: React.FC = () => {
       <PreviewProvider>
         <Routes>
           <Route path="/admin/login" element={<AdminLogin />} />
-          
-          <Route path="/admin" element={<AdminLayout />}>
+
+          <Route path="/admin" element={
+            <AdminRoute>
+              <AdminLayout />
+            </AdminRoute>
+          }>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="ai-models" element={<AIModels />} />
             <Route path="users" element={<UserManagement />} />

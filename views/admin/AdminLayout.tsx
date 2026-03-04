@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronDown, ChevronRight, LogOut, Settings, Users, Cpu, LayoutDashboard } from 'lucide-react';
+import { getAuthUser } from '../../services/auth';
 
 interface MenuItem {
   id: string;
@@ -14,7 +15,8 @@ const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(['system']));
-  const userEmail = localStorage.getItem('userEmail') || 'Admin';
+  const authUser = getAuthUser();
+  const userEmail = authUser?.email || 'Admin';
 
   const menuItems: MenuItem[] = [
     {
