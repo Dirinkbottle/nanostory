@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@heroui/react';
-import { Wand2, RefreshCw, Upload } from 'lucide-react';
+import { Wand2, RefreshCw, Upload, Download } from 'lucide-react';
 import { useSceneManager } from './useSceneManager';
 import { useAutoStoryboard } from './useAutoStoryboard';
 import { useSceneGeneration } from './useSceneGeneration';
@@ -9,6 +9,7 @@ import { useBatchSceneVideoGeneration } from './hooks/useBatchSceneVideoGenerati
 import EpisodeSelector from './EpisodeSelector';
 import AutoStoryboardModal from './AutoStoryboardModal';
 import ImportStoryboardModal from './ImportStoryboardModal';
+import BatchDownloadModal from './BatchDownloadModal';
 import SceneList from './SceneList';
 import ResourcePanel from './ResourcePanel';
 import { getAuthToken } from '../../services/auth';
@@ -45,6 +46,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   const [currentProjectId, setCurrentProjectId] = useState<number | null>(projectId || null);
   const [currentEpisode, setCurrentEpisode] = useState(episodeNumber);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showBatchDownloadModal, setShowBatchDownloadModal] = useState(false);
 
   // 同步外部 props
   useEffect(() => { if (scriptId !== currentScriptId) setCurrentScriptId(scriptId || null); }, [scriptId]);
@@ -227,6 +229,17 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           >
             刷新
           </Button>
+          {scenes.length > 0 && (
+            <Button
+              size="sm"
+              variant="flat"
+              className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 text-green-400 font-medium hover:from-green-500/30 hover:to-emerald-500/30"
+              startContent={<Download className="w-4 h-4" />}
+              onPress={() => setShowBatchDownloadModal(true)}
+            >
+              批量下载
+            </Button>
+          )}
           <Button
             size="sm"
             variant="flat"
@@ -319,6 +332,13 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
         isOpen={showImportModal}
         onOpenChange={setShowImportModal}
         onImport={handleImportScenes}
+      />
+
+      {/* 批量下载弹窗 */}
+      <BatchDownloadModal
+        isOpen={showBatchDownloadModal}
+        onOpenChange={setShowBatchDownloadModal}
+        scenes={scenes}
       />
     </div>
   );

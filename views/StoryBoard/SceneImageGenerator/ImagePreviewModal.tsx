@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, ModalContent, ModalBody, ModalFooter, Button } from '@heroui/react';
+import { Download } from 'lucide-react';
 
 interface ImagePreviewModalProps {
   isOpen: boolean;
@@ -8,6 +9,24 @@ interface ImagePreviewModalProps {
 }
 
 const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ isOpen, onClose, imageUrl }) => {
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `frame_${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('下载失败:', error);
+      alert('下载失败，请重试');
+    }
+  };
+
   return (
     <Modal 
       isOpen={isOpen} 
@@ -31,12 +50,19 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ isOpen, onClose, 
               )}
             </ModalBody>
             <ModalFooter className="border-t border-white/10">
-              <Button 
-                variant="light" 
+              <Button
+                variant="light"
                 onPress={onCloseModal}
                 className="text-white font-semibold"
               >
                 关闭
+              </Button>
+              <Button
+                className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold"
+                startContent={<Download className="w-4 h-4" />}
+                onPress={handleDownload}
+              >
+                下载图片
               </Button>
             </ModalFooter>
           </>

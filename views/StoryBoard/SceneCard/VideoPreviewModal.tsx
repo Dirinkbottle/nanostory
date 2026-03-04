@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Spinner } from '@heroui/react';
-import { Play, Film, X } from 'lucide-react';
+import { Play, Film, X, Download } from 'lucide-react';
 import { StoryboardScene } from '../useSceneManager';
 
 interface VideoPreviewModalProps {
@@ -24,6 +24,25 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
   setShowVideoPreview,
   isModal = false
 }) => {
+  const handleDownload = async () => {
+    if (!scene.videoUrl) return;
+    try {
+      const response = await fetch(scene.videoUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `video_scene_${index + 1}_${Date.now()}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('下载失败:', error);
+      alert('下载失败，请重试');
+    }
+  };
+
   if (isModal) {
     return (
       <Modal 
@@ -57,6 +76,14 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
                 <Button variant="light" onPress={onClose}>
                   关闭
                 </Button>
+                <Button
+                  className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold"
+                  startContent={<Download className="w-4 h-4" />}
+                  onPress={handleDownload}
+                  isDisabled={!scene.videoUrl}
+                >
+                  下载视频
+                </Button>
               </ModalFooter>
             </>
           )}
@@ -83,6 +110,13 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
           title="预览视频"
         >
           <Play className="w-4 h-4 text-slate-700" />
+        </button>
+        <button
+          onClick={handleDownload}
+          className="p-2 bg-blue-500/90 rounded-full hover:bg-blue-500 transition-colors"
+          title="下载视频"
+        >
+          <Download className="w-4 h-4 text-white" />
         </button>
         <button
           onClick={onGenerateVideo}
