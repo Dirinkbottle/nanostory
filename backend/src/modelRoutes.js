@@ -15,32 +15,51 @@ const { queryAll } = require('./dbHelper');
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const { type } = req.query;
-    
+
     let query = `
-      SELECT id, name, category, provider, description, is_active
-      FROM ai_model_configs 
+      SELECT id, name, category, provider, description, is_active, price_config
+      FROM ai_model_configs
       WHERE is_active = 1
     `;
     const params = [];
-    
+
     if (type) {
       query += ' AND category = ?';
       params.push(type);
     }
-    
+
     query += ' ORDER BY name';
-    
+
     const models = await queryAll(query, params);
-    
-    res.json({ 
-      models: models.map(m => ({
-        id: m.id,
-        name: m.name,
-        provider: m.provider,
-        type: m.category,
-        description: m.description,
-        isActive: m.is_active === 1
-      }))
+
+    res.json({
+      models: models.map(m => {
+        // 解析 price_config JSON
+        let priceConfig = null;
+        if (m.price_config) {
+          try {
+            const parsed = typeof m.price_config === 'string'
+              ? JSON.parse(m.price_config)
+              : m.price_config;
+            priceConfig = {
+              unit: parsed.unit || 'token',
+              price: parsed.price || 0
+            };
+          } catch (err) {
+            console.warn(`[Get AI Models] 解析 price_config 失败 (${m.name}):`, err.message);
+          }
+        }
+
+        return {
+          id: m.id,
+          name: m.name,
+          provider: m.provider,
+          type: m.category,
+          description: m.description,
+          isActive: m.is_active === 1,
+          priceConfig
+        };
+      })
     });
   } catch (error) {
     console.error('[Get AI Models]', error);

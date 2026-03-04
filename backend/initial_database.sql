@@ -375,17 +375,4 @@ ON DUPLICATE KEY UPDATE
   description=VALUES(description),
   api_key=VALUES(api_key);
 
--- 迁移：为已有数据库添加 use_models 字段（幂等，列已存在则忽略）
--- ALTER TABLE projects ADD COLUMN use_models JSON DEFAULT NULL COMMENT 'AI模型选择配置' AFTER settings_json;
-
--- 迁移：为已有数据库添加 updated_scene_url 字段（State-Aware Dynamic Asset Flow）
--- ALTER TABLE storyboards ADD COLUMN updated_scene_url TEXT DEFAULT NULL COMMENT '更新版空镜场景图URL（modified镜头生成，供后续 inherit 镜头作为场景参考）' AFTER video_url;
-
--- 迁移：为已有数据库添加 work_result 字段（任务执行追踪日志）
--- ALTER TABLE generation_tasks ADD COLUMN work_result JSON DEFAULT NULL COMMENT '任务执行追踪日志（引擎自动记录：步骤、耗时、参考图选择等）' AFTER result_data;
-
--- 迁移：为已有数据库添加场景 A/B 面字段（180°轴线原则）
--- ALTER TABLE scenes ADD COLUMN reverse_image_url TEXT COMMENT '场景图片URL（B面/反打：180°反向视角空镜）' AFTER image_url;
--- ALTER TABLE scenes ADD COLUMN reverse_generation_prompt TEXT COMMENT '图片生成提示词（B面）' AFTER generation_prompt;
-
 SET FOREIGN_KEY_CHECKS = 1;

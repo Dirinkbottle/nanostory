@@ -1,5 +1,6 @@
 import React from 'react';
 import { Select, SelectItem } from '@heroui/react';
+import { Coins } from 'lucide-react';
 
 export interface AIModel {
   id?: number;
@@ -9,6 +10,10 @@ export interface AIModel {
   category?: string;
   description?: string;
   isActive?: boolean;
+  priceConfig?: {
+    unit: string;
+    price: number;
+  };
 }
 
 interface AIModelSelectorProps {
@@ -77,18 +82,49 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
           content: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-lg"
         }
       }}
+      renderValue={(items) => {
+        const item = items[0];
+        if (!item) return null;
+
+        const model = filteredModels.find(m => m.name === item.textValue);
+        if (!model) return item.textValue;
+
+        return (
+          <div className="flex items-center justify-between gap-2 w-full">
+            <span className="font-semibold truncate">{model.name}</span>
+            {model.priceConfig && (
+              <div className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded shrink-0">
+                <Coins className="w-3 h-3 text-amber-400" />
+                <span className="text-xs font-medium text-amber-300 whitespace-nowrap">
+                  1 {model.priceConfig.unit} · {model.priceConfig.price} 点
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      }}
     >
       {filteredModels.map((model) => (
-        <SelectItem 
-          key={model.name} 
+        <SelectItem
+          key={model.name}
           className="text-slate-200 hover:bg-slate-800/80 data-[hover=true]:bg-slate-800/80"
           textValue={model.name}
         >
-          <div className="flex flex-col py-1">
-            <span className="font-semibold text-slate-100">{model.name}</span>
-            <span className="text-xs text-slate-400">
-              {model.provider} {model.description && `· ${model.description}`}
-            </span>
+          <div className="flex items-center justify-between gap-3 py-1">
+            <div className="flex flex-col flex-1 min-w-0">
+              <span className="font-semibold text-slate-100">{model.name}</span>
+              <span className="text-xs text-slate-400 truncate">
+                {model.provider} {model.description && `· ${model.description}`}
+              </span>
+            </div>
+            {model.priceConfig && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-md shrink-0">
+                <Coins className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-xs font-medium text-amber-300 whitespace-nowrap">
+                  1 {model.priceConfig.unit} · {model.priceConfig.price} 点
+                </span>
+              </div>
+            )}
           </div>
         </SelectItem>
       ))}
