@@ -149,13 +149,13 @@ export async function validateFrameReadiness(
   const issues: ValidationIssue[] = [];
 
   // 1. 角色数量校验：多角色阻止
-  if (characters.length > 1) {
-    issues.push({
-      type: 'too_many_characters',
-      message: `当前仅支持单角色镜头，该镜头包含 ${characters.length} 个角色：${characters.join('、')}。请拆分镜头或手动处理。`,
-      blocking: true,
-    });
-  }
+  // if (characters.length > 1) {
+  //   issues.push({
+  //     type: 'too_many_characters',
+  //     message: `当前仅支持单角色镜头，该镜头包含 ${characters.length} 个角色：${characters.join('、')}。请拆分镜头或手动处理。`,
+  //     blocking: true,
+  //   });
+  // }
 
   // 2. 场景必须存在
   if (!location || location.trim() === '') {
@@ -273,15 +273,15 @@ export async function validateBatchFrameReadiness(
   await Promise.all(validationPromises);
 
   // 补充前端本地校验（多角色检查）
-  for (const s of scenes) {
-    if ((s.characters || []).length > 1) {
-      allIssues.push({
-        type: 'too_many_characters',
-        message: `当前仅支持单角色镜头，某镜头包含 ${s.characters.length} 个角色：${s.characters.join('、')}`,
-        blocking: true,
-      });
-    }
-  }
+  // for (const s of scenes) {
+  //   if ((s.characters || []).length > 1) {
+  //     allIssues.push({
+  //       type: 'too_many_characters',
+  //       message: `当前仅支持单角色镜头，某镜头包含 ${s.characters.length} 个角色：${s.characters.join('、')}`,
+  //       blocking: true,
+  //     });
+  //   }
+  // }
 
   // 去重（同一条 message 只保留一次）
   const seen = new Set<string>();

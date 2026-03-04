@@ -1,16 +1,15 @@
 /**
  * 分镜首尾帧生成处理器（动作镜头）
- * 
+ *
  * 流程：
  * 1. 查询分镜数据，获取角色列表和场景名称
- * 2. 校验：多角色镜头直接阻止（当前仅支持单角色）
- * 3. 查询角色正面图 URL + 场景图 URL，拼接为 imageUrls 参考数组
- * 4. 如果有上一镜头尾帧（prevEndFrameUrl），加入参考图列表以保持连续性
- * 5. 调用文本模型，根据镜头描述 + 上一镜头上下文生成首帧提示词
- * 6. 以 imageUrls + 首帧提示词 调用图片模型生成首帧，保存到数据库
- * 7. 调用文本模型，根据镜头描述生成尾帧提示词
- * 8. 以 [首帧] + 尾帧提示词 调用图片模型生成尾帧，保存到数据库
- * 
+ * 2. 查询所有角色的三视图 URL + 场景图 URL，拼接为 imageUrls 参考数组（支持多角色）
+ * 3. 如果有上一镜头尾帧（prevEndFrameUrl），加入参考图列表以保持连续性
+ * 4. 调用文本模型，根据镜头描述 + 上一镜头上下文生成首帧提示词
+ * 5. 以 imageUrls + 首帧提示词 调用图片模型生成首帧，保存到数据库
+ * 6. 调用文本模型，根据镜头描述生成尾帧提示词
+ * 7. 以 [首帧] + 尾帧提示词 调用图片模型生成尾帧，保存到数据库
+ *
  * input:  { storyboardId, prompt, imageModel, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene }
  * output: { startFrame, endFrame, model, startPrompt, endPrompt }
  */
@@ -84,14 +83,36 @@ const generateFramePrompt = traced('生成帧提示词', async function _generat
   let charBlock;
   let charConstraint;
   if (characterInfo) {
-    charBlock = `【角色信息】
-角色名称: ${characterInfo.name}
-外貌特征: ${characterInfo.appearance}
-角色描述: ${characterInfo.description}
+    // 支持多角色：characterInfo 可能是对象（单角色）或数组（多角色）
+    const characters = Array.isArray(characterInfo) ? characterInfo : [characterInfo];
+
+    if (characters.length === 1) {
+      // 单角色
+      const char = characters[0];
+      charBlock = `【角色信息】
+角色名称: ${char.name}
+外貌特征: ${char.appearance}
+角色描述: ${char.description}
 （已提供角色参考图，角色的发型、发色、瞳色、服装款式和颜色、体型比例、配饰必须与参考图一致。但角色的姿势、位置、朝向、表情以文字描述和上一镜头结束状态为准，不要从角色立绘中复制姿态。）`;
-    charConstraint = `- 角色外貌、服装、发型必须与参考图完全一致，不得自行创造角色形象
+      charConstraint = `- 角色外貌、服装、发型必须与参考图完全一致，不得自行创造角色形象
 - 严禁出现参考图中不存在的额外人物
 - 角色身体结构必须正常：头部在肩膀上方，四肢正常连接，禁止畸变`;
+    } else {
+      // 多角色
+      const charInfoText = characters.map(char =>
+        `角色名称: ${char.name}
+外貌特征: ${char.appearance}
+角色描述: ${char.description}`
+      ).join('\n\n');
+
+      charBlock = `【角色信息（多角色场景）】
+${charInfoText}
+（已提供所有角色的参考图，每个角色的发型、发色、瞳色、服装款式和颜色、体型比例、配饰必须与各自的参考图一致。但角色的姿势、位置、朝向、表情以文字描述和上一镜头结束状态为准，不要从角色立绘中复制姿态。）`;
+      charConstraint = `- 每个角色的外貌、服装、发型必须与各自的参考图完全一致，不得自行创造角色形象
+- 严禁出现参考图中不存在的额外人物
+- 所有角色的身体结构必须正常：头部在肩膀上方，四肢正常连接，禁止畸变
+- 注意区分不同角色，避免混淆`;
+    }
   } else {
     charBlock = '【无角色镜头】这个镜头没有任何角色参与';
     charConstraint = `- 画面中绝对不能出现任何人物、人影或人形轮廓
