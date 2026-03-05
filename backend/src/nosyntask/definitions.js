@@ -67,7 +67,18 @@ const WORKFLOW_DEFINITIONS = {
   },
 
   /**
-   * 智能分镜（分镜生成 → 角色提取 → 场景提取）
+   * 智能分镜（优化后）- 4 步骤，3 次 AI 调用
+   * 
+   * 流程：
+   *   1. storyboard_generation  - AI 生成分镜内容
+   *   2. save_storyboards       - 保存分镜 + 从 location 字段提取场景（无 AI）
+   *   3. character_extraction   - AI 提取角色详情
+   *   4. scene_state_analysis   - AI 分析环境状态（昼/夜、天气）
+   * 
+   * 优化说明：
+   *   - 移除了 scene_extraction 步骤（冗余，场景已在 save_storyboards 中提取）
+   *   - scene_extraction 的详细信息（environment、lighting）在 scene_image_generation 
+   *     工作流的 scene_style_analysis 步骤中按需补充
    */
   storyboard_generation: {
     name: '智能分镜',
@@ -82,30 +93,21 @@ const WORKFLOW_DEFINITIONS = {
         ])
       },
       {
+        type: 'save_storyboards',
+        targetType: 'storyboard',
+        handler: handleSaveStoryboards,
+        buildInput: createBuildInput([
+          { key: 'scenes', from: ctx => ctx.previousResults[0]?.scenes || [] },
+          'scriptId', 'projectId', 'userId'  // 添加 userId 以启用场景提取
+        ])
+      },
+      {
         type: 'character_extraction',
         targetType: 'characters',
         handler: handleCharacterExtraction,
         buildInput: createBuildInput([
           { key: 'scenes', from: ctx => ctx.previousResults[0]?.scenes || [] },
           'scriptContent', 'projectId', 'scriptId', 'userId', 'textModel'
-        ])
-      },
-      {
-        type: 'scene_extraction',
-        targetType: 'scenes',
-        handler: handleSceneExtraction,
-        buildInput: createBuildInput([
-          { key: 'scenes', from: ctx => ctx.previousResults[0]?.scenes || [] },
-          'scriptContent', 'projectId', 'scriptId', 'userId', 'textModel'
-        ])
-      },
-      {
-        type: 'save_storyboards',
-        targetType: 'storyboard',
-        handler: handleSaveStoryboards,
-        buildInput: createBuildInput([
-          { key: 'scenes', from: ctx => ctx.previousResults[0]?.scenes || [] },
-          'scriptId', 'projectId'
         ])
       },
       {

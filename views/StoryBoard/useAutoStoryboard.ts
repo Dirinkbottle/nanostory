@@ -10,6 +10,7 @@ interface UseAutoStoryboardOptions {
   hasExistingScenes: boolean;
   textModel: string;
   onScenesGenerated: (scenes: StoryboardScene[]) => void;
+  onError?: (message: string) => void;
 }
 
 export function useAutoStoryboard({
@@ -18,7 +19,8 @@ export function useAutoStoryboard({
   isActive,
   hasExistingScenes,
   textModel,
-  onScenesGenerated
+  onScenesGenerated,
+  onError
 }: UseAutoStoryboardOptions) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
@@ -38,11 +40,11 @@ export function useAutoStoryboard({
   // 点击自动分镜按钮
   const handleAutoGenerateClick = () => {
     if (!scriptId) {
-      alert('请先选择或生成一个剧本');
+      onError?.('请先选择或生成一个剧本');
       return;
     }
     if (!textModel) {
-      alert('请先点击右上角「AI 模型」按钮选择文本模型');
+      onError?.('请先点击右上角「AI 模型」按钮选择文本模型');
       return;
     }
 
@@ -82,7 +84,7 @@ export function useAutoStoryboard({
       }
     } catch (err: any) {
       console.error('[AutoStoryboard] 清理失败:', err);
-      alert('清理旧数据失败: ' + err.message);
+      onError?.('清理旧数据失败: ' + err.message);
       setIsCleaning(false);
       return;
     }

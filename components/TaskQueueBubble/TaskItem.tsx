@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Progress } from '@heroui/react';
 import { X } from 'lucide-react';
 import { WorkflowJob, cancelWorkflow } from '../../hooks/useWorkflow';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 // 任务类型中文映射
 const WORKFLOW_TYPE_NAMES: Record<string, string> = {
@@ -97,11 +98,18 @@ const TaskItem: React.FC<TaskItemProps> = ({ job, progress, statusColor, statusL
   const taskName = getTaskName(job);
   const [cancelling, setCancelling] = useState(false);
   const canCancel = job.status === 'pending' || job.status === 'running';
+  const { confirm } = useConfirm();
 
   const handleCancel = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (cancelling || !canCancel) return;
-    if (!window.confirm(`确定要取消任务「${getTaskName(job)}」吗？`)) return;
+    const confirmed = await confirm({
+      title: '取消任务',
+      message: `确定要取消任务「${getTaskName(job)}」吗？`,
+      type: 'warning',
+      confirmText: '取消任务'
+    });
+    if (!confirmed) return;
     setCancelling(true);
     try {
       await cancelWorkflow(job.id);
@@ -148,6 +156,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ job, progress, statusColor, statusL
         size="sm"
         value={progress}
         color="primary"
+        aria-label="任务进度"
       />
     </div>
   );

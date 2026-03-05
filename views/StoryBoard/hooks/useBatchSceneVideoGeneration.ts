@@ -15,6 +15,7 @@ interface UseBatchSceneVideoGenerationProps {
   textModel: string;
   duration?: number | null;
   onComplete?: () => void;
+  onError?: (message: string) => void;
 }
 
 export function useBatchSceneVideoGeneration({
@@ -23,7 +24,8 @@ export function useBatchSceneVideoGeneration({
   videoModel,
   textModel,
   duration,
-  onComplete
+  onComplete,
+  onError
 }: UseBatchSceneVideoGenerationProps) {
   const recovery = useWorkflowRecovery({
     projectId,
@@ -35,18 +37,18 @@ export function useBatchSceneVideoGeneration({
     },
     onFailed: (failedJob) => {
       console.error('[useBatchSceneVideoGen] 批量视频生成失败:', failedJob.error_message);
-      alert('批量视频生成失败: ' + (failedJob.error_message || '未知错误'));
+      onError?.('批量视频生成失败: ' + (failedJob.error_message || '未知错误'));
     },
     logPrefix: '[useBatchSceneVideoGen]'
   });
 
   const startBatchVideoGeneration = useCallback(async (overwriteVideos: boolean) => {
     if (!scriptId) {
-      alert('请先选择剧本');
+      onError?.('请先选择剧本');
       return;
     }
     if (!videoModel) {
-      alert('请先选择视频模型');
+      onError?.('请先选择视频模型');
       return;
     }
 
@@ -73,11 +75,11 @@ export function useBatchSceneVideoGeneration({
         console.log('[useBatchSceneVideoGen] 任务已启动, jobId:', data.jobId);
         recovery.startJob(data.jobId);
       } else {
-        alert(data.message || '启动批量视频生成失败');
+        onError?.(data.message || '启动批量视频生成失败');
       }
     } catch (error) {
       console.error('[useBatchSceneVideoGen] 启动失败:', error);
-      alert('启动批量视频生成失败，请检查网络连接');
+      onError?.('启动批量视频生成失败，请检查网络连接');
     }
   }, [scriptId, videoModel, textModel, duration, projectId, recovery.startJob]);
 

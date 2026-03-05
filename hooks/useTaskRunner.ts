@@ -78,10 +78,13 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
   // 开始轮询某个 jobId
   const startPolling = useCallback((key: string, jobId: number) => {
     stopPolling(key);
+    let failCount = 0;
+    const MAX_FAIL = 3; // 连续失败 3 次才真正停止
 
     const poll = async () => {
       try {
         const job = await getWorkflowStatus(jobId);
+        failCount = 0; // 请求成功，重置失败计数
         const task = job.tasks?.[0];
         const progress = task?.progress ?? 0;
 
@@ -105,11 +108,15 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
           });
         }
       } catch (err: any) {
-        stopPolling(key);
-        updateTask(key, {
-          status: 'failed',
-          error: err.message || '轮询失败'
-        });
+        failCount++;
+        if (failCount >= MAX_FAIL) {
+          stopPolling(key);
+          updateTask(key, {
+            status: 'failed',
+            error: err.message || '轮询失败'
+          });
+        }
+        // 未达上限时忽略本次错误，等下次轮询重试
       }
     };
 

@@ -6,7 +6,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { BGMTrack } from '../types';
 
-export function useBGM() {
+interface UseBGMOptions {
+  onError?: (message: string) => void;
+}
+
+export function useBGM(options: UseBGMOptions = {}) {
+  const { onError } = options;
   const [bgm, setBgm] = useState<BGMTrack | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -69,9 +74,9 @@ export function useBGM() {
 
     audio.addEventListener('error', () => {
       URL.revokeObjectURL(url);
-      alert('无法加载音频文件');
+      onError?.('无法加载音频文件');
     });
-  }, [bgm]);
+  }, [bgm, onError]);
 
   // 更新 BGM 属性
   const updateBGM = useCallback((updates: Partial<BGMTrack>) => {

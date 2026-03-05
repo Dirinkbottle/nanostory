@@ -10,15 +10,19 @@ import { useWorkflow, consumeWorkflow } from '../../../hooks/useWorkflow';
 interface UseCharacterViewsGenerationProps {
   characterId: string | null;
   projectId: number | null;
-  isActive: boolean; // 是否在资源面板页面
+  isActive: boolean; // 是否在资源面松页面
   onComplete: () => void;
+  onSuccess?: (message: string) => void;
+  onError?: (message: string) => void;
 }
 
 export function useCharacterViewsGeneration({
   characterId,
   projectId,
   isActive,
-  onComplete
+  onComplete,
+  onSuccess,
+  onError
 }: UseCharacterViewsGenerationProps) {
   const [generatingJobId, setGeneratingJobId] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -88,7 +92,7 @@ export function useCharacterViewsGeneration({
         // 标记工作流已消费
         await consumeWorkflow(completedJob.id);
 
-        alert('三视图生成完成！');
+        onSuccess?.('三视图生成完成！');
         
         // 通知完成（刷新角色数据）
         onComplete();
@@ -98,7 +102,7 @@ export function useCharacterViewsGeneration({
         await checkAndResumeNextWorkflow();
       } catch (error: any) {
         console.error('[useCharacterViewsGeneration] 处理完成失败:', error);
-        alert('三视图生成完成，但处理结果时出错: ' + error.message);
+        onError?.('三视图生成完成，但处理结果时出错: ' + error.message);
         // 即使处理失败，也检查下一个工作流
         await checkAndResumeNextWorkflow();
       } finally {
@@ -107,7 +111,7 @@ export function useCharacterViewsGeneration({
     },
     onFailed: async (failedJob) => {
       console.error('[useCharacterViewsGeneration] 工作流失败:', failedJob);
-      alert('三视图生成失败，请重试');
+      onError?.('三视图生成失败，请重试');
       setIsGenerating(false);
       
       // 标记工作流已消费

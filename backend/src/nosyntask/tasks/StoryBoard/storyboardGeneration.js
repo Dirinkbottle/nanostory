@@ -1,14 +1,25 @@
 /**
  * 自动分镜处理器
  * 调用文本模型将剧本内容拆分为分镜镜头列表
+ * 同时输出角色和场景信息，减少重复 AI 调用
  * 
  * input:  { scriptContent, scriptTitle, textModel }
- * output: { scenes: [...], count }
+ * output: { scenes, characters, locations, count }
  */
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const handleRepairJsonResponse = require('./repairJsonResponse');
 const { stripThinkTags, extractCodeBlock, extractJSON, stripInvisible } = require('../../../utils/washBody');
+
+// 超时包装函数
+function withTimeout(promise, ms, errorMessage) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error(errorMessage)), ms)
+    )
+  ]);
+}
 
 async function handleStoryboardGeneration(inputParams, onProgress) {
   const { scriptContent, scriptTitle, textModel: modelName, think } = inputParams;
@@ -236,16 +247,20 @@ ${scriptContent}
         } catch (repairLibError) {
           console.error('[StoryboardGen] ❌ jsonrepair 修复失败:', repairLibError.message);
 
-          // 4. 最后手段：调用 AI 修复
+          // 4. 最后手段：调用 AI 修复（60秒超时）
           console.log('[StoryboardGen] 🔧 调用 AI 修复任务...');
           try {
-            const repairResult = await handleRepairJsonResponse({
-              incompleteJson: jsonStr,
-              originalPrompt: fullPrompt,
-              textModel: modelName
-            }, (progress) => {
-              if (onProgress) onProgress(80 + progress * 0.15);
-            });
+            const repairResult = await withTimeout(
+              handleRepairJsonResponse({
+                incompleteJson: jsonStr,
+                originalPrompt: fullPrompt,
+                textModel: modelName
+              }, (progress) => {
+                if (onProgress) onProgress(80 + progress * 0.15);
+              }),
+              60000,
+              'AI 修复超时（60秒）'
+            );
 
             if (repairResult.success && repairResult.repairedJson) {
               scenes = repairResult.repairedJson;
@@ -254,8 +269,9 @@ ${scriptContent}
               throw new Error('AI 修复也失败: ' + (repairResult.error || directParseError.message));
             }
           } catch (aiRepairError) {
-            console.error('[StoryboardGen] ❌ AI 修复失败:', aiRepairError);
-            throw new Error('分镜 JSON 解析失败，jsonrepair 和 AI 修复均失败: ' + directParseError.message);
+            console.error('[StoryboardGen] ❌ AI 修复失败:', aiRepairError.message);
+            // 超时或修复失败，返回原始错误
+            throw new Error('分镜 JSON 解析失败: ' + (aiRepairError.message.includes('超时') ? aiRepairError.message : directParseError.message));
           }
         }
       }

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Input, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Chip } from '@heroui/react';
 import { Settings2, Plus, Edit, Trash2, Save, User } from 'lucide-react';
 import { getAuthToken } from '../../services/auth';
+import { useToast } from '../../contexts/ToastContext';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 interface UserData {
   id: number;
@@ -22,6 +24,8 @@ const UserSettingsManagement: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [formData, setFormData] = useState({ key: '', value: '' });
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   useEffect(() => {
     fetchUsers();
@@ -123,16 +127,23 @@ const UserSettingsManagement: React.FC = () => {
         handleCloseModal();
       } else {
         const data = await res.json();
-        alert(data.message || '保存失败');
+        showToast(data.message || '保存失败', 'error');
       }
     } catch (error) {
       console.error('保存设置失败:', error);
-      alert('保存失败');
+      showToast('保存失败', 'error');
     }
   };
 
   const handleDelete = async (key: string) => {
-    if (!selectedUserId || !confirm(`确定要删除设置 "${key}" 吗？`)) return;
+    if (!selectedUserId) return;
+    const confirmed = await confirm({
+      title: '删除设置',
+      message: `确定要删除设置 "${key}" 吗？`,
+      type: 'danger',
+      confirmText: '删除'
+    });
+    if (!confirmed) return;
 
     try {
       const token = getAuthToken();
@@ -145,11 +156,11 @@ const UserSettingsManagement: React.FC = () => {
         await fetchUserSettings(selectedUserId);
       } else {
         const data = await res.json();
-        alert(data.message || '删除失败');
+        showToast(data.message || '删除失败', 'error');
       }
     } catch (error) {
       console.error('删除设置失败:', error);
-      alert('删除失败');
+      showToast('删除失败', 'error');
     }
   };
 

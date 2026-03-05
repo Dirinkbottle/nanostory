@@ -142,6 +142,7 @@ const SmartImportModal: React.FC<SmartImportModalProps> = ({
                 value={parseProgress}
                 color="secondary"
                 className="w-full"
+                aria-label="解析进度"
               />
             </div>
           )}

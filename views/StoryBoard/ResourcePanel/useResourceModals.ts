@@ -3,7 +3,13 @@ import { useDisclosure } from '@heroui/react';
 import { getAuthToken } from '../../../services/auth';
 import { ResourceItem } from './types';
 
-export const useResourceModals = () => {
+interface UseResourceModalsOptions {
+  onSuccess?: (message: string) => void;
+  onError?: (message: string) => void;
+}
+
+export const useResourceModals = (options: UseResourceModalsOptions = {}) => {
+  const { onSuccess, onError } = options;
   const [selectedResource, setSelectedResource] = useState<ResourceItem | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPrompts, setGeneratedPrompts] = useState<any>(null);
@@ -52,12 +58,12 @@ export const useResourceModals = () => {
 
     // 如果是从弹窗内点击生成按钮，验证模型并启动工作流
     if (!imageModel) {
-      alert('请选择图片生成模型');
+      onError?.('请选择图片生成模型');
       return;
     }
 
     if (!characterId) {
-      alert('缺少角色 ID');
+      onError?.('缺少角色 ID');
       return;
     }
 
@@ -88,13 +94,13 @@ export const useResourceModals = () => {
       const data = await res.json();
       console.log('[Generate Views] 工作流已启动:', data);
       
-      alert(`三视图生成已启动（工作流 ID: ${data.jobId}），请稍后刷新查看`);
+      onSuccess?.(`三视图生成已启动（工作流 ID: ${data.jobId}），请稍后刷新查看`);
       setGeneratedPrompts({ status: 'generating', jobId: data.jobId });
       
       // 关闭弹窗
       closeViewsModal();
     } catch (error: any) {
-      alert('生成失败: ' + error.message);
+      onError?.('生成失败: ' + error.message);
     } finally {
       setIsGenerating(false);
     }

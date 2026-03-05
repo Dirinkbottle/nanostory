@@ -29,11 +29,20 @@ async function initializeDatabase() {
     connectTimeout: 60000,
     // 启用保活机制
     enableKeepAlive: true,
-    keepAliveInitialDelay: 10000,
+    keepAliveInitialDelay: 0,
     // 自动重连
     maxIdle: 10,
-    idleTimeout: 60000
+    idleTimeout: 30000
   });
+
+  // 定时心跳，防止连接因空闲被服务器断开
+  setInterval(async () => {
+    try {
+      await pool.query('SELECT 1');
+    } catch (e) {
+      console.warn('[DB] Heartbeat failed, pool will auto-reconnect:', e.message);
+    }
+  }, 20000);
 
   await pool.query('SELECT 1');
 

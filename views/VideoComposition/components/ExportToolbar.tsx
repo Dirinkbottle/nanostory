@@ -87,6 +87,7 @@ const ExportToolbar: React.FC<ExportToolbarProps> = ({
                   value={exportProgress.percent}
                   className="max-w-[140px] flex-shrink-0"
                   classNames={{ indicator: "bg-blue-600" }}
+                  aria-label="导出进度"
                 />
               )}
 

@@ -20,6 +20,7 @@ import { useTimeline } from './hooks/useTimeline';
 import { useSubtitles } from './hooks/useSubtitles';
 import { useBGM } from './hooks/useBGM';
 import { useFFmpegExport } from './hooks/useFFmpegExport';
+import { useToast } from '../../contexts/ToastContext';
 import type { CompositionClip } from './types';
 
 interface VideoCompositionProps {
@@ -28,10 +29,11 @@ interface VideoCompositionProps {
 }
 
 const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectName }) => {
+  const { showToast } = useToast();
   const compositionData = useCompositionData(projectId);
   const timeline = useTimeline(compositionData.currentClips);
   const subtitles = useSubtitles();
-  const bgm = useBGM();
+  const bgm = useBGM({ onError: (msg) => showToast(msg, 'error') });
   const ffmpeg = useFFmpegExport();
 
   // 右侧面板

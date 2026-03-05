@@ -15,6 +15,8 @@ import CharacterList from './CharacterList';
 import SceneList from './SceneList';
 import PropList from './PropList';
 import { CharacterModal, SceneModal, PropModal } from './AssetModel';
+import { useToast } from '../../contexts/ToastContext';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 type TabType = 'characters' | 'scenes' | 'props';
 
@@ -25,6 +27,8 @@ const AssetsManager: React.FC = () => {
   const [props, setProps] = useState<Prop[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [editMode, setEditMode] = useState(false);
@@ -138,12 +142,18 @@ const AssetsManager: React.FC = () => {
       await loadData();
       onOpenChange();
     } catch (error: any) {
-      alert(error.message);
+      showToast(error.message, 'error');
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确定要删除吗？')) return;
+    const confirmed = await confirm({
+      title: '删除确认',
+      message: '确定要删除吗？',
+      type: 'danger',
+      confirmText: '删除'
+    });
+    if (!confirmed) return;
     
     try {
       if (activeTab === 'characters') {
@@ -155,7 +165,7 @@ const AssetsManager: React.FC = () => {
       }
       await loadData();
     } catch (error: any) {
-      alert(error.message);
+      showToast(error.message, 'error');
     }
   };
 
@@ -192,7 +202,7 @@ const AssetsManager: React.FC = () => {
       console.log('[AssetsManager] 场景图片生成已启动:', data.jobId);
     } catch (error: any) {
       console.error('[AssetsManager] 生成场景图片失败:', error);
-      alert('生成场景图片失败: ' + error.message);
+      showToast('生成场景图片失败: ' + error.message, 'error');
       throw error;
     }
   };

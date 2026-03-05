@@ -9,15 +9,19 @@ import { useWorkflow, consumeWorkflow } from '../../../hooks/useWorkflow';
 interface UseSceneImageGenerationProps {
   sceneId: string | null;
   projectId: number | null;
-  isActive: boolean; // 是否在资源面板页面
+  isActive: boolean; // 是否在资源面松页面
   onComplete: () => void;
+  onSuccess?: (message: string) => void;
+  onError?: (message: string) => void;
 }
 
 export function useSceneImageGeneration({
   sceneId,
   projectId,
   isActive,
-  onComplete
+  onComplete,
+  onSuccess,
+  onError
 }: UseSceneImageGenerationProps) {
   const [generatingJobId, setGeneratingJobId] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -87,7 +91,7 @@ export function useSceneImageGeneration({
         // 标记工作流已消费
         await consumeWorkflow(completedJob.id);
 
-        alert('场景图片生成完成！');
+        onSuccess?.('场景图片生成完成！');
         
         // 通知完成（刷新场景数据）
         onComplete();
@@ -97,7 +101,7 @@ export function useSceneImageGeneration({
         await checkAndResumeNextWorkflow();
       } catch (error: any) {
         console.error('[useSceneImageGeneration] 处理完成失败:', error);
-        alert('场景图片生成完成，但处理结果时出错: ' + error.message);
+        onError?.('场景图片生成完成，但处理结果时出错: ' + error.message);
         // 即使处理失败，也检查下一个工作流
         await checkAndResumeNextWorkflow();
       } finally {
@@ -106,7 +110,7 @@ export function useSceneImageGeneration({
     },
     onFailed: async (failedJob) => {
       console.error('[useSceneImageGeneration] 工作流失败:', failedJob);
-      alert('场景图片生成失败，请重试');
+      onError?.('场景图片生成失败，请重试');
       setIsGenerating(false);
       
       // 标记工作流已消费

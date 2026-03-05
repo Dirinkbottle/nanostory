@@ -3,6 +3,8 @@ import { Card, CardBody, Button, Input, useDisclosure } from '@heroui/react';
 import { Plus, Search, Sparkles } from 'lucide-react';
 import { getAuthToken } from '../../../services/auth';
 import { useWorkflow } from '../../../hooks/useWorkflow';
+import { useToast } from '../../../contexts/ToastContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 import { AIModel, TextModel, ModelFormData, DEFAULT_FORM_DATA } from './types';
 import ModelCard from './ModelCard';
 import SmartImportModal from './SmartImportModal';
@@ -18,6 +20,8 @@ const AIModels: React.FC = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: isSmartOpen, onOpen: onSmartOpen, onClose: onSmartClose } = useDisclosure();
   const { isOpen: isTestOpen, onOpen: onTestOpen, onClose: onTestClose } = useDisclosure();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   
   const [textModels, setTextModels] = useState<TextModel[]>([]);
   const [smartMode, setSmartMode] = useState(false);
@@ -70,13 +74,13 @@ const AIModels: React.FC = () => {
         setTimeout(() => onOpen(), 300);
       } else {
         console.error('[SmartParse] 解析结果:', task?.result_data);
-        alert('解析完成但未返回有效配置');
+        showToast('解析完成但未返回有效配置', 'error');
       }
     },
     onFailed: (failedJob) => {
       setParseJobId(null);
       setParsing(false);
-      alert('解析失败：' + (failedJob.error_message || '未知错误'));
+      showToast('解析失败：' + (failedJob.error_message || '未知错误'), 'error');
     }
   });
 
@@ -210,12 +214,18 @@ const AIModels: React.FC = () => {
       }
     } catch (error) {
       console.error('保存模型失败:', error);
-      alert('保存失败，请检查 JSON 格式是否正确');
+      showToast('保存失败，请检查 JSON 格式是否正确', 'error');
     }
   };
 
   const handleDelete = async (modelId: number) => {
-    if (!confirm('确定要删除此模型吗？')) return;
+    const confirmed = await confirm({
+      title: '删除模型',
+      message: '确定要删除此模型吗？',
+      type: 'danger',
+      confirmText: '删除'
+    });
+    if (!confirmed) return;
 
     try {
       const token = getAuthToken();
@@ -234,7 +244,7 @@ const AIModels: React.FC = () => {
 
   const handleManualImport = () => {
     if (!jsonConfig.trim()) {
-      alert('请输入 JSON 配置');
+      showToast('请输入 JSON 配置', 'warning');
       return;
     }
 
@@ -300,13 +310,13 @@ const AIModels: React.FC = () => {
       setTimeout(() => onOpen(), 300);
     } catch (error) {
       console.error('JSON 解析失败:', error);
-      alert(`JSON 解析失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      showToast(`JSON 解析失败: ${error instanceof Error ? error.message : '未知错误'}`, 'error');
     }
   };
 
   const handleSmartParse = async () => {
     if (!apiDoc.trim()) {
-      alert('请输入API文档');
+      showToast('请输入API文档', 'warning');
       return;
     }
 
@@ -331,12 +341,12 @@ const AIModels: React.FC = () => {
         setParseJobId(data.jobId);
       } else {
         setParsing(false);
-        alert(data.message || '启动解析任务失败');
+        showToast(data.message || '启动解析任务失败', 'error');
       }
     } catch (error) {
       console.error('智能解析失败:', error);
       setParsing(false);
-      alert('解析失败，请检查网络连接');
+      showToast('解析失败，请检查网络连接', 'error');
     }
   };
 

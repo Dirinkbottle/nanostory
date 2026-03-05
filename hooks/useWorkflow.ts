@@ -143,14 +143,17 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
     callbackRefs.current = { onCompleted, onFailed, onProgress };
   }, [onCompleted, onFailed, onProgress]);
 
+  const isInitialFetch = useRef(true);
+
   const fetchJob = useCallback(async () => {
     if (!jobId) return;
     try {
-      setLoading(true);
+      // 仅首次拉取时显示 loading，轮询中不触发重渲染
+      if (isInitialFetch.current) {
+        setLoading(true);
+      }
       setError(null);
-      console.log('[useWorkflow] 查询工作流状态:', jobId);
       const data = await getWorkflowStatus(jobId);
-      console.log('[useWorkflow] 工作流状态:', data.status, 'jobId:', data.id);
       setJob(data);
 
       // 进度回调
@@ -158,12 +161,10 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
 
       // 终态：停止轮询
       if (data.status === 'completed') {
-        console.log('[useWorkflow] 工作流完成，停止轮询');
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
-        console.log('[useWorkflow] 触发 onCompleted 回调');
         callbackRefs.current.onCompleted?.(data);
       } else if (data.status === 'failed') {
         if (intervalRef.current) {
@@ -181,6 +182,7 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
       setError(err.message);
     } finally {
       setLoading(false);
+      isInitialFetch.current = false;
     }
   }, [jobId]);
 
@@ -203,10 +205,9 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
   // jobId 变化时自动开始/停止轮询
   useEffect(() => {
     if (jobId) {
-      console.log('[useWorkflow] 启动轮询, jobId:', jobId, '间隔:', interval, 'ms');
+      isInitialFetch.current = true;
       startPolling();
     } else {
-      console.log('[useWorkflow] 停止轮询');
       stopPolling();
       setJob(null);
     }

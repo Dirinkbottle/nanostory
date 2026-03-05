@@ -3,9 +3,10 @@
  * 负责分镜生成和工作流轮询
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getAuthToken } from '../../../services/auth';
 import { useWorkflow, consumeWorkflow } from '../../../hooks/useWorkflow';
+import { useToast } from '../../../contexts/ToastContext';
 
 interface UseStoryboardGenerationProps {
   scriptId: number | null;
@@ -22,80 +23,83 @@ export function useStoryboardGeneration({
 }: UseStoryboardGenerationProps) {
   const [generatingJobId, setGeneratingJobId] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const isMountedRef = useRef(true);
+  const { showToast } = useToast();
+
+  // 组件卸载时标记
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // 监听 generatingJobId 变化
   useEffect(() => {
-    console.log('[useStoryboardGeneration] generatingJobId 变化:', generatingJobId);
+    // debug log removed for cleaner output
   }, [generatingJobId]);
 
   // 检查并恢复下一个活跃工作流（只在分镜页面激活时执行）
-  const checkAndResumeNextWorkflow = async () => {
-    if (!projectId || !isActive) {
-      console.log('[useStoryboardGeneration] 页面未激活或无 projectId，跳过检查');
+  const checkAndResumeNextWorkflow = useCallback(async () => {
+    if (!projectId || !isActive || !isMountedRef.current) {
       return;
     }
     
     try {
-      console.log('[useStoryboardGeneration] 检查项目的分镜生成工作流...');
       const { getActiveWorkflows } = await import('../../../hooks/useWorkflow');
       const { jobs } = await getActiveWorkflows(projectId);
       
+      if (!isMountedRef.current) return;
+      
       if (jobs && jobs.length > 0) {
-        // 只处理分镜生成的工作流
         const storyboardJob = jobs.find((j: any) => j.workflow_type === 'storyboard_generation');
         
         if (storyboardJob) {
-          console.log('[useStoryboardGeneration] 发现分镜生成工作流:', storyboardJob);
           setGeneratingJobId(storyboardJob.id);
           setIsGenerating(true);
         } else {
-          console.log('[useStoryboardGeneration] 没有分镜生成工作流（可能是其他类型）');
           setGeneratingJobId(null);
           setIsGenerating(false);
         }
       } else {
-        console.log('[useStoryboardGeneration] 没有活跃工作流');
         setGeneratingJobId(null);
         setIsGenerating(false);
       }
     } catch (error) {
       console.error('[useStoryboardGeneration] 检查活跃工作流失败:', error);
     }
-  };
+  }, [projectId, isActive]);
 
   // 页面加载时检查是否有未完成的工作流（只在激活时）
   useEffect(() => {
     if (isActive) {
       checkAndResumeNextWorkflow();
     }
-  }, [projectId, isActive]);
+  }, [isActive, checkAndResumeNextWorkflow]);
 
   // 使用 useWorkflow 轮询工作流状态
   const { job, isRunning, isCompleted, isFailed } = useWorkflow(generatingJobId, {
     onCompleted: async (completedJob) => {
-      console.log('[useStoryboardGeneration] 工作流完成:', completedJob);
-      
       try {
-        // 标记工作流已消费（分镜已在工作流内 save_storyboards 步骤中保存到 DB）
         await consumeWorkflow(completedJob.id);
-
-        alert('分镜生成完成！');
-        
-        // 通知完成
+        showToast('分镜生成完成！', 'success');
         onComplete();
-        
-        // 检查是否还有其他活跃工作流
-        console.log('[useStoryboardGeneration] 检查是否有其他活跃工作流...');
-        await checkAndResumeNextWorkflow();
+        if (isMountedRef.current) {
+          await checkAndResumeNextWorkflow();
+        }
       } catch (error: any) {
-        alert('处理工作流结果失败: ' + error.message);
-        await checkAndResumeNextWorkflow();
+        showToast('处理工作流结果失败: ' + error.message, 'error');
+        if (isMountedRef.current) {
+          await checkAndResumeNextWorkflow();
+        }
       } finally {
-        setIsGenerating(false);
+        if (isMountedRef.current) {
+          setIsGenerating(false);
+        }
       }
     },
     onFailed: async (failedJob) => {
-      alert('分镜生成失败: ' + (failedJob.error_message || '未知错误'));
+      showToast('分镜生成失败: ' + (failedJob.error_message || '未知错误'), 'error');
       
       try {
         await consumeWorkflow(failedJob.id);
@@ -103,25 +107,22 @@ export function useStoryboardGeneration({
         console.error('标记工作流消费失败:', error);
       }
       
-      // 检查是否还有其他活跃工作流
-      console.log('[useStoryboardGeneration] 检查是否有其他活跃工作流...');
-      await checkAndResumeNextWorkflow();
-      
-      setIsGenerating(false);
+      if (isMountedRef.current) {
+        await checkAndResumeNextWorkflow();
+        setIsGenerating(false);
+      }
     }
   });
 
   // 启动分镜生成
-  const startGeneration = async (textModel: string) => {
+  const startGeneration = useCallback(async (textModel: string) => {
     if (!scriptId) {
-      alert('请先选择或生成一个剧本');
+      showToast('请先选择或生成一个剧本', 'warning');
       return;
     }
 
     setIsGenerating(true);
     try {
-      console.log('[useStoryboardGeneration] 启动分镜生成工作流, scriptId:', scriptId);
-      
       const token = getAuthToken();
       const res = await fetch(`/api/storyboards/auto-generate/${scriptId}`, {
         method: 'POST',
@@ -138,17 +139,16 @@ export function useStoryboardGeneration({
         throw new Error(data.message || '生成失败');
       }
 
-      console.log('[useStoryboardGeneration] 工作流启动成功:', data);
-      
       // 启动工作流轮询
       setGeneratingJobId(data.jobId);
-      
-      alert('分镜生成已启动，请等待完成...');
+      showToast('分镜生成已启动，请等待完成...', 'info');
     } catch (error: any) {
-      alert(error.message || '自动生成分镜失败');
-      setIsGenerating(false);
+      showToast(error.message || '自动生成分镜失败', 'error');
+      if (isMountedRef.current) {
+        setIsGenerating(false);
+      }
     }
-  };
+  }, [scriptId, showToast]);
 
   return {
     isGenerating,

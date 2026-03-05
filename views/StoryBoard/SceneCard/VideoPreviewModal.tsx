@@ -2,6 +2,8 @@ import React from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Spinner } from '@heroui/react';
 import { Play, Film, X, Download } from 'lucide-react';
 import { StoryboardScene } from '../useSceneManager';
+import { useToast } from '../../../contexts/ToastContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 
 interface VideoPreviewModalProps {
   scene: StoryboardScene;
@@ -24,6 +26,9 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
   setShowVideoPreview,
   isModal = false
 }) => {
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
+
   const handleDownload = async () => {
     if (!scene.videoUrl) return;
     try {
@@ -39,7 +44,7 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('下载失败:', error);
-      alert('下载失败，请重试');
+      showToast('下载失败，请重试', 'error');
     }
   };
 
@@ -136,9 +141,15 @@ const VideoPreviewModal: React.FC<VideoPreviewModalProps> = ({
       </div>
       {onDeleteVideo && (
         <button
-          onClick={(e) => {
+          onClick={async (e) => {
             e.stopPropagation();
-            if (window.confirm('确定要删除该分镜的视频吗？视频文件将从存储桶中永久删除，此操作不可撤销。')) {
+            const confirmed = await confirm({
+              title: '删除视频',
+              message: '确定要删除该分镜的视频吗？视频文件将从存储桶中永久删除，此操作不可撤销。',
+              type: 'danger',
+              confirmText: '删除视频'
+            });
+            if (confirmed) {
               onDeleteVideo();
             }
           }}

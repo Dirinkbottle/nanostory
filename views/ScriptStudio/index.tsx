@@ -17,11 +17,13 @@ import SimpleStoryBoard from '../SimpleStoryBoard';
 import VideoComposition from '../VideoComposition';
 import AIModelConfigModal from '../../components/AIModelConfigModal';
 import { useAIModels } from '../../hooks/useAIModels';
+import { useToast } from '../../contexts/ToastContext';
 
 const LAST_TAB_KEY = 'nanostory_last_tab';
 
 const ScriptStudio: React.FC = () => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   // 可调整大小的分隔条状态
   const [rightPanelWidth, setRightPanelWidth] = useState(50); // 百分比
@@ -50,7 +52,10 @@ const ScriptStudio: React.FC = () => {
     handleCreateScript,
     handleDeleteScript,
     handleCleanOrphans
-  } = useScriptManagement();
+  } = useScriptManagement({
+    onSuccess: (msg) => showToast(msg, 'success'),
+    onError: (msg) => showToast(msg, 'error')
+  });
   
   const {
     loading: generationLoading,
@@ -61,7 +66,9 @@ const ScriptStudio: React.FC = () => {
   } = useScriptGeneration({
     selectedProject,
     setSelectedProject,
-    loadProjectScript
+    loadProjectScript,
+    onSuccess: (msg) => showToast(msg, 'success'),
+    onError: (msg) => showToast(msg, 'error')
   });
   
   // 表单状态
@@ -304,7 +311,7 @@ const ScriptStudio: React.FC = () => {
                     onLengthChange={setLength}
                     onGenerate={() => {
                       if (!aiModels.selected.text) {
-                        alert('请先点击右上角「AI 模型」按钮选择文本模型');
+                        showToast('请先点击右上角「AI 模型」按钮选择文本模型', 'warning');
                         return;
                       }
                       const episodeToGenerate = selectedEpisodeForGeneration || nextEpisode;
@@ -313,13 +320,17 @@ const ScriptStudio: React.FC = () => {
                     }}
                     onManualSave={async (manualTitle, manualContent) => {
                       if (!selectedProject) {
-                        alert('请先选择一个项目');
+                        showToast('请先选择一个项目', 'warning');
                         return;
                       }
                       const ep = selectedEpisodeForGeneration || nextEpisode;
                       const result = await handleCreateScript(selectedProject.id, manualTitle, manualContent, ep);
-                      alert(result.message);
-                      if (result.success) setSelectedEpisodeForGeneration(null);
+                      if (result.success) {
+                        showToast(result.message, 'success');
+                        setSelectedEpisodeForGeneration(null);
+                      } else {
+                        showToast(result.message, 'error');
+                      }
                     }}
                   />
                 )}

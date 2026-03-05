@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input } from '@heroui/react';
 import { Play, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
 
 interface Script {
   id: number;
@@ -27,6 +28,7 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
   onConfirm
 }) => {
   const [targetEpisode, setTargetEpisode] = useState(nextEpisode.toString());
+  const { showToast } = useToast();
 
   React.useEffect(() => {
     if (isOpen) {
@@ -56,7 +58,7 @@ const EpisodeSelectModal: React.FC<EpisodeSelectModalProps> = ({
   const handleConfirm = () => {
     const episodeNumber = parseInt(targetEpisode);
     if (isNaN(episodeNumber) || episodeNumber < 1) {
-      alert('请输入有效的集数（大于等于 1）');
+      showToast('请输入有效的集数（大于等于 1）', 'warning');
       return;
     }
     

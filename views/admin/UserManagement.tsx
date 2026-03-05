@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardBody, Button, Input, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from '@heroui/react';
 import { Plus, Search, Edit, Trash2, User } from 'lucide-react';
 import { getAuthToken } from '../../services/auth';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 interface UserData {
   id: number;
@@ -18,6 +19,7 @@ const UserManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { confirm } = useConfirm();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -85,7 +87,13 @@ const UserManagement: React.FC = () => {
   };
 
   const handleDelete = async (userId: number) => {
-    if (!confirm('确定要删除此用户吗？')) return;
+    const confirmed = await confirm({
+      title: '删除用户',
+      message: '确定要删除此用户吗？',
+      type: 'danger',
+      confirmText: '删除'
+    });
+    if (!confirmed) return;
 
     try {
       const token = getAuthToken();

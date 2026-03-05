@@ -14,12 +14,16 @@ interface UseScriptGenerationProps {
   selectedProject: Project | null;
   setSelectedProject: (project: Project) => void;
   loadProjectScript: (projectId: number, episode?: number) => Promise<void>;
+  onSuccess?: (message: string) => void;
+  onError?: (message: string) => void;
 }
 
 export function useScriptGeneration({
   selectedProject,
   setSelectedProject,
-  loadProjectScript
+  loadProjectScript,
+  onSuccess,
+  onError
 }: UseScriptGenerationProps) {
   const [generatingJobId, setGeneratingJobId] = useState<number | null>(null);
   const [generatingScriptId, setGeneratingScriptId] = useState<number | null>(null);
@@ -120,7 +124,7 @@ export function useScriptGeneration({
         console.log('[useScriptGeneration] 保存响应:', data);
         
         if (res.status === 402) {
-          alert(`余额不足！需要: ¥${data.required.toFixed(4)}, 当前: ¥${data.current.toFixed(2)}`);
+          onError?.(`余额不足！需要: ¥${data.required.toFixed(4)}, 当前: ¥${data.current.toFixed(2)}`);
           return;
         }
 
@@ -139,13 +143,13 @@ export function useScriptGeneration({
         await consumeWorkflow(completedJob.id);
         
         console.log('[useScriptGeneration] 完成！');
-        alert(`第${data.episodeNumber}集生成成功！`);
+        onSuccess?.(`第${data.episodeNumber}集生成成功！`);
         
         // 检查是否还有其他活跃工作流
         console.log('[useScriptGeneration] 检查是否有其他活跃工作流...');
         await checkAndResumeNextWorkflow();
       } catch (error: any) {
-        alert('保存剧本失败: ' + error.message);
+        onError?.('保存剧本失败: ' + error.message);
         // 即使保存失败，也检查下一个工作流
         await checkAndResumeNextWorkflow();
       } finally {
@@ -153,7 +157,7 @@ export function useScriptGeneration({
       }
     },
     onFailed: async (failedJob) => {
-      alert('剧本生成失败: ' + (failedJob.error_message || '未知错误'));
+      onError?.('剧本生成失败: ' + (failedJob.error_message || '未知错误'));
       
       // 失败的工作流也标记为已消费
       try {
@@ -173,7 +177,7 @@ export function useScriptGeneration({
   // 打开集数选择对话框
   const handleGenerateClick = (title: string, description: string) => {
     if (!description && !title) {
-      alert('请至少填写标题或故事概述');
+      onError?.('请至少填写标题或故事概述');
       return;
     }
     setShowEpisodeModal(true);
@@ -189,7 +193,7 @@ export function useScriptGeneration({
     textModel: string
   ) => {
     if (!description && !title) {
-      alert('请至少填写标题或故事概述');
+      onError?.('请至少填写标题或故事概述');
       return;
     }
     
@@ -212,7 +216,7 @@ export function useScriptGeneration({
         setSelectedProject(newProject);
         localStorage.setItem(LAST_PROJECT_KEY, newProject.id.toString());
       } catch (error: any) {
-        alert('自动创建工程失败: ' + error.message);
+        onError?.('自动创建工程失败: ' + error.message);
         return;
       }
     }
@@ -254,7 +258,7 @@ export function useScriptGeneration({
       // 刷新剧本列表（显示生成中状态）
       await loadProjectScript(projectToUse.id, data.episodeNumber);
     } catch (error: any) {
-      alert(error.message || '生成失败');
+      onError?.(error.message || '生成失败');
       setLoading(false);
     }
   };

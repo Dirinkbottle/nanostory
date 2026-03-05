@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Input, Textarea, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Select, SelectItem } from '@heroui/react';
 import { Monitor, Plus, Edit, Trash2, Save, Code } from 'lucide-react';
 import { getAuthToken } from '../../services/auth';
+import { useToast } from '../../contexts/ToastContext';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 interface FrontendConfig {
   id: number;
@@ -28,6 +30,8 @@ const FrontendSettingsManagement: React.FC = () => {
     description: '',
     is_active: 1
   });
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   useEffect(() => {
     fetchConfigs();
@@ -107,16 +111,22 @@ const FrontendSettingsManagement: React.FC = () => {
         handleCloseModal();
       } else {
         const data = await res.json();
-        alert(data.message || '保存失败');
+        showToast(data.message || '保存失败', 'error');
       }
     } catch (error) {
       console.error('保存配置失败:', error);
-      alert('保存失败');
+      showToast('保存失败', 'error');
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确定要删除这个配置吗？')) return;
+    const confirmed = await confirm({
+      title: '删除配置',
+      message: '确定要删除这个配置吗？',
+      type: 'danger',
+      confirmText: '删除'
+    });
+    if (!confirmed) return;
 
     try {
       const token = getAuthToken();
@@ -129,11 +139,11 @@ const FrontendSettingsManagement: React.FC = () => {
         await fetchConfigs();
       } else {
         const data = await res.json();
-        alert(data.message || '删除失败');
+        showToast(data.message || '删除失败', 'error');
       }
     } catch (error) {
       console.error('删除配置失败:', error);
-      alert('删除失败');
+      showToast('删除失败', 'error');
     }
   };
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, ModalContent, ModalBody, ModalFooter, Button } from '@heroui/react';
 import { Download } from 'lucide-react';
+import { useToast } from '../../../contexts/ToastContext';
 
 interface ImagePreviewModalProps {
   isOpen: boolean;
@@ -9,6 +10,8 @@ interface ImagePreviewModalProps {
 }
 
 const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ isOpen, onClose, imageUrl }) => {
+  const { showToast } = useToast();
+
   const handleDownload = async () => {
     try {
       const response = await fetch(imageUrl);
@@ -23,7 +26,7 @@ const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ isOpen, onClose, 
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('下载失败:', error);
-      alert('下载失败，请重试');
+      showToast('下载失败，请重试', 'error');
     }
   };
 

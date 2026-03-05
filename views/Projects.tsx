@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardBody, Button, Input, Textarea, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip } from '@heroui/react';
 import { FolderOpen, Plus, Edit, Trash2, Search, BookOpen, Clock, Palette } from 'lucide-react';
 import { Project, fetchProjects, createProject, updateProject, deleteProject } from '../services/projects';
+import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmContext';
 
 const LAST_PROJECT_KEY = 'nanostory_last_project_id';
 
@@ -11,6 +13,8 @@ const Projects: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [editMode, setEditMode] = useState(false);
@@ -108,7 +112,7 @@ const Projects: React.FC = () => {
       await loadProjects();
       onOpenChange();
     } catch (error: any) {
-      alert(error.message);
+      showToast(error.message, 'error');
     }
   };
 
@@ -125,13 +129,19 @@ const Projects: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确定要删除这个工程吗？')) return;
+    const confirmed = await confirm({
+      title: '删除工程',
+      message: '确定要删除这个工程吗？',
+      type: 'danger',
+      confirmText: '删除'
+    });
+    if (!confirmed) return;
     
     try {
       await deleteProject(id);
       await loadProjects();
     } catch (error: any) {
-      alert(error.message);
+      showToast(error.message, 'error');
     }
   };
 

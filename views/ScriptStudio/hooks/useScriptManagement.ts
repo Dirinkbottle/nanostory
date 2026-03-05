@@ -15,7 +15,13 @@ export interface Script {
   created_at: string;
 }
 
-export function useScriptManagement() {
+interface UseScriptManagementOptions {
+  onSuccess?: (message: string) => void;
+  onError?: (message: string) => void;
+}
+
+export function useScriptManagement(options: UseScriptManagementOptions = {}) {
+  const { onSuccess, onError } = options;
   const [scripts, setScripts] = useState<Script[]>([]);
   const [currentEpisode, setCurrentEpisode] = useState(1);
   const [nextEpisode, setNextEpisode] = useState(1);
@@ -81,7 +87,7 @@ export function useScriptManagement() {
   // 保存剧本
   const handleSaveScript = async () => {
     if (!scriptId || !content) {
-      alert('没有可保存的内容');
+      onError?.('没有可保存的内容');
       return;
     }
 
@@ -99,13 +105,13 @@ export function useScriptManagement() {
 
       const data = await res.json();
       if (res.ok) {
-        alert('剧本保存成功！');
+        onSuccess?.('剧本保存成功！');
         return true;
       } else {
         throw new Error(data.message || '保存失败');
       }
     } catch (error: any) {
-      alert(error.message || '保存失败');
+      onError?.(error.message || '保存失败');
       return false;
     } finally {
       setLoading(false);

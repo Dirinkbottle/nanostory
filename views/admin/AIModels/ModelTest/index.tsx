@@ -4,6 +4,7 @@ import { Play, AlertCircle } from 'lucide-react';
 import { AIModel } from '../types';
 import DebugPanel from './DebugPanel';
 import { getAuthToken } from '../../../../services/auth';
+import { useToast } from '../../../../contexts/ToastContext';
 
 interface ModelTestModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ const ModelTestModal: React.FC<ModelTestModalProps> = ({ isOpen, onClose, model 
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const { showToast } = useToast();
 
   // 切换模型时重置
   useEffect(() => {
@@ -49,7 +51,7 @@ const ModelTestModal: React.FC<ModelTestModalProps> = ({ isOpen, onClose, model 
     try {
       params = JSON.parse(paramsInput);
     } catch {
-      alert('参数 JSON 格式错误');
+      showToast('参数 JSON 格式错误', 'error');
       return;
     }
 

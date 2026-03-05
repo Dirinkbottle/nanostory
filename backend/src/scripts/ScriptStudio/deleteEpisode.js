@@ -1,15 +1,20 @@
 /**
  * DELETE /api/scripts/:id/episode
- * 删除某集剧本，返回孤立角色/场景供用户确认
+ * 删除某集剧本及其所有关联数据
  * 
  * 级联删除链：
  *   DELETE script → CASCADE → storyboards → CASCADE → storyboard_characters / storyboard_scenes
  *   DELETE script → SET NULL → characters.script_id / scenes.script_id（角色/场景保留）
  * 
+ * 手动清理（无外键约束）：
+ *   - workflow_jobs（通过 input_params.scriptId 匹配）
+ *   - generation_tasks（通过 job_id 级联自动删除）
+ * 
  * 流程：
  * 1. 先通过关联表查找仅被该集分镜关联的角色和场景（孤立资源）
- * 2. 删除剧本（级联自动清理分镜和关联记录）
- * 3. 返回孤立资源列表，由前端决定是否清理
+ * 2. 清理相关的工作流任务记录
+ * 3. 删除剧本（级联自动清理分镜和关联记录）
+ * 4. 自动清理孤立角色和场景
  */
 
 const { queryOne, queryAll, execute } = require('../../dbHelper');
@@ -45,11 +50,25 @@ async function deleteEpisode(req, res) {
     const orphanCharIds = await findOrphanIds(projectId, scriptId, 'storyboard_characters', 'character_id');
     const orphanSceneIds = await findOrphanIds(projectId, scriptId, 'storyboard_scenes', 'scene_id');
 
-    // 2. 删除剧本（级联自动删除：分镜 → 关联记录；角色/场景的 script_id 置 NULL）
+    // 2. 清理相关的工作流任务（workflow_jobs 没有 script_id 外键，需手动清理）
+    //    generation_tasks 通过 job_id CASCADE 自动删除
+    const workflowResult = await execute(
+      `DELETE FROM workflow_jobs 
+       WHERE user_id = ? 
+         AND project_id = ? 
+         AND JSON_EXTRACT(input_params, '$.scriptId') = ?`,
+      [userId, projectId, scriptId]
+    );
+    const deletedWorkflows = workflowResult?.affectedRows || 0;
+    if (deletedWorkflows > 0) {
+      console.log(`[DeleteEpisode] 清理 ${deletedWorkflows} 个相关工作流任务`);
+    }
+
+    // 3. 删除剧本（级联自动删除：分镜 → 关联记录；角色/场景的 script_id 置 NULL）
     await execute('DELETE FROM scripts WHERE id = ? AND user_id = ?', [scriptId, userId]);
     console.log(`[DeleteEpisode] 已删除剧本 id=${scriptId}, 第${episodeNumber}集, 级联删除 ${storyboardCount?.cnt || 0} 个分镜`);
 
-    // 3. 自动清理孤立角色和场景
+    // 4. 自动清理孤立角色和场景
     let deletedCharacters = 0;
     let deletedScenes = 0;
     if (orphanCharIds.length > 0) {
@@ -68,6 +87,7 @@ async function deleteEpisode(req, res) {
     res.json({
       message: `第${episodeNumber}集已删除`,
       deletedStoryboards: storyboardCount?.cnt || 0,
+      deletedWorkflows,
       deletedCharacters,
       deletedScenes
     });

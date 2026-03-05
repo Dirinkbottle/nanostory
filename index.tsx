@@ -4,6 +4,7 @@ import { HeroUIProvider } from "@heroui/react";
 import './index.css';
 import App from './App';
 import { ToastProvider } from './contexts/ToastContext';
+import { ConfirmProvider } from './contexts/ConfirmContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 const rootElement = document.getElementById('root');
@@ -17,7 +18,9 @@ root.render(
     <ThemeProvider>
       <HeroUIProvider>
         <ToastProvider>
-          <App />
+          <ConfirmProvider>
+            <App />
+          </ConfirmProvider>
         </ToastProvider>
       </HeroUIProvider>
     </ThemeProvider>

@@ -13,6 +13,7 @@ import BatchDownloadModal from './BatchDownloadModal';
 import SceneList from './SceneList';
 import ResourcePanel from './ResourcePanel';
 import { getAuthToken } from '../../services/auth';
+import { useToast } from '../../contexts/ToastContext';
 
 interface Script {
   id: number;
@@ -47,6 +48,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   const [currentEpisode, setCurrentEpisode] = useState(episodeNumber);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showBatchDownloadModal, setShowBatchDownloadModal] = useState(false);
+  const { showToast } = useToast();
 
   // 同步外部 props - 修复：添加缺失的依赖，避免无限循环
   useEffect(() => {
@@ -92,7 +94,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     onScenesGenerated: (newScenes) => {
       setScenes(newScenes);
       if (newScenes.length > 0) setSelectedScene(newScenes[0].id);
-    }
+    },
+    onError: (msg) => showToast(msg, 'error')
   });
 
   // 5. 场景图片/视频生成
@@ -120,7 +123,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       if (currentScriptId) {
         loadStoryboards(currentScriptId);
       }
-    }
+    },
+    onError: (msg) => showToast(msg, 'error')
   });
 
   // 9. 批量视频生成
@@ -135,7 +139,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       if (currentScriptId) {
         loadStoryboards(currentScriptId);
       }
-    }
+    },
+    onError: (msg) => showToast(msg, 'error')
   });
 
 
@@ -149,7 +154,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   // 5. 导入分镜
   const handleImportScenes = async (importedScenes: any[]) => {
     if (!currentScriptId) {
-      alert('请先选择一个剧本');
+      showToast('请先选择一个剧本', 'warning');
       return;
     }
 
@@ -187,14 +192,14 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
         throw new Error(data.message || '保存失败');
       }
 
-      alert(`成功导入 ${formattedScenes.length} 个分镜！`);
+      showToast(`成功导入 ${formattedScenes.length} 个分镜！`, 'success');
       
       // 重新加载分镜列表
       await loadStoryboards(currentScriptId);
       
     } catch (error: any) {
       console.error('[ImportScenes] 保存失败:', error);
-      alert('导入失败: ' + error.message);
+      showToast('导入失败: ' + error.message, 'error');
     }
   };
 

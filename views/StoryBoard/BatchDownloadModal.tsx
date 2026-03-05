@@ -3,6 +3,7 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Progr
 import { Download, Image, Video } from 'lucide-react';
 import { StoryboardScene } from './useSceneManager';
 import { batchDownloadMedia, DownloadType } from './utils/batchDownload';
+import { useToast } from '../../contexts/ToastContext';
 
 interface BatchDownloadModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ const BatchDownloadModal: React.FC<BatchDownloadModalProps> = ({
   const [isDownloading, setIsDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [total, setTotal] = useState(0);
+  const { showToast } = useToast();
 
   // 统计可下载的媒体数量
   const imageCount = scenes.reduce((count, scene) => {
@@ -39,11 +41,11 @@ const BatchDownloadModal: React.FC<BatchDownloadModalProps> = ({
         setProgress(current);
         setTotal(total);
       });
-      alert(`成功下载${type === 'images' ? '图片' : '视频'}！`);
+      showToast(`成功下载${type === 'images' ? '图片' : '视频'}！`, 'success');
       onOpenChange(false);
     } catch (error: any) {
       console.error('批量下载失败:', error);
-      alert(error.message || '下载失败，请重试');
+      showToast(error.message || '下载失败，请重试', 'error');
     } finally {
       setIsDownloading(false);
       setProgress(0);
@@ -77,6 +79,7 @@ const BatchDownloadModal: React.FC<BatchDownloadModalProps> = ({
                     value={(progress / total) * 100}
                     className="w-full"
                     color="primary"
+                    aria-label="下载进度"
                   />
                 </div>
               ) : (

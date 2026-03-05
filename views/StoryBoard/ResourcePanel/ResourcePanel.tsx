@@ -16,6 +16,7 @@ import { useResourceModals } from './useResourceModals';
 import { Character } from './types';
 import { useSceneImageGeneration } from '../hooks/useSceneImageGeneration';
 import { getAuthToken } from '../../../services/auth';
+import { useToast } from '../../../contexts/ToastContext';
 
 const ResourcePanel: React.FC<ResourcePanelProps> = ({ 
   characters, 
@@ -28,6 +29,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   textModel,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('characters');
+  const { showToast } = useToast();
   
   const { dbCharacters, isLoadingCharacters, loadCharacters } = useCharacterData(projectId, scriptId);
   const { dbScenes, isLoadingScenes, loadScenes } = useSceneData(projectId, scriptId);
@@ -47,7 +49,10 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     isViewsModalOpen,
     handleGenerateViews,
     closeViewsModal
-  } = useResourceModals();
+  } = useResourceModals({
+    onSuccess: (msg) => showToast(msg, 'success'),
+    onError: (msg) => showToast(msg, 'error')
+  });
 
   const handleShowDetail = (character: Character) => {
     setSelectedCharacter(character);
@@ -67,16 +72,18 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
   const sceneImageGeneration = useSceneImageGeneration({
     sceneId: selectedScene?.id?.toString() || null,
-    projectId: projectId,
+    projectId: projectId ?? null,
     isActive: isSceneImageModalOpen || isSceneDetailModalOpen,
     onComplete: () => {
       loadScenes();
-    }
+    },
+    onSuccess: (msg) => showToast(msg, 'success'),
+    onError: (msg) => showToast(msg, 'error')
   });
 
   const handleRefreshResources = async () => {
     if (!projectId) {
-      alert('请先选择项目');
+      showToast('请先选择项目', 'warning');
       return;
     }
     await loadCharacters();
@@ -141,7 +148,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       sceneImageGeneration.checkAndResumeNextWorkflow();
     } catch (error: any) {
       console.error('[ResourcePanel] 生成场景图片失败:', error);
-      alert('生成场景图片失败: ' + error.message);
+      showToast('生成场景图片失败: ' + error.message, 'error');
       throw error;
     }
   };

@@ -10,6 +10,8 @@ import SceneCardActions from './SceneCardActions';
 import VideoPreviewModal from './VideoPreviewModal';
 import { getAuthToken } from '../../../services/auth';
 import { validateFrameReadiness, formatValidationMessage } from '../utils/validateFrameReadiness';
+import { useToast } from '../../../contexts/ToastContext';
+import { useConfirm } from '../../../contexts/ConfirmContext';
 
 export interface SceneCardProps {
   scene: StoryboardScene;
@@ -55,6 +57,8 @@ const SceneCard: React.FC<SceneCardProps> = ({
   const [showVideoPreview, setShowVideoPreview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [dontAskAgain, setDontAskAgain] = useState(false);
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
 
   const isGeneratingVideo = videoTask?.status === 'pending' || videoTask?.status === 'running';
 
@@ -177,13 +181,16 @@ const SceneCard: React.FC<SceneCardProps> = ({
     if (!check.ready) {
       if (check.blocking) {
         // 阻止性问题：不允许继续
-        alert(`无法生成首尾帧：\n\n${check.message}`);
+        showToast(`无法生成首尾帧：${check.message}`, 'error');
         return { success: false, error: '校验未通过' };
       }
       // 警告性问题：允许用户选择是否继续
-      const proceed = window.confirm(
-        `以下资产不完整，生成效果可能不一致：\n\n${check.message}\n\n是否仍然继续生成？`
-      );
+      const proceed = await confirm({
+        title: '资产不完整',
+        message: `以下资产不完整，生成效果可能不一致：\n\n${check.message}\n\n是否仍然继续生成？`,
+        type: 'warning',
+        confirmText: '继续生成'
+      });
       if (!proceed) return { success: false, error: '用户取消' };
     }
     return onGenerateImage(scene.id, prompt);
@@ -192,12 +199,12 @@ const SceneCard: React.FC<SceneCardProps> = ({
   const handleGenerateVideo = async () => {
     const check = await validateForVideo();
     if (!check.ready) {
-      alert(`无法生成视频：\n\n${check.message}`);
+      showToast(`无法生成视频：${check.message}`, 'error');
       return;
     }
     const result = await onGenerateVideo(scene.id);
     if (!result.success) {
-      alert(result.error || '视频生成失败');
+      showToast(result.error || '视频生成失败', 'error');
     }
   };
 

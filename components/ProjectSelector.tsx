@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Input, Textarea, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip } from '@heroui/react';
 import { FolderOpen, Plus, Folder } from 'lucide-react';
 import { fetchProjects, createProject, Project } from '../services/projects';
+import { useToast } from '../contexts/ToastContext';
 
 interface ProjectSelectorProps {
   onSelectProject: (project: Project) => void;
@@ -12,6 +13,7 @@ const ProjectSelector: React.FC<ProjectSelectorProps> = ({ onSelectProject }) =>
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDesc, setNewProjectDesc] = useState('');
+  const { showToast } = useToast();
   
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
@@ -33,7 +35,7 @@ const ProjectSelector: React.FC<ProjectSelectorProps> = ({ onSelectProject }) =>
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) {
-      alert('请输入项目名称');
+      showToast('请输入项目名称', 'warning');
       return;
     }
 
@@ -51,7 +53,7 @@ const ProjectSelector: React.FC<ProjectSelectorProps> = ({ onSelectProject }) =>
       onOpenChange();
       onSelectProject(project);
     } catch (error: any) {
-      alert(error.message || '创建项目失败');
+      showToast(error.message || '创建项目失败', 'error');
     }
   };
 
