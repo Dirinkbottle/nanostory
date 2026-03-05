@@ -231,13 +231,13 @@ const AssetsManager: React.FC = () => {
   });
 
   return (
-    <div className="h-full bg-[#0a0a0f] overflow-hidden p-6">
+    <div className="h-full bg-[#0c0e1a] overflow-hidden p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 头部 */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-100">资产管理</h1>
+          <h1 className="text-2xl font-bold genshin-title">资产管理</h1>
           <Button
-            className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold shadow-lg shadow-blue-500/20"
+            className="bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-[#1a1d35] font-bold shadow-lg shadow-amber-500/30 hover:shadow-[0_0_25px_rgba(230,200,122,0.4)] transition-all"
             startContent={<Plus className="w-4 h-4" />}
             onPress={handleAdd}
           >
@@ -250,10 +250,10 @@ const AssetsManager: React.FC = () => {
           placeholder="搜索资产..."
           value={searchQuery}
           onValueChange={setSearchQuery}
-          startContent={<Search className="w-4 h-4 text-slate-400" />}
+          startContent={<Search className="w-4 h-4 text-[#6b6561]" />}
           classNames={{
-            input: "bg-transparent text-slate-100",
-            inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
+            input: "bg-transparent text-[#e8e4dc] placeholder:text-[#6b6561]",
+            inputWrapper: "bg-[rgba(30,35,60,0.6)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(230,200,122,0.3)] focus-within:border-[rgba(230,200,122,0.5)] shadow-sm transition-all"
           }}
         />
 
@@ -262,9 +262,9 @@ const AssetsManager: React.FC = () => {
           selectedKey={activeTab}
           onSelectionChange={(key) => setActiveTab(key as TabType)}
           classNames={{
-            tabList: "bg-slate-900/80 border border-slate-700/50 shadow-sm",
-            tab: "text-slate-400 data-[selected=true]:text-blue-400 font-medium",
-            cursor: "bg-blue-500"
+            tabList: "bg-[rgba(18,20,40,0.8)] border border-[rgba(255,255,255,0.08)] shadow-sm",
+            tab: "text-[#6b6561] data-[selected=true]:text-[#e6c87a] font-medium",
+            cursor: "bg-gradient-to-r from-amber-400 to-yellow-500 h-0.5 shadow-[0_0_10px_rgba(230,200,122,0.5)]"
           }}
         >
           <Tab

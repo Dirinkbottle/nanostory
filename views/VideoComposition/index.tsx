@@ -76,7 +76,7 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectN
   }, [timeline.clips, ffmpeg, compositionData.selectedEpisode]);
 
   return (
-    <div className="h-full flex flex-col bg-[#0a0a0f] overflow-hidden">
+    <div className="h-full flex flex-col bg-[#0c0e1a] overflow-hidden">
       <div className="flex-1 flex overflow-hidden">
         {/* 左侧：集列表 + 分镜视频 */}
         <EpisodeSidebar
@@ -139,14 +139,14 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectN
 
         {/* 右侧：属性面板 */}
         {showPanel && (
-          <div className="w-64 flex-shrink-0 border-l border-slate-700/50 bg-slate-900/60 overflow-y-auto flex flex-col">
+          <div className="w-64 flex-shrink-0 border-l border-[rgba(255,255,255,0.06)] bg-[rgba(18,20,40,0.6)] overflow-y-auto flex flex-col">
             {/* 面板 Tab 切换 */}
-            <div className="flex border-b border-slate-700/50">
+            <div className="flex border-b border-[rgba(255,255,255,0.06)]">
               <button
                 className={`flex-1 text-xs font-medium py-2.5 transition-colors ${
                   panelTab === 'clip'
-                    ? 'text-blue-400 border-b-2 border-blue-400'
-                    : 'text-slate-500 hover:text-slate-300'
+                    ? 'text-[#e6c87a] border-b-2 border-[#e6c87a]'
+                    : 'text-[#6b6561] hover:text-[#a8a29e]'
                 }`}
                 onClick={() => setPanelTab('clip')}
               >
@@ -155,8 +155,8 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectN
               <button
                 className={`flex-1 text-xs font-medium py-2.5 transition-colors ${
                   panelTab === 'subtitle'
-                    ? 'text-blue-400 border-b-2 border-blue-400'
-                    : 'text-slate-500 hover:text-slate-300'
+                    ? 'text-[#e6c87a] border-b-2 border-[#e6c87a]'
+                    : 'text-[#6b6561] hover:text-[#a8a29e]'
                 }`}
                 onClick={() => setPanelTab('subtitle')}
               >
@@ -192,7 +192,7 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectN
           isIconOnly
           size="sm"
           variant="light"
-          className="absolute right-2 top-2 z-10 text-slate-400"
+          className="absolute right-2 top-2 z-10 text-[#a8a29e] hover:text-[#e6c87a]"
           onPress={() => setShowPanel(prev => !prev)}
           title={showPanel ? '收起面板' : '展开面板'}
         >

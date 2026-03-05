@@ -60,8 +60,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </div>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-lg font-black tracking-wider uppercase genshin-title">
-                    NANOSTORY
+                  <span className="text-lg font-black tracking-wider genshin-title">
+                    饺子动漫
                   </span>
                   <span className="text-[10px] text-[#a8a29e] font-medium tracking-widest">AI Video Studio</span>
                 </div>

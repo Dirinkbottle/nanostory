@@ -221,18 +221,18 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   }, [scenes, allCharacters]);
 
   return (
-    <div className="h-full flex flex-col bg-[#0a0a0f]">
+    <div className="h-full flex flex-col bg-[#0c0e1a]">
       {/* 顶部工具栏 */}
-      <div className="px-4 py-3 bg-slate-900/80 backdrop-blur-xl border-b border-slate-700/50 flex items-center justify-between">
+      <div className="px-4 py-3 genshin-navbar backdrop-blur-xl border-b flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold text-slate-100">分镜设计</h2>
+          <h2 className="text-lg font-bold genshin-title">分镜设计</h2>
           <EpisodeSelector
             scripts={scripts}
             currentEpisode={currentEpisode}
             onSelect={handleEpisodeSelect}
           />
           {scenes.length > 0 && (
-            <span className="text-sm text-slate-400">共 {scenes.length} 个分镜</span>
+            <span className="text-sm text-[#a8a29e]">共 {scenes.length} 个分镜</span>
           )}
         </div>
 
@@ -240,7 +240,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           <Button
             size="sm"
             variant="flat"
-            className="bg-slate-800/60 text-slate-300 font-medium"
+            className="bg-[rgba(230,200,122,0.1)] text-[#a8a29e] border border-[rgba(255,255,255,0.1)] hover:border-[rgba(230,200,122,0.3)] hover:text-[#e6c87a] font-medium transition-all"
             startContent={<RefreshCw className="w-4 h-4" />}
             onPress={() => currentScriptId && loadStoryboards(currentScriptId)}
             isLoading={isLoading}
@@ -252,7 +252,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
             <Button
               size="sm"
               variant="flat"
-              className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 text-green-400 font-medium hover:from-green-500/30 hover:to-emerald-500/30"
+              className="bg-gradient-to-r from-emerald-500/15 to-green-500/15 border border-emerald-500/30 text-emerald-400 font-medium hover:from-emerald-500/25 hover:to-green-500/25 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)] transition-all"
               startContent={<Download className="w-4 h-4" />}
               onPress={() => setShowBatchDownloadModal(true)}
             >
@@ -262,6 +262,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           <Button
             size="sm"
             variant="flat"
+            className="bg-[rgba(230,200,122,0.1)] text-[#a8a29e] border border-[rgba(255,255,255,0.1)] hover:border-[rgba(230,200,122,0.3)] hover:text-[#e6c87a] font-medium transition-all"
             startContent={<Upload className="w-4 h-4" />}
             onPress={() => setShowImportModal(true)}
             isDisabled={!currentScriptId}
@@ -270,7 +271,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           </Button>
           <Button
             size="sm"
-            className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold shadow-lg shadow-blue-500/20"
+            className="bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-[#1a1d35] font-bold shadow-lg shadow-amber-500/30 hover:shadow-[0_0_25px_rgba(230,200,122,0.4)] transition-all"
             startContent={<Wand2 className="w-4 h-4" />}
             onPress={autoStoryboard.handleAutoGenerateClick}
             isLoading={autoStoryboard.isGenerating}
@@ -284,9 +285,9 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       {/* 无剧本提示 */}
       {!currentScriptId && (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-slate-500">
-            <Wand2 className="w-16 h-16 mx-auto mb-4 text-slate-600" />
-            <p className="text-lg font-medium">请先生成剧本</p>
+          <div className="text-center text-[#6b6561]">
+            <Wand2 className="w-16 h-16 mx-auto mb-4 text-[#4a4540]" />
+            <p className="text-lg font-medium text-[#a8a29e]">请先生成剧本</p>
             <p className="text-sm mt-1">生成剧本后，可以自动将剧本转换为分镜</p>
           </div>
         </div>
