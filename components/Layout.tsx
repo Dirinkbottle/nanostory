@@ -1,5 +1,5 @@
 import React from 'react';
-import { Film, User, Package, LogOut, FolderOpen, Settings } from 'lucide-react';
+import { Film, User, Package, LogOut, FolderOpen, Settings, Sparkles } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Navbar, NavbarBrand, NavbarContent, NavbarItem, Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
 import { getAuthToken, logout } from '../services/auth';
@@ -28,97 +28,102 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden" style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}>
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#0c0e1a]">
+      {/* 星空背景 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1a1d35] via-[#0c0e1a] to-[#080810]" />
+        {/* 星点 */}
+        <div className="absolute top-20 left-[10%] w-1 h-1 bg-white/30 rounded-full animate-star-twinkle" />
+        <div className="absolute top-40 left-[25%] w-0.5 h-0.5 bg-white/20 rounded-full animate-star-twinkle" style={{ animationDelay: '0.5s' }} />
+        <div className="absolute top-32 right-[15%] w-1 h-1 bg-white/25 rounded-full animate-star-twinkle" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-60 right-[30%] w-0.5 h-0.5 bg-white/20 rounded-full animate-star-twinkle" style={{ animationDelay: '1.5s' }} />
+        <div className="absolute bottom-40 left-[20%] w-1 h-1 bg-white/20 rounded-full animate-star-twinkle" style={{ animationDelay: '2s' }} />
+        {/* 光晕 */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl" />
+      </div>
+
       {!isAuth && (
         <Navbar 
           maxWidth="full" 
           height="4rem"
-          className="border-b backdrop-blur-xl"
-          style={{ backgroundColor: 'var(--bg-nav)', borderColor: 'var(--border-color)' }}
+          className="genshin-navbar relative z-10 border-b backdrop-blur-xl"
         >
           <NavbarContent justify="start" className="gap-4">
             <NavbarBrand>
               <Link to="/" className="flex items-center gap-3 group">
-                <div className="p-2 bg-gradient-to-br from-blue-500 to-violet-600 rounded-xl shadow-lg shadow-blue-500/20">
-                  <Film className="w-6 h-6 text-white" />
+                {/* Logo 容器带金色光晕 */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-400/30 to-yellow-600/30 rounded-xl blur-lg opacity-60 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative p-2.5 bg-gradient-to-br from-amber-400 to-yellow-600 rounded-xl shadow-lg">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-lg font-black tracking-wider uppercase bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
+                  <span className="text-lg font-black tracking-wider uppercase genshin-title">
                     NANOSTORY
                   </span>
-                  <span className="text-[10px] text-slate-500 font-medium tracking-widest">AI Video Studio</span>
+                  <span className="text-[10px] text-[#a8a29e] font-medium tracking-widest">AI Video Studio</span>
                 </div>
               </Link>
             </NavbarBrand>
           </NavbarContent>
 
-          <NavbarContent justify="center" className="hidden sm:flex gap-2">
+          <NavbarContent justify="center" className="hidden sm:flex gap-1">
             <NavbarItem>
-              <Button
-                as={Link}
+              <Link
                 to="/"
-                size="sm"
-                variant="light"
-                className={`font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
                   location.pathname === '/' 
-                    ? 'bg-gradient-to-r from-blue-500/20 to-violet-500/20 text-blue-400 border border-blue-500/30' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    ? 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-[#e6c87a] border border-amber-500/30 shadow-lg shadow-amber-500/10' 
+                    : 'text-[#a8a29e] hover:text-[#e8e4dc] hover:bg-white/5'
                 }`}
               >
-                <Film className="w-4 h-4 mr-2" />
+                <Film className="w-4 h-4" />
                 创作工作台
-              </Button>
+              </Link>
             </NavbarItem>
             
             <NavbarItem>
-              <Button
-                as={Link}
+              <Link
                 to="/assets"
-                size="sm"
-                variant="light"
-                className={`font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
                   location.pathname === '/assets' 
-                    ? 'bg-gradient-to-r from-blue-500/20 to-violet-500/20 text-blue-400 border border-blue-500/30' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    ? 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20 text-[#e6c87a] border border-amber-500/30 shadow-lg shadow-amber-500/10' 
+                    : 'text-[#a8a29e] hover:text-[#e8e4dc] hover:bg-white/5'
                 }`}
               >
-                <Package className="w-4 h-4 mr-2" />
+                <Package className="w-4 h-4" />
                 资产管理
-              </Button>
+              </Link>
             </NavbarItem>
 
             <NavbarItem>
-              <Button
-                as={Link}
+              <Link
                 to="/projects"
-                size="sm"
-                variant="light"
-                className={`font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
                   location.pathname === '/projects' 
-                    ? 'bg-gradient-to-r from-violet-500/20 to-purple-500/20 text-violet-400 border border-violet-500/30' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    ? 'bg-gradient-to-r from-purple-500/20 to-violet-500/20 text-[#b388ff] border border-purple-500/30 shadow-lg shadow-purple-500/10' 
+                    : 'text-[#a8a29e] hover:text-[#e8e4dc] hover:bg-white/5'
                 }`}
               >
-                <FolderOpen className="w-4 h-4 mr-2" />
+                <FolderOpen className="w-4 h-4" />
                 我的工程
-              </Button>
+              </Link>
             </NavbarItem>
 
             <NavbarItem>
-              <Button
-                as={Link}
+              <Link
                 to="/settings"
-                size="sm"
-                variant="light"
-                className={`font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
                   location.pathname === '/settings' 
-                    ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border border-amber-500/30' 
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-[#4fc3f7] border border-cyan-500/30 shadow-lg shadow-cyan-500/10' 
+                    : 'text-[#a8a29e] hover:text-[#e8e4dc] hover:bg-white/5'
                 }`}
               >
-                <Settings className="w-4 h-4 mr-2" />
+                <Settings className="w-4 h-4" />
                 设置
-              </Button>
+              </Link>
             </NavbarItem>
           </NavbarContent>
 
@@ -131,7 +136,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                       size="sm"
                       radius="lg"
                       variant="flat"
-                      className="font-bold text-xs uppercase tracking-widest bg-slate-800/80 text-slate-300 border border-slate-700/50 hover:bg-slate-700/80 hover:border-slate-600/50"
+                      className="font-semibold text-sm bg-white/5 text-[#e8e4dc] border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
                     >
                       <User className="w-4 h-4 mr-2" />
                       我的账户
@@ -140,13 +145,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <DropdownMenu 
                     aria-label="用户菜单"
                     classNames={{
-                      base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-xl shadow-black/50",
+                      base: "bg-[#1a1d35]/95 backdrop-blur-xl border border-white/10 shadow-xl shadow-black/50 rounded-xl",
                       list: "bg-transparent"
                     }}
                   >
                     <DropdownItem
                       key="profile"
-                      className="text-slate-300 hover:bg-slate-800/80"
+                      className="text-[#e8e4dc] hover:bg-white/10 rounded-lg"
                       startContent={<User className="w-4 h-4" />}
                       onPress={() => navigate('/user-center')}
                     >
@@ -154,7 +159,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </DropdownItem>
                     <DropdownItem
                       key="logout"
-                      className="text-red-400 hover:bg-red-500/10"
+                      className="text-red-400 hover:bg-red-500/10 rounded-lg"
                       color="danger"
                       startContent={<LogOut className="w-4 h-4" />}
                       onPress={handleLogout}
@@ -168,7 +173,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   onClick={handleAccountClick}
                   size="sm"
                   radius="lg"
-                  className="font-bold text-xs uppercase tracking-widest bg-gradient-to-r from-blue-500 to-violet-600 text-white hover:from-blue-600 hover:to-violet-700 shadow-lg shadow-blue-500/25"
+                  className="font-semibold text-sm bg-gradient-to-r from-amber-500 to-yellow-600 text-[#1a1d35] hover:from-amber-400 hover:to-yellow-500 shadow-lg shadow-amber-500/25 transition-all"
                 >
                   <User className="w-4 h-4 mr-2" />
                   登录
@@ -179,7 +184,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </Navbar>
       )}
 
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden relative z-10">
         {children}
       </main>
     </div>

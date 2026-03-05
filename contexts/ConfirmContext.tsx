@@ -55,28 +55,6 @@ export const ConfirmProvider: React.FC<ConfirmProviderProps> = ({ children }) =>
     setResolveRef(null);
   }, [resolveRef]);
 
-  const getButtonStyle = () => {
-    switch (options?.type) {
-      case 'danger':
-        return 'bg-red-500 hover:bg-red-600 text-white';
-      case 'warning':
-        return 'bg-amber-500 hover:bg-amber-600 text-white';
-      default:
-        return 'bg-blue-500 hover:bg-blue-600 text-white';
-    }
-  };
-
-  const getIconColor = () => {
-    switch (options?.type) {
-      case 'danger':
-        return 'text-red-400';
-      case 'warning':
-        return 'text-amber-400';
-      default:
-        return 'text-blue-400';
-    }
-  };
-
   return (
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
@@ -85,37 +63,53 @@ export const ConfirmProvider: React.FC<ConfirmProviderProps> = ({ children }) =>
         onOpenChange={(open) => !open && handleCancel()}
         size="sm"
         classNames={{
-          base: "bg-slate-900 border border-slate-700/50",
-          header: "border-b border-slate-700/50",
-          footer: "border-t border-slate-700/50"
+          backdrop: 'bg-black/60 backdrop-blur-sm',
+          base: 'bg-gradient-to-br from-[#1a1d35] to-[#121428] border border-[rgba(255,255,255,0.08)] shadow-2xl',
+          header: 'border-b border-[rgba(255,255,255,0.06)]',
+          body: 'py-6',
+          footer: 'border-t border-[rgba(255,255,255,0.06)]',
+          closeButton: 'text-[#a8a29e] hover:text-[#e8e4dc] hover:bg-white/10'
         }}
       >
         <ModalContent>
           {() => (
             <>
               <ModalHeader className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 ${getIconColor()}`}>
-                  <AlertTriangle className="w-4 h-4" />
+                <div className={`
+                  w-10 h-10 rounded-xl flex items-center justify-center
+                  ${options?.type === 'danger' ? 'bg-red-500/20 text-red-400' : ''}
+                  ${options?.type === 'warning' ? 'bg-amber-500/20 text-amber-400' : ''}
+                  ${options?.type === 'info' ? 'bg-cyan-500/20 text-cyan-400' : ''}
+                `}>
+                  <AlertTriangle className="w-5 h-5" />
                 </div>
-                <span className="text-slate-100 font-semibold">
+                <span className="text-[#e8e4dc] font-bold text-lg">
                   {options?.title || '确认操作'}
                 </span>
               </ModalHeader>
-              <ModalBody className="py-6">
-                <p className="text-slate-300 whitespace-pre-wrap">
+              <ModalBody>
+                <p className="text-[#a8a29e] whitespace-pre-wrap leading-relaxed">
                   {options?.message}
                 </p>
               </ModalBody>
-              <ModalFooter>
+              <ModalFooter className="gap-2">
                 <Button 
                   variant="flat" 
-                  className="bg-slate-800 text-slate-300 hover:bg-slate-700"
+                  className="bg-white/5 text-[#a8a29e] hover:bg-white/10 border border-white/10 cursor-pointer"
                   onPress={handleCancel}
                 >
                   {options?.cancelText || '取消'}
                 </Button>
                 <Button 
-                  className={getButtonStyle()}
+                  className={`
+                    font-semibold cursor-pointer transition-all
+                    ${options?.type === 'danger' 
+                      ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30 hover:shadow-red-500/50' 
+                      : options?.type === 'warning'
+                        ? 'bg-gradient-to-br from-amber-500 to-yellow-600 text-[#1a1d35] shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50'
+                        : 'bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50'
+                    }
+                  `}
                   onPress={handleConfirm}
                 >
                   {options?.confirmText || '确定'}

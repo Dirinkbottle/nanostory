@@ -199,9 +199,9 @@ const ScriptStudio: React.FC = () => {
   }
 
   return (
-    <div className="h-full bg-[#0a0a0f] overflow-hidden flex flex-col">
+    <div className="h-full bg-[#0c0e1a] overflow-hidden flex flex-col">
       {/* 项目信息和子标签页 */}
-      <div className="bg-slate-900/80 backdrop-blur-xl">
+      <div className="bg-[rgba(18,20,40,0.9)] backdrop-blur-xl border-b border-[rgba(255,255,255,0.06)]">
         <div className="px-8 pt-4">
           {selectedProject && (
             <ProjectInfo 
@@ -212,17 +212,17 @@ const ScriptStudio: React.FC = () => {
         </div>
         
         {/* 子标签页 + AI 模型按钮 */}
-        <div className="px-8 border-b border-slate-700/50 flex items-center">
+        <div className="px-8 flex items-center">
           <div className="flex-1">
             <Tabs
               selectedKey={activeTab}
               onSelectionChange={(key) => handleTabChange(key as 'script' | 'storyboard' | 'composition')}
               variant="underlined"
               classNames={{
-                tabList: "gap-8 w-full relative p-0",
-                cursor: "w-full bg-blue-500 h-0.5",
+                tabList: "gap-8 w-full relative p-0 border-b-0",
+                cursor: "w-full bg-gradient-to-r from-amber-400 to-yellow-500 h-0.5 shadow-[0_0_10px_rgba(230,200,122,0.5)]",
                 tab: "max-w-fit px-0 h-12 data-[hover-unselected=true]:opacity-80",
-                tabContent: "group-data-[selected=true]:text-blue-400 group-data-[selected=false]:text-slate-500 font-medium"
+                tabContent: "group-data-[selected=true]:text-[#e6c87a] group-data-[selected=false]:text-[#6b6561] font-semibold transition-colors"
               }}
             >
               <Tab
@@ -257,7 +257,7 @@ const ScriptStudio: React.FC = () => {
           <Button
             size="sm"
             variant="flat"
-            className="bg-slate-800/80 text-blue-400 font-medium border border-slate-700/50"
+            className="bg-[rgba(230,200,122,0.15)] text-[#e6c87a] font-semibold border border-[rgba(230,200,122,0.3)] hover:border-[rgba(230,200,122,0.5)] hover:shadow-[0_0_15px_rgba(230,200,122,0.2)] transition-all cursor-pointer"
             startContent={<Bot className="w-4 h-4" />}
             onPress={openModelConfig}
           >
@@ -274,7 +274,7 @@ const ScriptStudio: React.FC = () => {
           <div ref={containerRef} className="h-full flex relative">
             {/* 左侧：创作区 */}
             <div
-              className="border-r border-slate-700/50 flex flex-col bg-slate-900/60 overflow-hidden"
+              className="border-r border-[rgba(255,255,255,0.06)] flex flex-col bg-[rgba(18,20,40,0.6)] overflow-hidden"
               style={{ width: `${100 - rightPanelWidth}%` }}
             >
               <div className="p-8 space-y-6 overflow-auto">
@@ -339,7 +339,7 @@ const ScriptStudio: React.FC = () => {
 
             {/* 可拖拽的分隔条 */}
             <div
-              className="w-1 bg-slate-700/50 hover:bg-blue-500/50 cursor-col-resize transition-colors relative group"
+              className="w-1 bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(230,200,122,0.4)] cursor-col-resize transition-colors relative group"
               onMouseDown={() => setIsResizing(true)}
             >
               <div className="absolute inset-y-0 -left-1 -right-1" />
@@ -347,7 +347,7 @@ const ScriptStudio: React.FC = () => {
 
             {/* 右侧：预览区 */}
             <div
-              className="flex flex-col bg-[#0a0a0f] overflow-hidden"
+              className="flex flex-col bg-[#0c0e1a] overflow-hidden"
               style={{ width: `${rightPanelWidth}%` }}
             >
               <ScriptPreview
@@ -428,27 +428,41 @@ const ScriptStudio: React.FC = () => {
       />
 
       {/* 删除确认弹窗 */}
-      <Modal isOpen={isDeleteModalOpen} onClose={closeDeleteModal} size="md">
+      <Modal 
+        isOpen={isDeleteModalOpen} 
+        onClose={closeDeleteModal} 
+        size="md"
+        classNames={{
+          backdrop: 'bg-black/60 backdrop-blur-sm',
+          base: 'bg-gradient-to-br from-[#1a1d35] to-[#121428] border border-[rgba(255,255,255,0.08)] shadow-2xl',
+          header: 'border-b border-[rgba(255,255,255,0.06)]',
+          body: 'py-4',
+          footer: 'border-t border-[rgba(255,255,255,0.06)]',
+          closeButton: 'text-[#a8a29e] hover:text-[#e8e4dc] hover:bg-white/10'
+        }}
+      >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
-            {deleteResult.type === 'confirm' && '删除确认'}
-            {deleteResult.type === 'orphans' && '发现多余资源'}
-            {deleteResult.type === 'success' && '删除成功'}
-            {deleteResult.type === 'error' && '删除失败'}
+            <span className="text-[#e8e4dc] font-bold">
+              {deleteResult.type === 'confirm' && '删除确认'}
+              {deleteResult.type === 'orphans' && '发现多余资源'}
+              {deleteResult.type === 'success' && '删除成功'}
+              {deleteResult.type === 'error' && '删除失败'}
+            </span>
           </ModalHeader>
           <ModalBody>
             {deleteResult.type === 'confirm' && (
-              <p className="text-slate-600">确定要删除该集剧本吗？将同时删除该集的所有分镜、帧图片和视频，此操作无法恢复。</p>
+              <p className="text-[#a8a29e]">确定要删除该集剧本吗？将同时删除该集的所有分镜、帧图片和视频，此操作无法恢复。</p>
             )}
             {deleteResult.type === 'orphans' && (
               <div className="space-y-3">
-                <p className="text-slate-600 text-sm">{deleteResult.message}。以下角色/场景仅在该集中出现，是否一并删除？</p>
+                <p className="text-[#a8a29e] text-sm">{deleteResult.message}。以下角色/场景仅在该集中出现，是否一并删除？</p>
                 {orphanCharacters.length > 0 && (
                   <div>
-                    <p className="text-sm font-semibold text-slate-700 mb-1">多余角色：</p>
+                    <p className="text-sm font-semibold text-[#e6c87a] mb-1">多余角色：</p>
                     <div className="flex flex-wrap gap-2">
                       {orphanCharacters.map(c => (
-                        <span key={c.id} className="inline-flex items-center gap-1 px-2 py-1 bg-orange-50 border border-orange-200 rounded text-sm text-orange-700">
+                        <span key={c.id} className="inline-flex items-center gap-1 px-2 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm text-amber-400">
                           {c.name}
                         </span>
                       ))}
@@ -457,10 +471,10 @@ const ScriptStudio: React.FC = () => {
                 )}
                 {orphanScenes.length > 0 && (
                   <div>
-                    <p className="text-sm font-semibold text-slate-700 mb-1">多余场景：</p>
+                    <p className="text-sm font-semibold text-[#4fc3f7] mb-1">多余场景：</p>
                     <div className="flex flex-wrap gap-2">
                       {orphanScenes.map(s => (
-                        <span key={s.id} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
+                        <span key={s.id} className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-sm text-cyan-400">
                           {s.name}
                         </span>
                       ))}
@@ -470,27 +484,27 @@ const ScriptStudio: React.FC = () => {
               </div>
             )}
             {deleteResult.type === 'success' && (
-              <p className="text-green-600">{deleteResult.message}</p>
+              <p className="text-emerald-400">{deleteResult.message}</p>
             )}
             {deleteResult.type === 'error' && (
-              <p className="text-red-600">{deleteResult.message}</p>
+              <p className="text-red-400">{deleteResult.message}</p>
             )}
           </ModalBody>
-          <ModalFooter>
+          <ModalFooter className="gap-2">
             {deleteResult.type === 'confirm' && (
               <>
-                <Button variant="light" onPress={closeDeleteModal}>取消</Button>
-                <Button color="danger" onPress={confirmDelete} isLoading={scriptLoading}>确认删除</Button>
+                <Button variant="flat" className="bg-white/5 text-[#a8a29e] hover:bg-white/10 border border-white/10 cursor-pointer" onPress={closeDeleteModal}>取消</Button>
+                <Button className="bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30 cursor-pointer" onPress={confirmDelete} isLoading={scriptLoading}>确认删除</Button>
               </>
             )}
             {deleteResult.type === 'orphans' && (
               <>
-                <Button variant="light" onPress={skipCleanOrphans}>保留资源</Button>
-                <Button color="danger" onPress={confirmCleanOrphans}>一并删除</Button>
+                <Button variant="flat" className="bg-white/5 text-[#a8a29e] hover:bg-white/10 border border-white/10 cursor-pointer" onPress={skipCleanOrphans}>保留资源</Button>
+                <Button className="bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30 cursor-pointer" onPress={confirmCleanOrphans}>一并删除</Button>
               </>
             )}
             {(deleteResult.type === 'success' || deleteResult.type === 'error') && (
-              <Button color="primary" onPress={closeDeleteModal}>确定</Button>
+              <Button className="bg-gradient-to-br from-amber-400 to-yellow-500 text-[#1a1d35] font-semibold shadow-lg shadow-amber-500/30 cursor-pointer" onPress={closeDeleteModal}>确定</Button>
             )}
           </ModalFooter>
         </ModalContent>
