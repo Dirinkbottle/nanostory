@@ -44,7 +44,7 @@ const Auth: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex items-center justify-center bg-[#0c0e1a] px-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-[#0c0e1a] px-4 relative overflow-hidden">
       {/* 装饰背景元素 */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float"></div>
@@ -77,7 +77,7 @@ const Auth: React.FC = () => {
             </div>
             <div>
               <h1 className="text-3xl font-black tracking-tight genshin-title">
-                NANOSTORY
+                饺子动漫
               </h1>
               <p className="text-sm text-[#6b6561] mt-2 font-medium">
                 AI 驱动的视频创作平台

@@ -748,6 +748,28 @@
   background: linear-gradient(to right, #4f46e5, #8b5cf6) !important;
 }
 
+/* 标签页容器浅色覆盖 */
+.theme-light [class*="bg-\[rgba\(18\,20\,40"] {
+  background-color: rgba(241, 245, 249, 0.9) !important;
+  border-color: var(--border-color) !important;
+}
+.theme-light [class*="text-\[\#6b6561\]"] {
+  color: var(--text-muted) !important;
+}
+.theme-light [class*="text-\[\#e6c87a\]"] {
+  color: var(--gold) !important;
+}
+.theme-light [data-slot="tabList"] {
+  background-color: rgba(241, 245, 249, 0.9) !important;
+  border-color: var(--border-color) !important;
+}
+.theme-light [data-slot="tab"][data-selected="true"] {
+  color: var(--gold) !important;
+}
+.theme-light [data-slot="cursor"] {
+  background: linear-gradient(to right, #4f46e5, #8b5cf6) !important;
+}
+
 /* HeroUI 组件浅色主题覆盖 */
 .theme-light [class*="bg-slate-800"],
 .theme-light [class*="bg-slate-900"] {
