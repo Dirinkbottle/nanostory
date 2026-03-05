@@ -68,7 +68,7 @@ ${environmentChange}
 5. 提示词开头加 "empty scene, no people, no characters, no figures,"
 6. 只输出英文提示词，不要其他解释`,
     textModel,
-    maxTokens: 300,
+    maxTokens: 1000,
     temperature: 0.5
   });
 

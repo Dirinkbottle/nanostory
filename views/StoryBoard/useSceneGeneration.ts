@@ -39,7 +39,8 @@ export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes,
       ['frame_generation', 'single_frame_generation', 'scene_video'],
       jobToTaskKey
     );
-  }, [projectId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]); // recoverTasks 是稳定的函数，不需要添加到依赖
 
   // 监听任务完成/失败 → 更新 scene 状态 + 保存数据库
   useEffect(() => {

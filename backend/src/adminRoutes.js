@@ -467,7 +467,7 @@ router.post('/ai-models/:id/test-handler', authMiddleware, adminMiddleware, asyn
         result = await handleBaseTextModelCall({
           prompt: params?.prompt || '你好，请简单介绍一下自己。',
           textModel: model.name,
-          maxTokens: params?.maxTokens || 500,
+          maxTokens: params?.maxTokens || 8192,
           temperature: params?.temperature || 0.7
         });
         break;

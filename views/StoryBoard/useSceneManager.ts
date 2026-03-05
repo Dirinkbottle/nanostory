@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getAuthToken } from '../../services/auth';
 
 export interface LinkedCharacter {
@@ -43,17 +43,40 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
   const [selectedScene, setSelectedScene] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // 使用 ref 跟踪当前正在加载的 scriptId，防止竞态条件
+  const loadingScriptIdRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // scriptId 变化时重新加载
   useEffect(() => {
     if (scriptId) {
       loadStoryboards(scriptId);
     } else {
       setScenes([]);
+      setSelectedScene(null);
     }
+
+    // 清理函数：取消正在进行的请求
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
   }, [scriptId]);
 
   const loadStoryboards = async (targetScriptId: number) => {
     if (!targetScriptId) return;
+
+    // 取消之前的请求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // 创建新的 AbortController
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    loadingScriptIdRef.current = targetScriptId;
 
     setIsLoading(true);
     try {
@@ -61,24 +84,31 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
       const res = await fetch(`/api/storyboards/${targetScriptId}`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
+        },
+        signal: abortController.signal
       });
+
+      // 检查请求是否已过期（用户切换到了其他 scriptId）
+      if (loadingScriptIdRef.current !== targetScriptId) {
+        console.log('[useSceneManager] 请求已过期，忽略结果');
+        return;
+      }
 
       if (res.ok) {
         const data = await res.json();
         console.log('[useSceneManager] 加载分镜数据，原始数据:', data.length, '条');
         console.log('[useSceneManager] 第一条原始数据:', data[0]);
-        
+
         if (data && data.length > 0) {
           const loadedScenes: StoryboardScene[] = data.map((item: any, index: number) => {
             const vars = item.variables || {};
-            
+
             // Debug: 检查 variables 字段
             if (index === 0) {
               console.log('[useSceneManager] 第一条 variables 字段:', vars);
               console.log('[useSceneManager] characters 字段类型:', typeof vars.characters, '值:', vars.characters);
             }
-            
+
             return {
               id: item.id || Date.now() + index,
               order: item.index || index + 1,
@@ -101,9 +131,9 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
               linkedScenes: item.linkedScenes || []
             };
           });
-          
+
           console.log('[useSceneManager] 解析后的分镜数据，前3条角色:', loadedScenes.slice(0, 3).map(s => s.characters));
-          
+
           setScenes(loadedScenes);
           if (loadedScenes.length > 0) {
             setSelectedScene(loadedScenes[0].id);
@@ -113,10 +143,19 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
           setScenes([]);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      // 忽略取消的请求
+      if (error.name === 'AbortError') {
+        console.log('[useSceneManager] 请求已取消');
+        return;
+      }
       console.error('加载分镜失败:', error);
     } finally {
-      setIsLoading(false);
+      // 只有当前请求才清除 loading 状态
+      if (loadingScriptIdRef.current === targetScriptId) {
+        setIsLoading(false);
+        abortControllerRef.current = null;
+      }
     }
   };
 
@@ -224,7 +263,7 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
   };
 
   const updateDescription = (id: number, description: string) => {
-    setScenes(scenes.map(s => s.id === id ? { ...s, description } : s));
+    setScenes(prevScenes => prevScenes.map(s => s.id === id ? { ...s, description } : s));
   };
 
   const reorderScenes = (newScenes: StoryboardScene[]) => {

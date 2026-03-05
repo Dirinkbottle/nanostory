@@ -158,7 +158,7 @@ ${aFacePrompt}
   const response = await handleBaseTextModelCall({
     prompt: fullPrompt,
     textModel: textModelName,
-    maxTokens: 500,
+    maxTokens: 2000,
     temperature: 0.7
   });
 

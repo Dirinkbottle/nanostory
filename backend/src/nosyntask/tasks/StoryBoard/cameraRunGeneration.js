@@ -228,7 +228,7 @@ ${frameRefInfo}
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
     textModel,
-    maxTokens: 600,
+    maxTokens: 4096,
     temperature: 0.6,
     think
   });

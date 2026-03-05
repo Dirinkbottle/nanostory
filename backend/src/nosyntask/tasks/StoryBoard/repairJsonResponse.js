@@ -59,7 +59,7 @@ ${incompleteJson}
   const result = await handleBaseTextModelCall({
     prompt: repairPrompt,
     textModel: modelName,
-    maxTokens: 8000,
+    maxTokens: 8192,
     temperature: 0.3
   }, (progress) => {
     if (onProgress) onProgress(30 + progress * 0.6); // 30% -> 90%

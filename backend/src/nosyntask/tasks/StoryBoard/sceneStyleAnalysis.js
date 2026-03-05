@@ -69,7 +69,7 @@ ${sceneListText}
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
     textModel,
-    maxTokens: 500,
+    maxTokens: 1000,
     temperature: 0.3
   });
 

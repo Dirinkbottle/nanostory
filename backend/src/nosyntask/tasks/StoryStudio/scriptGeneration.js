@@ -85,7 +85,7 @@ ${userPrompt}`;
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
     textModel: modelName,
-    maxTokens: 8000,
+    maxTokens: 8192,
     temperature: 0.9
   }, onProgress);
 

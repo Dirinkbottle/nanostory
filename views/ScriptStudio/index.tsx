@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, Tab, Button, useDisclosure, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import { FileText, Film, Bot, Clapperboard } from 'lucide-react';
@@ -22,7 +22,12 @@ const LAST_TAB_KEY = 'nanostory_last_tab';
 
 const ScriptStudio: React.FC = () => {
   const navigate = useNavigate();
-  
+
+  // 可调整大小的分隔条状态
+  const [rightPanelWidth, setRightPanelWidth] = useState(50); // 百分比
+  const [isResizing, setIsResizing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   // 使用自定义 hooks
   const { selectedProject, setSelectedProject, initLoading } = useProjectInit();
   
@@ -83,6 +88,39 @@ const ScriptStudio: React.FC = () => {
   });
   
   const loading = scriptLoading || generationLoading;
+
+  // 拖拽调整大小处理
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing || !containerRef.current) return;
+
+      const container = containerRef.current;
+      const containerRect = container.getBoundingClientRect();
+      const newWidth = ((containerRect.right - e.clientX) / containerRect.width) * 100;
+
+      // 限制宽度范围：30% - 70%
+      const clampedWidth = Math.max(30, Math.min(70, newWidth));
+      setRightPanelWidth(clampedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
 
   // 切换标签页时保存
   const handleTabChange = (key: 'script' | 'storyboard' | 'composition') => {
@@ -226,9 +264,12 @@ const ScriptStudio: React.FC = () => {
         {activeTab === 'composition' ? (
           <VideoComposition projectId={selectedProject?.id || null} projectName={selectedProject?.name || ''} />
         ) : activeTab === 'script' ? (
-          <div className="h-full flex">
+          <div ref={containerRef} className="h-full flex relative">
             {/* 左侧：创作区 */}
-            <div className="w-1/2 border-r border-slate-700/50 flex flex-col bg-slate-900/60">
+            <div
+              className="border-r border-slate-700/50 flex flex-col bg-slate-900/60 overflow-hidden"
+              style={{ width: `${100 - rightPanelWidth}%` }}
+            >
               <div className="p-8 space-y-6 overflow-auto">
                 {/* 集数选择器 */}
                 <EpisodeSelector
@@ -285,8 +326,19 @@ const ScriptStudio: React.FC = () => {
               </div>
             </div>
 
+            {/* 可拖拽的分隔条 */}
+            <div
+              className="w-1 bg-slate-700/50 hover:bg-blue-500/50 cursor-col-resize transition-colors relative group"
+              onMouseDown={() => setIsResizing(true)}
+            >
+              <div className="absolute inset-y-0 -left-1 -right-1" />
+            </div>
+
             {/* 右侧：预览区 */}
-            <div className="flex-1 flex flex-col bg-[#0a0a0f]">
+            <div
+              className="flex flex-col bg-[#0a0a0f] overflow-hidden"
+              style={{ width: `${rightPanelWidth}%` }}
+            >
               <ScriptPreview
                 content={content}
                 isEditing={isEditing}

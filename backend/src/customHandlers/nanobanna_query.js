@@ -1,0 +1,78 @@
+/**
+ * Nano Banana 自定义查询 Handler
+ *
+ * 用于查询 Nano Banana 图片生成任务的状态和结果
+ * 使用国内节点：https://grsai.dakka.com.cn
+ */
+
+const fetch = require('node-fetch');
+
+module.exports = {
+  /**
+   * 自定义查询请求
+   * @param {object} model - 完整 DB 模型配置
+   * @param {object} params - 原始合并参数（包含 taskId）
+   * @param {object} rendered - 模板渲染后的 { url, method, headers, body }
+   * @returns {object} 原始 API 响应 data
+   */
+  async query(model, params, rendered) {
+    console.log('[Nano Banana Query] 开始查询任务');
+    console.log('[Nano Banana Query] 参数:', JSON.stringify(params, null, 2));
+
+    // 1. 构建查询请求
+    const taskId = params.taskId || params.id;
+    if (!taskId) {
+      throw new Error('Nano Banana Query: 缺少 taskId 参数');
+    }
+
+    // 使用国内节点
+    const queryUrl = 'https://grsai.dakka.com.cn/v1/draw/result';
+
+    const requestBody = {
+      id: taskId
+    };
+
+    console.log(`[Nano Banana Query] 查询 URL: ${queryUrl}`);
+    console.log('[Nano Banana Query] 请求体:', JSON.stringify(requestBody, null, 2));
+
+    // 2. 发送查询请求
+    const response = await fetch(queryUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${model.api_key}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const responseText = await response.text();
+    console.log('[Nano Banana Query] 响应状态:', response.status);
+    console.log('[Nano Banana Query] 响应内容:', responseText);
+
+    // 3. 解析响应
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (err) {
+      throw new Error(`Nano Banana API 返回非 JSON: ${responseText.substring(0, 300)}`);
+    }
+
+    // 4. 检查响应状态
+    if (!response.ok) {
+      const errorMsg = data.msg || data.error || JSON.stringify(data);
+      throw new Error(`Nano Banana API 错误 (${response.status}): ${errorMsg}`);
+    }
+
+    // 5. 检查业务状态码
+    if (data.code !== 0) {
+      if (data.code === -22) {
+        throw new Error('任务不存在');
+      }
+      throw new Error(`Nano Banana 查询失败 (code: ${data.code}): ${data.msg}`);
+    }
+
+    // 6. 返回任务数据
+    // 响应格式：{ code: 0, data: { id, results, progress, status, ... }, msg: "success" }
+    return data.data;
+  }
+};

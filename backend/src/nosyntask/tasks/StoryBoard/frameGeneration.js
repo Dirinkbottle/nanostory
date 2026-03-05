@@ -220,6 +220,16 @@ ${sceneConstraint}`
 - 绝对不能在提示词中出现以下概念：before/after、transition、sequence、comparison、split、side by side、multiple panels、diptych、collage
 - 不要使用暗示运动过程的动词（如 rising, turning, reaching），只用描述静止姿态的词（如 seated, standing, holding）
 
+【内容安全规则 - 必须遵守】
+- 所有内容必须健康、正面、适合全年龄观看
+- 避免任何可能被误判为敏感的描述：
+  * 不要过度描述身体部位或姿态细节
+  * 避免使用可能引起歧义的词汇（如 exposed, revealing, intimate, seductive 等）
+  * 人物表情和动作应自然、得体
+  * 服装描述应简洁，避免过度细节
+- 场景应积极向上，避免暴力、恐怖、阴暗等元素
+- 如果原始描述包含可能敏感的内容，请用更中性、安全的方式改写
+
 请根据以下信息，生成这个${frameType === 'start' ? '瞬间' : '瞬间'}的图片提示词：
 
 分镜描述：${description}
@@ -235,8 +245,9 @@ ${frameHint}
 6. 如果有上一镜头信息，确保画面与上一镜头自然衔接
 7. 如果有视觉风格要求，提示词必须体现该风格特征
 8. 严格遵守角色约束：有角色时与参考图一致，无角色时绝对不能出现人物
-9. 提示词开头必须加 "single image, single scene, one unified viewpoint,"，末尾必须加 ", one single frame, NOT split screen, NOT side by side, NOT comparison, NOT multiple panels"
-10. 只输出英文提示词，不要其他解释
+9. 【内容安全】确保所有描述健康、正面，避免任何可能触发内容审核的词汇或概念
+10. 提示词开头必须加 "single image, single scene, one unified viewpoint,"，末尾必须加 ", one single frame, NOT split screen, NOT side by side, NOT comparison, NOT multiple panels"
+11. 只输出英文提示词，不要其他解释
 
 提示词：`;
 

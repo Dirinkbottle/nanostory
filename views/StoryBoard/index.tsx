@@ -48,10 +48,24 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   const [showImportModal, setShowImportModal] = useState(false);
   const [showBatchDownloadModal, setShowBatchDownloadModal] = useState(false);
 
-  // 同步外部 props
-  useEffect(() => { if (scriptId !== currentScriptId) setCurrentScriptId(scriptId || null); }, [scriptId]);
-  useEffect(() => { if (projectId !== currentProjectId) setCurrentProjectId(projectId || null); }, [projectId]);
-  useEffect(() => { if (episodeNumber !== currentEpisode) setCurrentEpisode(episodeNumber); }, [episodeNumber]);
+  // 同步外部 props - 修复：添加缺失的依赖，避免无限循环
+  useEffect(() => {
+    if (scriptId !== undefined && scriptId !== currentScriptId) {
+      setCurrentScriptId(scriptId || null);
+    }
+  }, [scriptId, currentScriptId]);
+
+  useEffect(() => {
+    if (projectId !== undefined && projectId !== currentProjectId) {
+      setCurrentProjectId(projectId || null);
+    }
+  }, [projectId, currentProjectId]);
+
+  useEffect(() => {
+    if (episodeNumber !== undefined && episodeNumber !== currentEpisode) {
+      setCurrentEpisode(episodeNumber);
+    }
+  }, [episodeNumber, currentEpisode]);
 
   // 1. 分镜列表管理
   const {
