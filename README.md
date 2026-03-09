@@ -24,9 +24,9 @@
 
 ## Overview
 
-**NanoStory** is an open-source AI video creation platform that integrates multiple cutting-edge AI models (DeepSeek, Vidu, Kling, etc.) to provide a complete workflow from script generation, storyboard design, to video synthesis.
+**NanoStory** is an open-source AI video creation platform that integrates multiple cutting-edge AI models (DeepSeek, Vidu, Kling, Seedance, etc.) to provide a complete workflow from script generation, storyboard design, to video composition and export.
 
-The project adopts a front-end and back-end separation architecture, with the back-end based on Node.js + MySQL providing stable API services and an asynchronous task engine, supporting multi-user collaboration and an admin dashboard.
+The project adopts a front-end and back-end separation architecture, with the back-end based on Node.js + MySQL providing stable API services and an asynchronous task engine, supporting multi-user collaboration, billing system, and admin dashboard.
 
 ## Features
 
@@ -38,12 +38,14 @@ The project adopts a front-end and back-end separation architecture, with the ba
 - AI-powered script generation with DeepSeek
 - Multi-episode management
 - Customizable video model selection
+- Manual script editing support
 
 ### Storyboard System
 - Visual storyboard design interface
 - First/last frame image generation
 - AI video clip generation
 - One-click auto storyboard extraction
+- Simplified storyboard mode
 
 </td>
 <td width="50%">
@@ -53,15 +55,30 @@ The project adopts a front-end and back-end separation architecture, with the ba
 - Visual gallery with quick preview
 - Consistent art style maintenance
 
+### Video Composition
+- Multi-track timeline editor
+- Subtitle system with styling
+- BGM audio track support
+- FFmpeg-based video export
+
 ### Admin Dashboard
 - System monitoring & analytics
 - AI model configuration
-- User management
-- Custom handler support (Kling API)
+- User & billing management
+- System & frontend settings
 
 </td>
 </tr>
 </table>
+
+### User System
+
+Complete user management and billing system:
+
+- **User Authentication** — JWT-based authentication with bcrypt encryption
+- **User Center** — Profile, balance, consumption statistics, billing history
+- **Billing System** — Pay-per-use model with detailed cost tracking
+- **Admin Panel** — User management, system configuration, frontend settings
 
 ### Async Task Engine
 
@@ -84,6 +101,7 @@ Built-in asynchronous task engine for handling time-consuming AI generation task
 | [HeroUI](https://www.heroui.com/) | 2.8 | Component Library |
 | [Framer Motion](https://www.framer.com/motion/) | 12 | Animations |
 | [React Router](https://reactrouter.com/) | 7 | Routing |
+| [FFmpeg.wasm](https://ffmpegwasm.netlify.app/) | 0.12 | Video Processing |
 
 ### Backend
 
@@ -94,6 +112,7 @@ Built-in asynchronous task engine for handling time-consuming AI generation task
 | [MySQL](https://www.mysql.com/) | Database |
 | [JWT](https://jwt.io/) | Authentication |
 | [bcryptjs](https://github.com/dcodeIO/bcrypt.js) | Password Encryption |
+| [MinIO](https://min.io/) | Object Storage (Optional) |
 
 ### Supported AI Models
 
@@ -102,6 +121,8 @@ Built-in asynchronous task engine for handling time-consuming AI generation task
 | **DeepSeek** | Script Generation |
 | **Vidu** | Image-to-Video, Text-to-Video |
 | **Kling** | Image/Video Generation (Custom Handler) |
+| **Seedance** | Video Generation |
+| **Gemini** | Text Processing |
 | *Extensible* | More models coming... |
 
 ## Quick Start
@@ -169,21 +190,38 @@ nanostory/
 ├── App.tsx                    # Application entry
 ├── components/                # Shared components
 │   ├── Layout.tsx
-│   └── TaskQueueBubble/       # Task queue UI
+│   ├── TaskQueueBubble/       # Task queue UI
+│   └── ui/GenshinUI/          # UI theme components
 ├── views/                     # Page views
 │   ├── ScriptStudio/          # Script editor module
 │   ├── StoryBoard/            # Storyboard module
+│   ├── SimpleStoryBoard/      # Simplified storyboard
 │   ├── AssetsManager/         # Asset management
+│   ├── VideoComposition/      # Video composition & export
 │   ├── Projects.tsx           # Project management
+│   ├── UserCenter.tsx         # User profile & billing
+│   ├── Settings/              # User settings
 │   └── admin/                 # Admin dashboard
+│       ├── AIModels/          # AI model config
+│       ├── UserManagement.tsx
+│       ├── SystemConfigManagement.tsx
+│       ├── UserSettingsManagement.tsx
+│       └── FrontendSettingsManagement.tsx
 ├── hooks/                     # Custom React hooks
 ├── services/                  # API services
 ├── contexts/                  # React contexts
 └── backend/                   # Backend service
     ├── src/
     │   ├── index.js           # Server entry
+    │   ├── auth.js            # Authentication
+    │   ├── billing.js         # Billing service
+    │   ├── users.js           # User management
     │   ├── nosyntask/         # Async task engine
     │   └── customHandlers/    # Custom AI handlers
+    │       ├── deepseek.js
+    │       ├── kling_video.js
+    │       ├── seedance1.5.js
+    │       └── ...
     └── initial_database.sql   # Database schema
 ```
 
@@ -218,9 +256,9 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 项目概述
 
-**NanoStory** 是一款开源的 AI 视频创作平台，集成多种前沿 AI 大模型（DeepSeek、Vidu、可灵 Kling 等），提供从剧本生成、分镜设计到视频合成的完整工作流。
+**NanoStory** 是一款开源的 AI 视频创作平台，集成多种前沿 AI 大模型（DeepSeek、Vidu、可灵 Kling、Seedance 等），提供从剧本生成、分镜设计、视频合成到导出的完整工作流。
 
-项目采用前后端分离架构，后端基于 Node.js + MySQL 提供稳定的 API 服务和异步任务引擎，支持多用户协作与管理后台。
+项目采用前后端分离架构，后端基于 Node.js + MySQL 提供稳定的 API 服务和异步任务引擎，支持多用户协作、计费系统与管理后台。
 
 ## 功能特性
 
@@ -232,12 +270,14 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 - 基于 DeepSeek 的 AI 剧本生成
 - 多集剧本管理
 - 自定义视频模型选择
+- 手动剧本编辑支持
 
 ### 分镜系统
 - 可视化分镜设计界面
 - 首帧/尾帧图片生成
 - AI 视频片段生成
 - 一键自动提取分镜
+- 简化分镜模式
 
 </td>
 <td width="50%">
@@ -247,15 +287,30 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 - 可视化画廊与快速预览
 - 统一美术风格维护
 
+### 视频合成
+- 多轨道时间轴编辑器
+- 字幕系统与样式设置
+- BGM 背景音乐轨道
+- 基于 FFmpeg 的视频导出
+
 ### 管理后台
 - 系统监控与数据分析
 - AI 模型配置管理
-- 用户管理
-- 自定义处理器支持（可灵 API）
+- 用户与计费管理
+- 系统与前端设置
 
 </td>
 </tr>
 </table>
+
+### 用户系统
+
+完整的用户管理与计费系统：
+
+- **用户认证** — 基于 JWT 的身份认证，bcrypt 密码加密
+- **用户中心** — 个人资料、余额、消费统计、账单记录
+- **计费系统** — 按量计费模式，详细成本追踪
+- **管理后台** — 用户管理、系统配置、前端设置
 
 ### 异步任务引擎
 
@@ -278,6 +333,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 | [HeroUI](https://www.heroui.com/) | 2.8 | 组件库 |
 | [Framer Motion](https://www.framer.com/motion/) | 12 | 动画库 |
 | [React Router](https://reactrouter.com/) | 7 | 路由管理 |
+| [FFmpeg.wasm](https://ffmpegwasm.netlify.app/) | 0.12 | 视频处理 |
 
 ### 后端
 
@@ -288,6 +344,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 | [MySQL](https://www.mysql.com/) | 数据库 |
 | [JWT](https://jwt.io/) | 身份认证 |
 | [bcryptjs](https://github.com/dcodeIO/bcrypt.js) | 密码加密 |
+| [MinIO](https://min.io/) | 对象存储（可选） |
 
 ### 支持的 AI 模型
 
@@ -296,6 +353,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 | **DeepSeek** | 剧本生成 |
 | **Vidu** | 图生视频、文生视频 |
 | **可灵 Kling** | 图片/视频生成（自定义处理器） |
+| **Seedance** | 视频生成 |
+| **Gemini** | 文本处理 |
 | *可扩展* | 更多模型持续接入中... |
 
 ## 快速开始
@@ -363,21 +422,38 @@ nanostory/
 ├── App.tsx                    # 应用入口
 ├── components/                # 公共组件
 │   ├── Layout.tsx
-│   └── TaskQueueBubble/       # 任务队列组件
+│   ├── TaskQueueBubble/       # 任务队列组件
+│   └── ui/GenshinUI/          # UI 主题组件
 ├── views/                     # 页面视图
 │   ├── ScriptStudio/          # 剧本工作室
 │   ├── StoryBoard/            # 分镜系统
+│   ├── SimpleStoryBoard/      # 简化分镜
 │   ├── AssetsManager/         # 资产管理
+│   ├── VideoComposition/      # 视频合成与导出
 │   ├── Projects.tsx           # 项目管理
+│   ├── UserCenter.tsx         # 用户中心与计费
+│   ├── Settings/              # 用户设置
 │   └── admin/                 # 管理后台
+│       ├── AIModels/          # AI 模型配置
+│       ├── UserManagement.tsx
+│       ├── SystemConfigManagement.tsx
+│       ├── UserSettingsManagement.tsx
+│       └── FrontendSettingsManagement.tsx
 ├── hooks/                     # 自定义 Hooks
 ├── services/                  # API 服务
 ├── contexts/                  # React Context
 └── backend/                   # 后端服务
     ├── src/
     │   ├── index.js           # 服务入口
+    │   ├── auth.js            # 身份认证
+    │   ├── billing.js         # 计费服务
+    │   ├── users.js           # 用户管理
     │   ├── nosyntask/         # 异步任务引擎
     │   └── customHandlers/    # 自定义 AI 处理器
+    │       ├── deepseek.js
+    │       ├── kling_video.js
+    │       ├── seedance1.5.js
+    │       └── ...
     └── initial_database.sql   # 数据库结构
 ```
 
@@ -406,6 +482,6 @@ nanostory/
 
 **[Back to Top / 返回顶部](#nanostory)**
 
-Made with ❤️ by NanoStory Team
+Made with love by NanoStory Team
 
 </div>
