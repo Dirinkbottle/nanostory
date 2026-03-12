@@ -247,7 +247,8 @@ ${frameHint}
 8. 严格遵守角色约束：有角色时与参考图一致，无角色时绝对不能出现人物
 9. 【内容安全】确保所有描述健康、正面，避免任何可能触发内容审核的词汇或概念
 10. 提示词开头必须加 "single image, single scene, one unified viewpoint,"，末尾必须加 ", one single frame, NOT split screen, NOT side by side, NOT comparison, NOT multiple panels"
-11. 只输出英文提示词，不要其他解释
+11. 【禁止文字/字幕】画面中绝对不能出现任何文字、字幕、标题、水印。提示词中必须包含 "no text, no subtitles, no captions, no watermark, no letters, no words" 约束
+12. 只输出英文提示词，不要其他解释
 
 提示词：`;
 

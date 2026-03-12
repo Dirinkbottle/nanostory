@@ -106,7 +106,7 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
     >
       {filteredModels.map((model) => (
         <SelectItem
-          key={model.name}
+          key={model.id ?? `${model.name}-${model.provider}`}
           className="text-slate-200 hover:bg-slate-800/80 data-[hover=true]:bg-slate-800/80"
           textValue={model.name}
         >

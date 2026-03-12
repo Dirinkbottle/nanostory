@@ -172,7 +172,9 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           emotion: scene.emotion || '',
           hasAction: scene.hasAction || false,
           startFrame: scene.startFrame,
-          endFrame: scene.endFrame
+          endFrame: scene.endFrame,
+          cameraMovement: scene.cameraMovement,
+          endState: scene.endState
         }
       }));
 

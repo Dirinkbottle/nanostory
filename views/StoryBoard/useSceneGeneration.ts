@@ -72,6 +72,13 @@ export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes,
       if (key.startsWith('img_')) {
         const { startFrame, endFrame } = task.result;
         if (startFrame) {
+          // Clear localStorage generating state on completion
+          try {
+            const GENERATING_KEY = 'nanostory_generating_images';
+            const items = JSON.parse(localStorage.getItem(GENERATING_KEY) || '[]');
+            const filtered = items.filter((item: any) => item.id !== sceneId);
+            localStorage.setItem(GENERATING_KEY, JSON.stringify(filtered));
+          } catch {}
           setScenes(prev => prev.map(s =>
             s.id === sceneId
               ? { ...s, startFrame, endFrame, imageUrl: startFrame }

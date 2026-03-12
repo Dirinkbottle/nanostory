@@ -10,6 +10,7 @@ import AutoStoryboardModal from '../StoryBoard/AutoStoryboardModal';
 import StoryboardTable from './StoryboardTable';
 import ResourceSidebar from './ResourceSidebar';
 import { Wand2 } from 'lucide-react';
+import { getAuthToken } from '../../services/auth';
 
 interface Script {
   id: number;
@@ -67,7 +68,7 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
     onScenesGenerated: (newScenes) => setScenes(newScenes),
   });
 
-  const { generateVideo, tasks } = useSceneGeneration({
+  const { generateImage, generateVideo, tasks } = useSceneGeneration({
     projectId: currentProjectId,
     scriptId: currentScriptId,
     episodeNumber: currentEpisode,
@@ -98,11 +99,12 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
 
     try {
       showToast('正在生成角色三视图...', 'info');
-      const response = await fetch(`http://localhost:4000/api/characters/${characterId}/generate-views`, {
+      const token = getAuthToken();
+      const response = await fetch(`/api/characters/${characterId}/generate-views`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           imageModel,
@@ -134,11 +136,12 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
 
     try {
       showToast('正在生成场景图片...', 'info');
-      const response = await fetch(`http://localhost:4000/api/scenes/${sceneId}/generate-image`, {
+      const token = getAuthToken();
+      const response = await fetch(`/api/scenes/${sceneId}/generate-image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           imageModel,
@@ -200,6 +203,7 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
             onDeleteScene={deleteScene}
             onUpdateDescription={updateDescription}
             onGenerateVideo={generateVideo}
+            onGenerateImage={generateImage}
             onCharacterClick={(name) => setSelectedCharName(name)}
             onSceneClick={(name) => setSelectedSceneName(name)}
             onPropClick={() => {}}

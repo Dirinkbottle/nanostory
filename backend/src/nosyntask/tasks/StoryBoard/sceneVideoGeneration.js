@@ -104,18 +104,22 @@ async function handleSceneVideoGeneration(inputParams, onProgress) {
   let characterAppearance = '';
   if (hasCharacters) {
     try {
-      // 查询第一个角色的外貌信息（通过关联表）
-      const linkedChar = await queryOne(
-        `SELECT c.name, c.appearance, c.description
-         FROM storyboard_characters sc
-         JOIN characters c ON sc.character_id = c.id
-         WHERE sc.storyboard_id = ? AND c.name = ?`,
-        [storyboardId, charNames[0]]
-      );
-      if (linkedChar) {
-        characterAppearance = linkedChar.appearance || '';
-        console.log('[SceneVideoGen] 查询到角色外貌:', characterAppearance.substring(0, 80));
+      // 查询所有角色的外貌信息（通过关联表）
+      const appearances = [];
+      for (const charName of charNames) {
+        const linkedChar = await queryOne(
+          `SELECT c.name, c.appearance, c.description
+           FROM storyboard_characters sc
+           JOIN characters c ON sc.character_id = c.id
+           WHERE sc.storyboard_id = ? AND c.name = ?`,
+          [storyboardId, charName]
+        );
+        if (linkedChar && linkedChar.appearance) {
+          appearances.push(`${linkedChar.name}: ${linkedChar.appearance}`);
+        }
       }
+      characterAppearance = appearances.join('\n');
+      console.log('[SceneVideoGen] 查询到角色外貌:', characterAppearance.substring(0, 120));
     } catch (e) {
       console.warn('[SceneVideoGen] 查询角色外貌失败:', e.message);
     }
@@ -315,6 +319,7 @@ ${extraInfo}
    - 禁止出现清单中未列出的新元素（物品/角色/效果）
    - 角色在任何情况下都不得消失，即使发生剧烈环境事件
 13. 只输出英文提示词，不要其他解释
+14. 【禁止文字/字幕 - 极其重要】视频画面中绝对不能出现任何文字元素。提示词中必须包含 "no text, no subtitles, no captions, no watermark, no title cards, no letters, no words, no typography overlays" 约束，确保画面干净纯粹
 
 提示词：`;
 

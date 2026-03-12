@@ -34,6 +34,8 @@ export interface StoryboardScene {
   endFrame?: string;
   startFrameDesc?: string;
   endFrameDesc?: string;
+  cameraMovement?: string;
+  endState?: string;
   linkedCharacters?: LinkedCharacter[];
   linkedScenes?: LinkedScene[];
 }
@@ -127,6 +129,8 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
               endFrame: item.last_frame_url || undefined,
               startFrameDesc: vars.startFrame || undefined,
               endFrameDesc: vars.endFrame || undefined,
+              cameraMovement: vars.cameraMovement || undefined,
+              endState: vars.endState || undefined,
               linkedCharacters: item.linkedCharacters || [],
               linkedScenes: item.linkedScenes || []
             };

@@ -80,13 +80,16 @@ function evaluateCondition(mappedResult, conditionExpr) {
  */
 async function submitAndPoll(modelName, submitParams, options = {}) {
   const {
-    intervalMs = 3000,
+    intervalMs = 2000,
     maxDurationMs = 300000,
     maxNetworkErrors = 5,
     onProgress,
     progressStart = 30,
     progressEnd = 90,
-    logTag = 'PollUtils'
+    logTag = 'PollUtils',
+    adaptiveInterval = true, // 启用自适应轮询间隔
+    intervalMultiplier = 1.3, // 每次轮询间隔增长系数
+    maxIntervalMs = 10000 // 最大轮询间隔
   } = options;
 
   // === 1. 提交请求 ===
@@ -122,13 +125,19 @@ async function submitAndPoll(modelName, submitParams, options = {}) {
   const startTime = Date.now();
   let networkErrors = 0;
   let pollCount = 0;
+  let currentInterval = intervalMs;
 
-  console.log(`[${logTag}] 异步任务已提交, taskId=${taskId}, 开始轮询...`);
+  console.log(`[${logTag}] 异步任务已提交, taskId=${taskId}, 开始轮询 (初始间隔=${intervalMs}ms, 自适应=${adaptiveInterval})...`);
 
   while (true) {
-    await sleep(intervalMs);
+    await sleep(currentInterval);
     pollCount++;
     const elapsed = Date.now() - startTime;
+
+    // 自适应增加轮询间隔，减少不必要的请求
+    if (adaptiveInterval && currentInterval < maxIntervalMs) {
+      currentInterval = Math.min(Math.round(currentInterval * intervalMultiplier), maxIntervalMs);
+    }
 
     // 超时检查
     if (elapsed > maxDurationMs) {
@@ -179,6 +188,8 @@ async function submitAndPoll(modelName, submitParams, options = {}) {
       } else {
         mapped = mappedBase;
       }
+      const totalMs = Date.now() - startTime;
+      console.log(`[${logTag}] ✅ 任务完成: model=${modelName}, taskId=${taskId}, 耗时=${Math.round(totalMs / 1000)}s, 轮询${pollCount}次`);
       // 统一返回 status: true + 映射结果
       return { status: true, ...mapped, _submitResult: submitResult };
     }

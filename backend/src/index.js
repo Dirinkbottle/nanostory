@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const { initializeDatabase } = require('./db');
 
@@ -17,8 +19,34 @@ const workflowRoutes = require('./nosyntask/routes');
 const modelRoutes = require('./modelRoutes');
 const adminRoutes = require('./adminRoutes');
 const fileProxyRoutes = require('./scripts/fileProxy');
+const feedbackRoutes = require('./feedback');
 
 const app = express();
+
+// Helmet - 设置安全 HTTP 响应头
+app.use(helmet({
+  contentSecurityPolicy: false, // 前端 SPA 需要灵活的 CSP
+  crossOriginEmbedderPolicy: false // 允许加载跨域图片资源
+}));
+
+// API 速率限制 - 防止暴力攻击和滥用
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 分钟窗口
+  max: 300, // 每个 IP 每窗口最多 300 次请求
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '请求过于频繁，请稍后再试' }
+});
+app.use('/api/', apiLimiter);
+
+// 登录/注册接口更严格的速率限制
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // 每个 IP 每 15 分钟最多 20 次认证请求
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '认证请求过于频繁，请稍后再试' }
+});
 
 // CORS 配置 - 限制允许的来源
 const allowedOrigins = process.env.ALLOWED_ORIGINS
@@ -46,7 +74,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', env: process.env.NODE_ENV || 'development' });
 });
 
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/scripts', scriptRoutes);
 app.use('/api/storyboards', storyboardRoutes);
 app.use('/api/billing', billingRoutes);
@@ -58,6 +86,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/workflows', workflowRoutes);
 app.use('/api/ai-models', modelRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/feedback', feedbackRoutes);
 app.use('/api/files', fileProxyRoutes);
 
 // Serve static files for production if needed

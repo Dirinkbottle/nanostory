@@ -16,6 +16,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { ToastProvider } from './contexts/ToastContext';
 import { PreviewProvider } from './components/PreviewProvider';
 import TaskQueueBubble from './components/TaskQueueBubble';
+import FeedbackButton from './components/FeedbackButton';
 import Settings from './views/Settings';
 
 const App: React.FC = () => {
@@ -56,6 +57,7 @@ const App: React.FC = () => {
           } />
         </Routes>
         <TaskQueueBubble />
+        <FeedbackButton />
       </PreviewProvider>
     </Router>
   );

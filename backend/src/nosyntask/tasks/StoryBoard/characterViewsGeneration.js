@@ -69,7 +69,7 @@ async function generateViewPrompt(view, characterName, appearance, description, 
 1. 提示词必须用英文输出，逗号分隔的关键词格式
 2. 【最重要】画面中只能有一个角色，绝对不能出现多个人物、多个角度、多个姿势。禁止使用 "character sheet"、"reference sheet"、"turnaround"、"multiple views"、"multiple poses" 等会导致多人物的关键词
 3. 必须包含：single character, solo, one person, pure white background, solid white background, full body, standing pose, even soft lighting
-4. 必须包含角色的完整外貌特征（服装、发型、体型、配饰、肤色等），越详细越好
+4. 必须包含角色的完整外貌特征（服装、发型、体型、配饰、肤色等），越详细越好。每一个服装细节都必须逐项写出：衣服的款式、颜色、材质、层次（内衣/外衣/披风/盔甲等）、领口样式、袖口样式、腰带、鞋子等
 5. 绝对不要加入任何场景、背景元素、故事情节、地面阴影、其他人物
 6. 保持中性自然表情，不要加入夸张情绪
 7. 长度控制在 80-150 个单词${consistencyBlock}

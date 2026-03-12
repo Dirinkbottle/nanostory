@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Input, Tabs, Tab, useDisclosure } from '@heroui/react';
-import { Users, MapPin, FileText, Plus, Search } from 'lucide-react';
+import { Users, MapPin, FileText, Plus, Search, Tag } from 'lucide-react';
 import { getAuthToken } from '../../services/auth';
 import { useSceneImageGeneration } from '../StoryBoard/hooks/useSceneImageGeneration';
 import SceneDetailModal from '../StoryBoard/ResourcePanel/SceneDetailModal';
@@ -27,6 +27,7 @@ const AssetsManager: React.FC = () => {
   const [props, setProps] = useState<Prop[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTag, setActiveTag] = useState<string | null>(null);
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   
@@ -207,7 +208,31 @@ const AssetsManager: React.FC = () => {
     }
   };
 
+  // 提取所有标签（去重并统计出现次数）
+  const allTags = React.useMemo(() => {
+    const tagCount: Record<string, number> = {};
+    const extractTags = (tagStr?: string) => {
+      if (!tagStr) return;
+      tagStr.split(',').map(t => t.trim()).filter(Boolean).forEach(t => {
+        tagCount[t] = (tagCount[t] || 0) + 1;
+      });
+    };
+    if (activeTab === 'characters') characters.forEach(c => extractTags(c.tags));
+    else if (activeTab === 'scenes') scenes.forEach(s => extractTags(s.tags));
+    else props.forEach(p => extractTags(p.tags));
+    return Object.entries(tagCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30);
+  }, [characters, scenes, props, activeTab]);
+
+  const matchesTag = (tags?: string) => {
+    if (!activeTag) return true;
+    if (!tags) return false;
+    return tags.split(',').map(t => t.trim()).includes(activeTag);
+  };
+
   const filteredCharacters = characters.filter(c => {
+    if (!matchesTag(c.tags)) return false;
     const q = searchQuery.toLowerCase();
     return c.name.toLowerCase().includes(q) ||
       c.description.toLowerCase().includes(q) ||
@@ -216,6 +241,7 @@ const AssetsManager: React.FC = () => {
   });
 
   const filteredScenes = scenes.filter(s => {
+    if (!matchesTag(s.tags)) return false;
     const q = searchQuery.toLowerCase();
     return s.name.toLowerCase().includes(q) ||
       s.description.toLowerCase().includes(q) ||
@@ -224,6 +250,7 @@ const AssetsManager: React.FC = () => {
   });
 
   const filteredProps = props.filter(p => {
+    if (!matchesTag(p.tags)) return false;
     const q = searchQuery.toLowerCase();
     return p.name.toLowerCase().includes(q) ||
       p.description.toLowerCase().includes(q) ||
@@ -256,6 +283,34 @@ const AssetsManager: React.FC = () => {
             inputWrapper: "bg-[rgba(30,35,60,0.6)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(230,200,122,0.3)] focus-within:border-[rgba(230,200,122,0.5)] shadow-sm transition-all"
           }}
         />
+
+        {/* 标签过滤 */}
+        {allTags.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Tag className="w-3.5 h-3.5 text-white/40 flex-shrink-0" />
+            {activeTag && (
+              <button
+                onClick={() => setActiveTag(null)}
+                className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition-all"
+              >
+                清除筛选
+              </button>
+            )}
+            {allTags.map(([tag, count]) => (
+              <button
+                key={tag}
+                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                  activeTag === tag
+                    ? 'bg-amber-500/20 text-[#e6c87a] border border-amber-500/40 shadow-sm shadow-amber-500/20'
+                    : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 hover:text-white/70'
+                }`}
+              >
+                {tag} <span className="opacity-60">({count})</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* 标签页 */}
         <Tabs

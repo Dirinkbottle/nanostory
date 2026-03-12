@@ -39,7 +39,7 @@ module.exports = (router) => {
             scriptId,
             i,
             item.prompt_template || item.description || '',
-            JSON.stringify(item.variables || {}),
+            JSON.stringify(item.variables || item.variables_json || {}),
             item.image_ref || item.imageUrl || null,
             item.video_url || item.videoUrl || null,
             item.generation_status || null

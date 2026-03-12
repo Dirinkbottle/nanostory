@@ -16,6 +16,7 @@ interface StoryboardTableProps {
   onDeleteScene: (id: number) => void;
   onUpdateDescription: (id: number, desc: string) => void;
   onGenerateVideo: (id: number) => Promise<{ success: boolean; error?: string }>;
+  onGenerateImage: (id: number, prompt: string) => Promise<{ success: boolean; error?: string }>;
   onCharacterClick: (name: string) => void;
   onSceneClick: (name: string) => void;
   onPropClick: (name: string) => void;
@@ -47,6 +48,7 @@ const StoryboardTable: React.FC<StoryboardTableProps> = ({
   onDeleteScene,
   onUpdateDescription,
   onGenerateVideo,
+  onGenerateImage,
   onCharacterClick,
   onSceneClick,
   onPropClick,
@@ -148,6 +150,8 @@ const StoryboardTable: React.FC<StoryboardTableProps> = ({
                   onAddCharacter={onAddCharacterToScene}
                   onAddScene={onAddSceneToScene}
                   onGenerateVideo={(id) => onGenerateVideo(id)}
+                  onGenerateImage={(id) => onGenerateImage(id, scene.description || '')}
+                  isGeneratingImage={tasks[`img_${scene.id}`]?.status === 'pending' || tasks[`img_${scene.id}`]?.status === 'running'}
                   isGeneratingVideo={tasks[`vid_${scene.id}`]?.status === 'pending' || tasks[`vid_${scene.id}`]?.status === 'running'}
                   isDragOver={overIdx === idx}
                   draggable

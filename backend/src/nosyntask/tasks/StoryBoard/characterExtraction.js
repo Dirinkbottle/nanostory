@@ -7,6 +7,7 @@
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
 const db = require('../../../db');
 const { stripThinkTags, extractCodeBlock, extractJSON, stripInvisible, safeParseJSON } = require('../../../utils/washBody');
+const { getVisualStylePrompt } = require('../../../utils/getProjectStyle');
 
 async function handleCharacterExtraction(inputParams, onProgress) {
   const { scenes, scriptContent, textModel: modelName, projectId, scriptId, userId } = inputParams;
@@ -18,6 +19,19 @@ async function handleCharacterExtraction(inputParams, onProgress) {
   console.log('[CharacterExtraction] 参数:', { projectId, scriptId, userId, scenesCount: scenes?.length });
 
   if (onProgress) onProgress(10);
+
+  // 获取项目视觉风格，为角色外貌描述提供时代/风格上下文
+  let visualStyleHint = '';
+  if (projectId) {
+    try {
+      const stylePrompt = await getVisualStylePrompt(projectId);
+      if (stylePrompt) {
+        visualStyleHint = `\n【项目视觉风格】${stylePrompt}\n请确保角色的服装、发型、配饰等外貌描述与上述视觉风格/时代背景一致。\n`;
+      }
+    } catch (e) {
+      console.warn('[CharacterExtraction] 获取项目视觉风格失败，继续提取:', e.message);
+    }
+  }
 
   // 构建提示词：优先使用分镜数据，其次使用剧本内容
   let contentForAnalysis = '';
@@ -48,7 +62,7 @@ async function handleCharacterExtraction(inputParams, onProgress) {
 - 不要输出缺少引号的值
 - 确保 JSON 格式完整
 - 只输出 JSON 数组，不要添加其他说明文字
-
+${visualStyleHint}
 ---
 
 请从以下内容中提取所有角色信息，分析每个角色的外貌、性格和简介。
@@ -60,11 +74,19 @@ ${contentForAnalysis}
 - 确保 JSON 格式完整，以 ] 结尾
 - 只输出 JSON 数组，不要添加其他说明文字
 
+**外貌描述要求 - 极其重要：**
+- appearance 字段必须非常详细，包含可直接用于 AI 绘图的具体视觉信息
+- 必须明确描述：年龄段、性别、身高体型、肤色、发型（长度/颜色/样式）、瞳色
+- 必须明确描述服装的具体款式、颜色、材质、层次（内衣/外衣/披风等）
+- 必须描述所有配饰：帽子、头饰、耳环、项链、腰带、武器等
+- 如果是古装/历史题材，必须描述符合时代的具体服饰名称（如汉服、铠甲、道袍等）
+- 禁止使用模糊描述如"穿着古装"、"传统服饰"，必须具体到款式和颜色
+
 请严格按以下 JSON 格式返回：
 [
   {
     "name": "角色名",
-    "appearance": "外貌描述（年龄、身材、穿着、特征等）",
+    "appearance": "外貌描述（年龄、身材、穿着、特征等，必须非常详细具体）",
     "personality": "性格描述（性格特点、行为习惯等）",
     "description": "角色简介（背景、身份、在故事中的作用等）"
   }

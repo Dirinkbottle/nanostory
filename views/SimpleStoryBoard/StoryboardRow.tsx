@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Textarea, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from '@heroui/react';
-import { Check, Edit2, Trash2, Mic, Play, Lock, Unlock } from 'lucide-react';
+import { Check, Edit2, Trash2, Mic, Play, Lock, Unlock, Image } from 'lucide-react';
 import { StoryboardScene } from '../StoryBoard/useSceneManager';
 import { Character } from '../StoryBoard/ResourcePanel/types';
 import { Scene } from '../StoryBoard/ResourcePanel/useSceneData';
@@ -19,6 +19,8 @@ interface StoryboardRowProps {
   onAddCharacter: (sceneId: number) => void;
   onAddScene: (sceneId: number) => void;
   onGenerateVideo: (id: number) => void;
+  onGenerateImage: (id: number) => void;
+  isGeneratingImage?: boolean;
   isGeneratingVideo?: boolean;
   isDragOver?: boolean;
   draggable?: boolean;
@@ -42,6 +44,8 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
   onAddCharacter,
   onAddScene,
   onGenerateVideo,
+  onGenerateImage,
+  isGeneratingImage,
   isGeneratingVideo,
   isDragOver,
   draggable,
@@ -159,6 +163,16 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
             </div>
           ) : (
             <div className="w-16 h-10 rounded border border-dashed border-slate-600 flex items-center justify-center text-slate-600 text-[10px]">尾帧</div>
+          )}
+          {!scene.startFrame && !scene.endFrame && (
+            <button
+              onClick={() => onGenerateImage(scene.id)}
+              disabled={isGeneratingImage}
+              className="w-8 h-10 rounded border border-dashed border-cyan-500/30 flex items-center justify-center text-cyan-500 hover:bg-cyan-900/20 transition-all disabled:opacity-40"
+              title="生成首尾帧"
+            >
+              {isGeneratingImage ? <span className="text-[10px]">...</span> : <Image className="w-3.5 h-3.5" />}
+            </button>
           )}
         </div>
       </td>
