@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardBody, Button, Input, Textarea, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip } from '@heroui/react';
-import { FolderOpen, Plus, Edit, Trash2, Search, BookOpen, Clock, Palette } from 'lucide-react';
+import { Card, CardBody, Button, Input, Textarea, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Chip, Spinner } from '@heroui/react';
+import { FolderOpen, Plus, Edit, Trash2, Search, BookOpen, Clock, Palette, Sparkles } from 'lucide-react';
 import { Project, fetchProjects, createProject, updateProject, deleteProject } from '../services/projects';
 import { useToast } from '../contexts/ToastContext';
 import { useConfirm } from '../contexts/ConfirmContext';
+import { getAuthToken } from '../services/auth';
 
 const LAST_PROJECT_KEY = 'nanostory_last_project_id';
 
@@ -30,6 +31,7 @@ const Projects: React.FC = () => {
     storyStyle: '',
     storyConstraints: ''
   });
+  const [aiSuggesting, setAiSuggesting] = useState(false);
 
   // 视觉风格预设
   const VISUAL_STYLE_PRESETS: Record<string, string> = {
@@ -125,6 +127,54 @@ const Projects: React.FC = () => {
         visualStyle: label,
         visualStylePrompt: VISUAL_STYLE_PRESETS[label] || ''
       });
+    }
+  };
+
+  // AI 智能推荐项目设置
+  const handleAiSuggest = async () => {
+    if (!formData.name && !formData.description) {
+      showToast('请先填写项目名称或描述', 'warning');
+      return;
+    }
+
+    setAiSuggesting(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/projects/suggest-settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'AI推荐失败');
+      }
+
+      const data = await res.json();
+      const { suggestions } = data;
+
+      // 应用AI推荐
+      setFormData(prev => ({
+        ...prev,
+        visualStyle: suggestions.visualStyle || prev.visualStyle,
+        visualStylePrompt: suggestions.visualStylePrompt || prev.visualStylePrompt,
+        storyStyle: suggestions.storyStyle || prev.storyStyle,
+        storyConstraints: suggestions.storyConstraints || prev.storyConstraints
+      }));
+
+      showToast('AI已为您推荐项目设置', 'success');
+    } catch (error: any) {
+      console.error('AI推荐失败:', error);
+      showToast(error.message || 'AI推荐失败，请稍后重试', 'error');
+    } finally {
+      setAiSuggesting(false);
     }
   };
 
@@ -335,6 +385,16 @@ const Projects: React.FC = () => {
                       inputWrapper: "bg-[rgba(30,35,60,0.6)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(230,200,122,0.3)] focus-within:border-[rgba(230,200,122,0.4)]"
                     }}
                   />
+
+                  {/* AI 智能推荐按钮 */}
+                  <Button
+                    className="w-full bg-gradient-to-r from-violet-500/20 to-purple-500/20 border border-violet-500/30 text-violet-300 font-medium hover:from-violet-500/30 hover:to-purple-500/30 transition-all cursor-pointer"
+                    startContent={aiSuggesting ? <Spinner size="sm" color="secondary" /> : <Sparkles className="w-4 h-4" />}
+                    onPress={handleAiSuggest}
+                    isDisabled={aiSuggesting}
+                  >
+                    {aiSuggesting ? 'AI 分析中...' : 'AI 智能推荐项目设置'}
+                  </Button>
 
                   {/* 工程状态 */}
                   <div>

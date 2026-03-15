@@ -43,10 +43,11 @@ app.use(helmet({
 // API 速率限制 - 防止暴力攻击和滥用
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 分钟窗口
-  max: 300, // 每个 IP 每窗口最多 300 次请求
+  max: process.env.NODE_ENV === 'production' ? 300 : 2000, // 开发环境放宽限制
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: '请求过于频繁，请稍后再试' }
+  message: { error: '请求过于频繁，请稍后再试' },
+  skip: () => process.env.NODE_ENV !== 'production' // 开发环境跳过限制
 });
 app.use('/api/', apiLimiter);
 

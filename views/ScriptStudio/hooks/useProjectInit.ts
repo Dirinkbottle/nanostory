@@ -22,11 +22,17 @@ export function useProjectInit() {
       
       if (lastProjectId) {
         // 尝试加载上次的工程
-        const project = await fetchProject(parseInt(lastProjectId));
-        if (project) {
-          setSelectedProject(project);
-          setInitLoading(false);
-          return;
+        try {
+          const project = await fetchProject(parseInt(lastProjectId));
+          if (project) {
+            setSelectedProject(project);
+            setInitLoading(false);
+            return;
+          }
+        } catch (e) {
+          // 上次的工程已不存在，清除记录，继续加载项目列表
+          console.warn('上次工程已不存在，将加载最近的工程');
+          localStorage.removeItem(LAST_PROJECT_KEY);
         }
       }
       

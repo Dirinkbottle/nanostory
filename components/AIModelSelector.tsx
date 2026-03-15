@@ -44,12 +44,24 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
   className = ''
 }) => {
   // 根据类型过滤模型 - 使用 category 字段（后端返回的字段名）
-  const filteredModels = filterType
-    ? models.filter(m => {
-        const modelType = (m.type || m.category)?.toUpperCase();
-        return modelType === filterType.toUpperCase();
-      })
-    : models;
+  const filteredModels = React.useMemo(() => {
+    const filtered = filterType
+      ? models.filter(m => {
+          const modelType = (m.type || m.category)?.toUpperCase();
+          return modelType === filterType.toUpperCase();
+        })
+      : models;
+    
+    // 按模型名称去重（防止后端返回重复数据）
+    const uniqueMap = new Map<string, AIModel>();
+    filtered.forEach(m => {
+      if (!uniqueMap.has(m.name)) {
+        uniqueMap.set(m.name, m);
+      }
+    });
+    
+    return Array.from(uniqueMap.values());
+  }, [models, filterType]);
 
   // 获取选中模型的详细信息
   const selectedModelInfo = filteredModels.find(m => m.name === selectedModel);
@@ -106,7 +118,7 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
     >
       {filteredModels.map((model) => (
         <SelectItem
-          key={model.id ?? `${model.name}-${model.provider}`}
+          key={model.name}
           className="text-slate-200 hover:bg-slate-800/80 data-[hover=true]:bg-slate-800/80"
           textValue={model.name}
         >

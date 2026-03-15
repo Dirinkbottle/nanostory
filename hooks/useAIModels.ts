@@ -36,6 +36,23 @@ export interface UseAIModelsReturn {
   loading: boolean;
 }
 
+// 为未选择的类型设置默认模型（第一个可用模型）
+function applyDefaultModels(selection: AIModelSelection, models: AIModel[]): AIModelSelection {
+  const result = { ...selection };
+  
+  for (const [category, key] of Object.entries(CATEGORY_TO_KEY)) {
+    if (!result[key]) {
+      // 找到该类型的第一个可用模型
+      const firstModel = models.find(m => (m.type || m.category || '').toUpperCase() === category);
+      if (firstModel) {
+        result[key] = firstModel.name;
+      }
+    }
+  }
+  
+  return result;
+}
+
 export function useAIModels(projectId: number | null | undefined): UseAIModelsReturn {
   const [models, setModels] = useState<AIModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +119,21 @@ export function useAIModels(projectId: number | null | undefined): UseAIModelsRe
     fetchSaved();
   }, [projectId]);
 
-  // 3. 保存到后端（防抖）
+  // 3. 当 models 加载完成且 selected 有空值时，自动设置默认模型
+  useEffect(() => {
+    if (loading || models.length === 0) return;
+
+    setSelectedState(prev => {
+      const withDefaults = applyDefaultModels(prev, models);
+      // 只有当有变化时才更新状态
+      const hasChange = Object.keys(CATEGORY_TO_KEY).some(
+        cat => !prev[CATEGORY_TO_KEY[cat]] && withDefaults[CATEGORY_TO_KEY[cat]]
+      );
+      return hasChange ? withDefaults : prev;
+    });
+  }, [models, loading]);
+
+  // 4. 保存到后端（防抖）
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const saveToBackend = useCallback((newSelected: AIModelSelection) => {
@@ -135,7 +166,7 @@ export function useAIModels(projectId: number | null | undefined): UseAIModelsRe
     }, 500);
   }, [projectId]);
 
-  // 4. 设置选中模型（同时触发保存）
+  // 5. 设置选中模型（同时触发保存）
   const setSelected = useCallback((type: keyof AIModelSelection, modelName: string) => {
     setSelectedState(prev => {
       const next = { ...prev, [type]: modelName };

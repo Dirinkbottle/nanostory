@@ -4,6 +4,89 @@
  */
 
 const { queryOne, execute } = require('../../dbHelper');
+const { getStoryStyle } = require('../../utils/getProjectStyle');
+const { VISUAL_STYLE_PRESETS } = require('../../utils/getProjectStyle');
+const { callAIModel } = require('../../aiModelService');
+
+/**
+ * 自动为项目设置叙事风格（AI推荐）
+ */
+async function autoSuggestProjectStyle(projectId, projectName, projectDescription) {
+  console.log('[Auto Suggest Style] 项目未设置叙事风格，正在调用AI推荐...');
+  
+  const visualStyles = Object.keys(VISUAL_STYLE_PRESETS).join('、');
+  const prompt = `你是一个专业的动漫/影视项目顾问。请根据以下项目信息，推荐最合适的风格设置。
+
+项目名称：${projectName || '未提供'}
+项目描述：${projectDescription || '未提供'}
+
+可选的视觉风格：${visualStyles}
+
+请以JSON格式返回推荐结果，格式如下：
+{
+  "visualStyle": "推荐的视觉风格（必须从可选列表中选择一个）",
+  "storyStyle": "推荐的叙事风格（如：热血少年漫、悬疑推理、浪漫爱情、温馨日常、奇幻冒险等）",
+  "storyConstraints": "推荐的剧本约束（如：不要魔法元素、现代都市背景、避免暴力描写等，用简短的一句话描述）"
+}
+
+注意：
+1. visualStyle 必须严格从可选列表中选择
+2. storyStyle 和 storyConstraints 要根据项目名称和描述的语义来推断
+3. 只返回JSON，不要有其他文字说明`;
+
+  // 获取第一个可用的文本模型
+  const textModel = await queryOne(
+    "SELECT name FROM ai_model_configs WHERE category = 'TEXT' AND is_active = 1 ORDER BY id ASC LIMIT 1"
+  );
+
+  if (!textModel) {
+    throw new Error('没有可用的文本模型来推荐叙事风格');
+  }
+
+  const result = await callAIModel(textModel.name, {
+    messages: [{ role: 'user', content: prompt }]
+  });
+
+  // 解析AI返回的JSON
+  let suggestions;
+  try {
+    let content = result.content || result.text || result.message || '';
+    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      content = jsonMatch[1].trim();
+    }
+    suggestions = JSON.parse(content);
+  } catch (parseError) {
+    console.error('[Auto Suggest Style] JSON解析失败:', parseError);
+    suggestions = {
+      visualStyle: '日系动漫',
+      storyStyle: '热血少年漫',
+      storyConstraints: ''
+    };
+  }
+
+  // 验证 visualStyle 是否在预设列表中
+  if (!VISUAL_STYLE_PRESETS[suggestions.visualStyle]) {
+    suggestions.visualStyle = '日系动漫';
+  }
+  suggestions.visualStylePrompt = VISUAL_STYLE_PRESETS[suggestions.visualStyle] || '';
+
+  // 保存到项目设置
+  const settingsObj = {
+    visualStyle: suggestions.visualStyle,
+    visualStylePrompt: suggestions.visualStylePrompt,
+    storyStyle: suggestions.storyStyle,
+    storyConstraints: suggestions.storyConstraints || ''
+  };
+
+  await execute(
+    'UPDATE projects SET settings_json = ? WHERE id = ?',
+    [JSON.stringify(settingsObj), projectId]
+  );
+
+  console.log('[Auto Suggest Style] 已自动设置项目风格:', settingsObj);
+  return settingsObj;
+}
 
 async function generateScript(req, res) {
   const { projectId, title, description, style, length, episodeNumber, textModel } = req.body || {};
@@ -23,9 +106,22 @@ async function generateScript(req, res) {
 
   try {
     // 验证项目是否属于当前用户
-    const project = await queryOne('SELECT id FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
+    const project = await queryOne('SELECT id, name, description, settings_json FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
     if (!project) {
       return res.status(404).json({ message: '项目不存在或无权访问' });
+    }
+
+    // 检查项目是否设置了叙事风格，未设置则自动推荐
+    const { storyStyle } = await getStoryStyle(projectId);
+    if (!storyStyle) {
+      try {
+        await autoSuggestProjectStyle(projectId, project.name, project.description);
+      } catch (suggestError) {
+        console.error('[Generate Script] 自动设置叙事风格失败:', suggestError);
+        return res.status(400).json({ 
+          message: '该项目尚未设置叙事风格，且自动推荐失败。请先在「工程设置」中填写叙事风格（如热血少年漫、悬疑推理等），再生成剧本。' 
+        });
+      }
     }
 
     // 如果没有指定集数，自动计算下一集编号

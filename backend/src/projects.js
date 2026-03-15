@@ -2,6 +2,7 @@ const express = require('express');
 const { queryOne, queryAll, execute } = require('./dbHelper');
 const { authMiddleware } = require('./middleware');
 const { VISUAL_STYLE_PRESETS } = require('./utils/getProjectStyle');
+const { callAIModel } = require('./aiModelService');
 
 const router = express.Router();
 
@@ -9,6 +10,87 @@ const router = express.Router();
 router.get('/style-presets', authMiddleware, (req, res) => {
   const presets = Object.entries(VISUAL_STYLE_PRESETS).map(([label, prompt]) => ({ label, prompt }));
   res.json({ presets });
+});
+
+// AI 智能推荐项目设置
+router.post('/suggest-settings', authMiddleware, async (req, res) => {
+  const { name, description } = req.body;
+
+  if (!name && !description) {
+    return res.status(400).json({ message: '请提供项目名称或描述' });
+  }
+
+  try {
+    // 构建提示词
+    const visualStyles = Object.keys(VISUAL_STYLE_PRESETS).join('、');
+    const prompt = `你是一个专业的动漫/影视项目顾问。请根据以下项目信息，推荐最合适的风格设置。
+
+项目名称：${name || '未提供'}
+项目描述：${description || '未提供'}
+
+可选的视觉风格：${visualStyles}
+
+请以JSON格式返回推荐结果，格式如下：
+{
+  "visualStyle": "推荐的视觉风格（必须从可选列表中选择一个）",
+  "storyStyle": "推荐的叙事风格（如：热血少年漫、悬疑推理、浪漫爱情、温馨日常、奇幻冒险等）",
+  "storyConstraints": "推荐的剧本约束（如：不要魔法元素、现代都市背景、避免暴力描写等，用简短的一句话描述）"
+}
+
+注意：
+1. visualStyle 必须严格从可选列表中选择
+2. storyStyle 和 storyConstraints 要根据项目名称和描述的语义来推断
+3. 只返回JSON，不要有其他文字说明`;
+
+    // 调用AI模型（使用第一个可用的文本模型）
+    const textModel = await queryOne(
+      "SELECT name FROM ai_model_configs WHERE category = 'TEXT' AND is_active = 1 ORDER BY id ASC LIMIT 1"
+    );
+
+    if (!textModel) {
+      return res.status(500).json({ message: '没有可用的文本模型' });
+    }
+
+    const result = await callAIModel(textModel.name, {
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    // 解析AI返回的JSON
+    let suggestions;
+    try {
+      // 尝试从返回内容中提取JSON
+      let content = result.content || result.text || result.message || '';
+      
+      // 如果内容包含markdown代码块，提取其中的JSON
+      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        content = jsonMatch[1].trim();
+      }
+      
+      suggestions = JSON.parse(content);
+    } catch (parseError) {
+      console.error('[Suggest Settings] JSON解析失败:', parseError);
+      // 返回默认推荐
+      suggestions = {
+        visualStyle: '日系动漫',
+        storyStyle: '热血少年漫',
+        storyConstraints: ''
+      };
+    }
+
+    // 验证 visualStyle 是否在预设列表中
+    if (!VISUAL_STYLE_PRESETS[suggestions.visualStyle]) {
+      suggestions.visualStyle = '日系动漫';
+    }
+
+    // 添加对应的 visualStylePrompt
+    suggestions.visualStylePrompt = VISUAL_STYLE_PRESETS[suggestions.visualStyle] || '';
+
+    res.json({ suggestions });
+  } catch (error) {
+    console.error('[Suggest Settings]', error);
+    res.status(500).json({ message: 'AI推荐失败，请稍后重试' });
+  }
 });
 
 // 获取所有工程
