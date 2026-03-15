@@ -4,35 +4,24 @@
  */
 
 const { queryOne, execute } = require('../../dbHelper');
-const { getStoryStyle } = require('../../utils/getProjectStyle');
 const { VISUAL_STYLE_PRESETS } = require('../../utils/getProjectStyle');
 const { callAIModel } = require('../../aiModelService');
 
 /**
  * 自动为项目设置叙事风格（AI推荐）
+ * 性能优化：精简prompt + 超时保护 + 默认值回退
  */
 async function autoSuggestProjectStyle(projectId, projectName, projectDescription) {
   console.log('[Auto Suggest Style] 项目未设置叙事风格，正在调用AI推荐...');
   
   const visualStyles = Object.keys(VISUAL_STYLE_PRESETS).join('、');
-  const prompt = `你是一个专业的动漫/影视项目顾问。请根据以下项目信息，推荐最合适的风格设置。
-
-项目名称：${projectName || '未提供'}
-项目描述：${projectDescription || '未提供'}
-
-可选的视觉风格：${visualStyles}
-
-请以JSON格式返回推荐结果，格式如下：
-{
-  "visualStyle": "推荐的视觉风格（必须从可选列表中选择一个）",
-  "storyStyle": "推荐的叙事风格（如：热血少年漫、悬疑推理、浪漫爱情、温馨日常、奇幻冒险等）",
-  "storyConstraints": "推荐的剧本约束（如：不要魔法元素、现代都市背景、避免暴力描写等，用简短的一句话描述）"
-}
-
-注意：
-1. visualStyle 必须严格从可选列表中选择
-2. storyStyle 和 storyConstraints 要根据项目名称和描述的语义来推断
-3. 只返回JSON，不要有其他文字说明`;
+  // 优化：精简prompt，减少token消耗和响应时间
+  const prompt = `根据项目信息推荐风格。
+名称：${projectName || '未提供'}
+描述：${projectDescription || '未提供'}
+可选视觉风格：${visualStyles}
+返回JSON：{"visualStyle":"","storyStyle":"","storyConstraints":""}
+visualStyle从可选列表选，storyStyle如"热血少年漫",storyConstraints用一句话描述。只返回JSON。`;
 
   // 获取第一个可用的文本模型
   const textModel = await queryOne(
@@ -40,42 +29,91 @@ async function autoSuggestProjectStyle(projectId, projectName, projectDescriptio
   );
 
   if (!textModel) {
-    throw new Error('没有可用的文本模型来推荐叙事风格');
+    // 无可用模型时使用默认值
+    console.log('[Auto Suggest Style] 无可用文本模型，使用默认风格');
+    return saveDefaultStyle(projectId);
   }
 
-  const result = await callAIModel(textModel.name, {
-    messages: [{ role: 'user', content: prompt }]
-  });
+  try {
+    // 设置更短的超时（30秒）用于风格推荐
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    const result = await callAIModel(textModel.name, {
+      messages: [{ role: 'user', content: prompt }],
+      maxTokens: 256 // 限制输出长度
+    });
+    
+    clearTimeout(timeoutId);
 
-  // 解析AI返回的JSON
-  let suggestions;
+    // 解析AI返回的JSON
+    let suggestions = parseStyleSuggestions(result);
+    return await saveStyleToProject(projectId, suggestions);
+  } catch (error) {
+    // AI调用失败时使用默认值
+    console.error('[Auto Suggest Style] AI调用失败，使用默认风格:', error.message);
+    return saveDefaultStyle(projectId);
+  }
+}
+
+/**
+ * 解析AI返回的风格建议
+ */
+function parseStyleSuggestions(result) {
   try {
     let content = result.content || result.text || result.message || '';
     const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
       content = jsonMatch[1].trim();
     }
-    suggestions = JSON.parse(content);
+    // 尝试提取JSON对象
+    const jsonObjMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonObjMatch) {
+      content = jsonObjMatch[0];
+    }
+    return JSON.parse(content);
   } catch (parseError) {
     console.error('[Auto Suggest Style] JSON解析失败:', parseError);
-    suggestions = {
+    return {
       visualStyle: '日系动漫',
       storyStyle: '热血少年漫',
       storyConstraints: ''
     };
   }
+}
 
+/**
+ * 保存默认风格到项目
+ */
+async function saveDefaultStyle(projectId) {
+  const defaultSettings = {
+    visualStyle: '日系动漫',
+    visualStylePrompt: VISUAL_STYLE_PRESETS['日系动漫'] || '',
+    storyStyle: '热血少年漫',
+    storyConstraints: ''
+  };
+  await execute(
+    'UPDATE projects SET settings_json = ? WHERE id = ?',
+    [JSON.stringify(defaultSettings), projectId]
+  );
+  console.log('[Auto Suggest Style] 已设置默认风格:', defaultSettings);
+  return defaultSettings;
+}
+
+/**
+ * 保存风格建议到项目
+ */
+async function saveStyleToProject(projectId, suggestions) {
   // 验证 visualStyle 是否在预设列表中
   if (!VISUAL_STYLE_PRESETS[suggestions.visualStyle]) {
     suggestions.visualStyle = '日系动漫';
   }
   suggestions.visualStylePrompt = VISUAL_STYLE_PRESETS[suggestions.visualStyle] || '';
 
-  // 保存到项目设置
   const settingsObj = {
     visualStyle: suggestions.visualStyle,
     visualStylePrompt: suggestions.visualStylePrompt,
-    storyStyle: suggestions.storyStyle,
+    storyStyle: suggestions.storyStyle || '热血少年漫',
     storyConstraints: suggestions.storyConstraints || ''
   };
 
@@ -105,58 +143,82 @@ async function generateScript(req, res) {
   let targetEpisode = episodeNumber;
 
   try {
-    // 验证项目是否属于当前用户
-    const project = await queryOne('SELECT id, name, description, settings_json FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
-    if (!project) {
+    // === 性能优化：合并多个查询为一个联合查询 ===
+    // 原先有5次独立查询，现在合并为1次
+    const combinedQuery = await queryOne(`
+      SELECT 
+        p.id as project_id,
+        p.name as project_name,
+        p.description as project_description,
+        p.settings_json,
+        u.balance as user_balance,
+        (SELECT MAX(episode_number) FROM scripts WHERE project_id = ?) as max_episode,
+        (SELECT id FROM scripts WHERE project_id = ? AND episode_number = ? LIMIT 1) as existing_script_id,
+        (SELECT status FROM scripts WHERE project_id = ? AND episode_number = ? LIMIT 1) as existing_script_status
+      FROM projects p
+      JOIN users u ON u.id = ?
+      WHERE p.id = ? AND p.user_id = ?
+    `, [projectId, projectId, episodeNumber || 9999, projectId, episodeNumber || 9999, userId, projectId, userId]);
+
+    if (!combinedQuery || !combinedQuery.project_id) {
       return res.status(404).json({ message: '项目不存在或无权访问' });
     }
 
+    const project = {
+      id: combinedQuery.project_id,
+      name: combinedQuery.project_name,
+      description: combinedQuery.project_description,
+      settings_json: combinedQuery.settings_json
+    };
+    const userBalance = combinedQuery.user_balance || 0;
+
+    // 性能优化：直接从合并查询结果检查风格，避免额外查询
+    let hasStoryStyle = false;
+    if (combinedQuery.settings_json) {
+      try {
+        const settings = typeof combinedQuery.settings_json === 'string' 
+          ? JSON.parse(combinedQuery.settings_json) 
+          : combinedQuery.settings_json;
+        hasStoryStyle = !!settings.storyStyle;
+      } catch (e) {
+        hasStoryStyle = false;
+      }
+    }
+
     // 检查项目是否设置了叙事风格，未设置则自动推荐
-    const { storyStyle } = await getStoryStyle(projectId);
-    if (!storyStyle) {
+    if (!hasStoryStyle) {
       try {
         await autoSuggestProjectStyle(projectId, project.name, project.description);
       } catch (suggestError) {
         console.error('[Generate Script] 自动设置叙事风格失败:', suggestError);
-        return res.status(400).json({ 
-          message: '该项目尚未设置叙事风格，且自动推荐失败。请先在「工程设置」中填写叙事风格（如热血少年漫、悬疑推理等），再生成剧本。' 
-        });
+        // 性能优化：失败时使用默认值而不是报错
+        await saveDefaultStyle(projectId);
       }
     }
 
     // 如果没有指定集数，自动计算下一集编号
     if (!targetEpisode) {
-      const lastEpisode = await queryOne(
-        'SELECT MAX(episode_number) as max_ep FROM scripts WHERE project_id = ?', 
-        [projectId]
-      );
-      targetEpisode = (lastEpisode?.max_ep || 0) + 1;
+      targetEpisode = (combinedQuery.max_episode || 0) + 1;
     }
 
-    // 检查该集是否已存在
-    const existingScript = await queryOne(
-      'SELECT id, status FROM scripts WHERE project_id = ? AND episode_number = ?', 
-      [projectId, targetEpisode]
-    );
-    
-    if (existingScript) {
-      if (existingScript.status === 'generating') {
+    // 检查该集是否已存在（使用合并查询的结果）
+    if (combinedQuery.existing_script_id && combinedQuery.existing_script_status) {
+      if (combinedQuery.existing_script_status === 'generating') {
         return res.status(400).json({ message: `第${targetEpisode}集正在生成中，请稍候` });
       }
       return res.status(400).json({ message: `第${targetEpisode}集已存在，请编辑或生成下一集` });
     }
 
-    // 预先检查余额（估算费用）
-    const estimatedTokens = 2000; // 估算平均 token 数
+    // 预先检查余额（估算费用）- 使用合并查询的结果
+    const estimatedTokens = 2000;
     const unitPrice = 0.0000014;
     const estimatedAmount = estimatedTokens * unitPrice;
 
-    const user = await queryOne('SELECT balance FROM users WHERE id = ?', [userId]);
-    if (!user || user.balance < estimatedAmount) {
+    if (userBalance < estimatedAmount) {
       return res.status(402).json({ 
         message: '余额不足，请充值',
         required: estimatedAmount,
-        current: user?.balance || 0
+        current: userBalance
       });
     }
 

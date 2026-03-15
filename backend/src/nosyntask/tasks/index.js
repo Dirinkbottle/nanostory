@@ -23,6 +23,8 @@ const handleBaseVideoModelCall = require('./base/baseVideoModelCall');
 const handleCameraRunGeneration = require('./StoryBoard/cameraRunGeneration');
 const handleSceneStateAnalysis_env = require('./StoryBoard/sceneStateAnalysis');
 const handleSaveStoryboards = require('./StoryBoard/saveStoryboards');
+const handleSceneStoryboardGeneration = require('./StoryBoard/sceneStoryboardGeneration');
+const handleBatchStoryboardGeneration = require('./StoryBoard/batchStoryboardGeneration');
 
 module.exports = {
   handleScriptGeneration,
@@ -44,5 +46,7 @@ module.exports = {
   handleSceneStyleAnalysis,
   handleCameraRunGeneration,
   handleSceneStateAnalysis: handleSceneStateAnalysis_env,
-  handleSaveStoryboards
+  handleSaveStoryboards,
+  handleSceneStoryboardGeneration,
+  handleBatchStoryboardGeneration
 };

@@ -8,6 +8,8 @@ import { useConfirm } from '../../contexts/ConfirmContext';
 const WORKFLOW_TYPE_NAMES: Record<string, string> = {
   'script_only': '剧本生成',
   'storyboard_generation': '智能分镜',
+  'scene_storyboard_generation': '场景分镜',
+  'batch_storyboard_generation': '分镜生成',
   'frame_generation': '首尾帧生成',
   'single_frame_generation': '单帧生成',
   'scene_video': '视频生成',
@@ -47,9 +49,14 @@ const parseInputParams = (job: WorkflowJob): Record<string, any> => {
 
 // 获取任务显示名称（包含详细信息）
 const getTaskName = (job: WorkflowJob): string => {
-  const baseName = job.workflowName && job.workflowName !== job.workflow_type
-    ? job.workflowName
-    : WORKFLOW_TYPE_NAMES[job.workflow_type] || job.workflow_type;
+  // 优先使用自定义工作流名称（如「场景1:客厅」）
+  if (job.workflowName && job.workflowName !== job.workflow_type) {
+    const params = parseInputParams(job);
+    const prefix = params.isRegenerate ? '重新' : '';
+    return `${prefix}${job.workflowName}`;
+  }
+  
+  const baseName = WORKFLOW_TYPE_NAMES[job.workflow_type] || job.workflow_type;
   
   const params = parseInputParams(job);
   const parts: string[] = [];
@@ -144,7 +151,7 @@ const TaskItem: React.FC<TaskItemProps> = ({ job, progress, statusColor, statusL
       <div className="text-[11px] text-slate-400 mb-1.5 flex items-center gap-1.5">
         <span>#{job.id}</span>
         <span>·</span>
-        <span>{job.current_step_index + 1}/{job.total_steps} 步</span>
+        <span>{Math.round(progress)}%</span>
         {job.created_at && (
           <>
             <span>·</span>

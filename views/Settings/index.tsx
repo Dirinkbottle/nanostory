@@ -1,6 +1,16 @@
-import React from 'react';
-import { Settings as SettingsIcon, Moon, Sun, Eye, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { Settings as SettingsIcon, Moon, Sun, Eye, Check, MessageSquarePlus, Send, X } from 'lucide-react';
 import { useTheme, ThemeType } from '../../contexts/ThemeContext';
+import { getAuthToken } from '../../services/auth';
+
+type FeedbackType = 'bug' | 'feature' | 'improvement' | 'other';
+
+const typeLabels: Record<FeedbackType, string> = {
+  bug: 'Bug反馈',
+  feature: '功能建议',
+  improvement: '体验优化',
+  other: '其他反馈',
+};
 
 interface ThemePreset {
   key: ThemeType;
@@ -121,6 +131,42 @@ const ThemePreviewMini: React.FC<{ preset: ThemePreset; isActive: boolean }> = (
 const Settings: React.FC = () => {
   const { theme, setTheme } = useTheme();
 
+  // 反馈功能状态
+  const [type, setType] = useState<FeedbackType>('feature');
+  const [content, setContent] = useState('');
+  const [contact, setContact] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!content.trim()) return;
+    setSubmitting(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ type, content: content.trim(), contact: contact.trim() || undefined })
+      });
+      if (res.ok) {
+        setSubmitted(true);
+        setTimeout(() => {
+          setSubmitted(false);
+          setContent('');
+          setContact('');
+          setType('feature');
+        }, 1500);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="h-full overflow-y-auto" style={{ background: 'var(--bg-body)', color: 'var(--text-primary)' }}>
       <div className="max-w-3xl mx-auto px-6 py-10">
@@ -202,6 +248,90 @@ const Settings: React.FC = () => {
               );
             })}
           </div>
+        </div>
+
+        {/* 用户反馈 Section */}
+        <div
+          className="rounded-2xl p-6 mb-6"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            boxShadow: `0 4px 24px var(--shadow-color)`,
+          }}
+        >
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+              用户反馈
+            </h2>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              帮助我们改进产品体验
+            </p>
+          </div>
+
+          {submitted ? (
+            <div className="p-6 text-center">
+              <div className="text-3xl mb-3">&#10003;</div>
+              <p className="text-[#e6c87a] font-semibold">感谢您的反馈!</p>
+              <p className="text-white/50 text-sm mt-1">我们会认真阅读每一条建议</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Type selector */}
+              <div>
+                <label className="text-sm text-white/60 mb-2 block">反馈类型</label>
+                <div className="flex gap-2 flex-wrap">
+                  {(Object.keys(typeLabels) as FeedbackType[]).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setType(t)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        type === t
+                          ? 'bg-amber-500/20 text-[#e6c87a] border border-amber-500/40'
+                          : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      {typeLabels[t]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Content */}
+              <div>
+                <label className="text-sm text-white/60 mb-2 block">反馈内容</label>
+                <textarea
+                  value={content}
+                  onChange={e => setContent(e.target.value)}
+                  placeholder="请描述您遇到的问题或建议..."
+                  rows={4}
+                  maxLength={5000}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-[#e8e4dc] placeholder-white/30 focus:outline-none focus:border-amber-500/40 resize-none"
+                />
+                <div className="text-right text-xs text-white/30 mt-1">{content.length}/5000</div>
+              </div>
+
+              {/* Contact (optional) */}
+              <div>
+                <label className="text-sm text-white/60 mb-2 block">联系方式 <span className="text-white/30">(可选)</span></label>
+                <input
+                  value={contact}
+                  onChange={e => setContact(e.target.value)}
+                  placeholder="邮箱或其他联系方式，方便我们回复您"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-[#e8e4dc] placeholder-white/30 focus:outline-none focus:border-amber-500/40"
+                />
+              </div>
+
+              {/* Submit */}
+              <button
+                onClick={handleSubmit}
+                disabled={!content.trim() || submitting}
+                className="w-full py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-amber-500 to-yellow-600 text-[#1a1d35] hover:from-amber-400 hover:to-yellow-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                {submitting ? '提交中...' : '提交反馈'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 未来扩展占位 */}

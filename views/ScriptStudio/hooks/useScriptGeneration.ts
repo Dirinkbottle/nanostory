@@ -29,6 +29,13 @@ export function useScriptGeneration({
   const [generatingScriptId, setGeneratingScriptId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [showEpisodeModal, setShowEpisodeModal] = useState(false);
+  // 生成进度状态
+  const [generationProgress, setGenerationProgress] = useState<{
+    step: number;
+    totalSteps: number;
+    stepName: string;
+    progress: number;
+  } | null>(null);
 
   // 监听 generatingJobId 变化
   useEffect(() => {
@@ -96,6 +103,34 @@ export function useScriptGeneration({
 
   // 使用 useWorkflow 轮询工作流状态
   const { job, isRunning, isCompleted, isFailed } = useWorkflow(generatingJobId, {
+    onProgress: (progressJob) => {
+      // 更新进度信息
+      if (progressJob && progressJob.tasks) {
+        const currentTask = progressJob.tasks.find((t: any) => t.status === 'processing');
+        const completedCount = progressJob.tasks.filter((t: any) => t.status === 'completed').length;
+        const totalTasks = progressJob.tasks.length;
+        
+        // 步骤名称映射
+        const stepNameMap: Record<string, string> = {
+          'script_generation': '生成剧本内容',
+          'style_suggestion': '分析叙事风格',
+          'context_loading': '加载前情回顾',
+        };
+        
+        const stepName = currentTask 
+          ? (stepNameMap[currentTask.task_type] || currentTask.task_type)
+          : (completedCount === totalTasks ? '完成' : '准备中');
+        
+        const avgProgress = progressJob.tasks.reduce((sum: number, t: any) => sum + (t.progress || 0), 0) / totalTasks;
+        
+        setGenerationProgress({
+          step: completedCount + (currentTask ? 1 : 0),
+          totalSteps: totalTasks,
+          stepName,
+          progress: Math.round(avgProgress)
+        });
+      }
+    },
     onCompleted: async (completedJob) => {
       console.log('[useScriptGeneration] 工作流完成回调触发:', completedJob);
       
@@ -154,10 +189,12 @@ export function useScriptGeneration({
         await checkAndResumeNextWorkflow();
       } finally {
         setLoading(false);
+        setGenerationProgress(null);
       }
     },
     onFailed: async (failedJob) => {
       onError?.('剧本生成失败: ' + (failedJob.error_message || '未知错误'));
+      setGenerationProgress(null);
       
       // 失败的工作流也标记为已消费
       try {
@@ -268,6 +305,9 @@ export function useScriptGeneration({
     showEpisodeModal,
     setShowEpisodeModal,
     handleGenerateClick,
-    handleGenerate
+    handleGenerate,
+    // 新增：生成进度信息
+    generationProgress,
+    isGenerating: generatingJobId !== null && isRunning
   };
 }

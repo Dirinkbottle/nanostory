@@ -1,6 +1,7 @@
 /**
  * 工作流执行模块
  * 负责执行工作流步骤和任务
+ * 支持基于 dependencies 的并行执行
  */
 
 const { queryOne, queryAll, execute } = require('../../dbHelper');
@@ -16,10 +17,27 @@ class WorkflowExecutor {
     this.contextBuilder = new ContextBuilder();
     this.jobStatusManager = new JobStatusManager();
     this.stepCounters = new Map(); // jobId -> 已执行步骤计数
+    this.runningTasks = new Map(); // jobId -> Set<taskId> 正在执行的任务
   }
 
   /**
-   * 执行下一个 pending 的步骤
+   * 检查步骤的依赖是否都已完成
+   * @param {Array} tasks - 所有任务
+   * @param {Object} stepDef - 步骤定义
+   * @returns {boolean}
+   */
+  areDependenciesMet(tasks, stepDef) {
+    const deps = stepDef.dependencies || [];
+    if (deps.length === 0) return true;
+    
+    return deps.every(depIndex => {
+      const depTask = tasks.find(t => t.step_index === depIndex);
+      return depTask && depTask.status === 'completed';
+    });
+  }
+
+  /**
+   * 执行下一批可执行的步骤（支持并行）
    * 这是引擎的核心调度逻辑
    */
   async runNextStep(jobId) {
@@ -50,51 +68,83 @@ class WorkflowExecutor {
       return;
     }
 
-    // 找到第一个 pending 的任务
-    const pendingTask = await queryOne(
-      `SELECT * FROM generation_tasks 
-       WHERE job_id = ? AND status = 'pending' 
-       ORDER BY step_index ASC LIMIT 1`,
+    // 获取所有任务
+    const allTasks = await queryAll(
+      'SELECT * FROM generation_tasks WHERE job_id = ? ORDER BY step_index ASC',
       [jobId]
     );
 
-    if (!pendingTask) {
-      // 所有步骤都完成了
-      this.stepCounters.delete(jobId);
-      await this.jobStatusManager.completeJob(jobId);
-      return;
+    // 找到所有可执行的 pending 任务（依赖已满足且未在执行中）
+    const runningSet = this.runningTasks.get(jobId) || new Set();
+    const executableTasks = [];
+
+    for (const task of allTasks) {
+      if (task.status !== 'pending') continue;
+      if (runningSet.has(task.id)) continue;
+
+      const stepDef = definition.steps[task.step_index];
+      if (!stepDef) continue;
+
+      // 检查依赖是否满足
+      if (this.areDependenciesMet(allTasks, stepDef)) {
+        executableTasks.push({ task, stepDef });
+      }
     }
 
-    const stepIndex = pendingTask.step_index;
-    const stepDef = definition.steps[stepIndex];
+    // 没有可执行的任务
+    if (executableTasks.length === 0) {
+      // 检查是否有正在运行的任务
+      const hasRunning = allTasks.some(t => t.status === 'processing');
+      if (hasRunning) {
+        // 等待运行中的任务完成
+        return;
+      }
 
-    if (!stepDef) {
-      await this.jobStatusManager.failTask(pendingTask.id, `步骤定义不存在: index=${stepIndex}`);
-      await this.jobStatusManager.failJob(jobId, `步骤定义不存在: index=${stepIndex}`);
+      // 检查是否所有任务都完成
+      const allCompleted = allTasks.every(t => t.status === 'completed');
+      if (allCompleted) {
+        this.stepCounters.delete(jobId);
+        this.runningTasks.delete(jobId);
+        await this.jobStatusManager.completeJob(jobId);
+      }
       return;
     }
 
     // 更新 Job 状态
+    const minStepIndex = Math.min(...executableTasks.map(t => t.task.step_index));
     await execute(
       `UPDATE workflow_jobs SET status = 'running', current_step_index = ?, started_at = COALESCE(started_at, NOW()) WHERE id = ?`,
-      [stepIndex, jobId]
+      [minStepIndex, jobId]
     );
 
-    // 构建上下文：收集之前所有步骤的 result_data
-    const context = await this.contextBuilder.buildContext(jobId, job);
-
-    // 构建本步骤的 input_params
-    let inputParams;
-    try {
-      inputParams = stepDef.buildInput(context);
-    } catch (err) {
-      await this.jobStatusManager.failTask(pendingTask.id, `构建输入参数失败: ${err.message}`);
-      await this.jobStatusManager.failJob(jobId, `步骤 ${stepIndex} 输入参数构建失败: ${err.message}`);
-      return;
+    // 标记任务为正在运行
+    if (!this.runningTasks.has(jobId)) {
+      this.runningTasks.set(jobId, new Set());
     }
+    const running = this.runningTasks.get(jobId);
+    executableTasks.forEach(({ task }) => running.add(task.id));
 
-    // 执行任务
-    await this.executeTask(pendingTask.id, stepDef, inputParams, jobId);
+    // 并行执行所有可执行的任务
+    const executions = executableTasks.map(async ({ task, stepDef }) => {
+      // 构建上下文
+      const context = await this.contextBuilder.buildContext(jobId, job);
+
+      // 构建本步骤的 input_params
+      let inputParams;
+      try {
+        inputParams = stepDef.buildInput(context);
+      } catch (err) {
+        await this.jobStatusManager.failTask(task.id, `构建输入参数失败: ${err.message}`);
+        await this.jobStatusManager.failJob(jobId, `步骤 ${task.step_index} 输入参数构建失败: ${err.message}`);
+        return;
+      }
+
+      // 执行任务
+      await this.executeTask(task.id, stepDef, inputParams, jobId);
+    });
+
+    // 等待所有并行任务完成
+    await Promise.all(executions);
   }
 
   /**
@@ -123,11 +173,20 @@ class WorkflowExecutor {
       // 任务成功：保存 result_data + trace
       await this.jobStatusManager.completeTask(taskId, resultData, traceData);
 
-      // 触发下一步
+      // 从正在运行集合中移除
+      const running = this.runningTasks.get(jobId);
+      if (running) running.delete(taskId);
+
+      // 触发下一批任务
       await this.runNextStep(jobId);
 
     } catch (error) {
       console.error(`[WorkflowExecutor] 任务执行失败: taskId=${taskId}`, error);
+      
+      // 从正在运行集合中移除
+      const running = this.runningTasks.get(jobId);
+      if (running) running.delete(taskId);
+      
       await this.jobStatusManager.failTask(taskId, error.message, error._trace || null);
       await this.jobStatusManager.failJob(jobId, `步骤执行失败: ${error.message}`);
     }

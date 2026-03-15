@@ -30,7 +30,9 @@ const {
   handleSceneStyleAnalysis,
   handleCameraRunGeneration,
   handleSceneStateAnalysis,
-  handleSaveStoryboards
+  handleSaveStoryboards,
+  handleSceneStoryboardGeneration,
+  handleBatchStoryboardGeneration
 } = require('./tasks');
 
 const { createBuildInput } = require('./buildInputFactory');
@@ -69,16 +71,16 @@ const WORKFLOW_DEFINITIONS = {
   /**
    * 智能分镜（优化后）- 4 步骤，3 次 AI 调用
    * 
-   * 流程：
+   * 流程（支持并行）：
    *   1. storyboard_generation  - AI 生成分镜内容
    *   2. save_storyboards       - 保存分镜 + 从 location 字段提取场景（无 AI）
-   *   3. character_extraction   - AI 提取角色详情
-   *   4. scene_state_analysis   - AI 分析环境状态（昼/夜、天气）
+   *   3. character_extraction   - AI 提取角色详情 ← 与步骤4并行执行
+   *   4. scene_state_analysis   - AI 分析环境状态 ← 与步骤3并行执行
    * 
-   * 优化说明：
-   *   - 移除了 scene_extraction 步骤（冗余，场景已在 save_storyboards 中提取）
-   *   - scene_extraction 的详细信息（environment、lighting）在 scene_image_generation 
-   *     工作流的 scene_style_analysis 步骤中按需补充
+   * dependencies 字段说明：
+   *   - 步骤的 dependencies 数组指定它依赖的步骤索引（从0开始）
+   *   - 当一个步骤的所有依赖都完成后，它可以开始执行
+   *   - 多个步骤如果依赖相同的步骤，可以并行执行
    */
   storyboard_generation: {
     name: '智能分镜',
@@ -87,6 +89,7 @@ const WORKFLOW_DEFINITIONS = {
         type: 'storyboard_generation',
         targetType: 'storyboard',
         handler: handleStoryboardGeneration,
+        // dependencies: [] - 无依赖，立即执行
         buildInput: createBuildInput([
           'scriptContent', 'scriptTitle', 'textModel',
           { key: 'think', defaultValue: true }
@@ -96,15 +99,17 @@ const WORKFLOW_DEFINITIONS = {
         type: 'save_storyboards',
         targetType: 'storyboard',
         handler: handleSaveStoryboards,
+        dependencies: [0], // 依赖步骤0（storyboard_generation）
         buildInput: createBuildInput([
           { key: 'scenes', from: ctx => ctx.previousResults[0]?.scenes || [] },
-          'scriptId', 'projectId', 'userId'  // 添加 userId 以启用场景提取
+          'scriptId', 'projectId', 'userId'
         ])
       },
       {
         type: 'character_extraction',
         targetType: 'characters',
         handler: handleCharacterExtraction,
+        dependencies: [1], // 依赖步骤1（save_storyboards）
         buildInput: createBuildInput([
           { key: 'scenes', from: ctx => ctx.previousResults[0]?.scenes || [] },
           'scriptContent', 'projectId', 'scriptId', 'userId', 'textModel'
@@ -114,8 +119,81 @@ const WORKFLOW_DEFINITIONS = {
         type: 'scene_state_analysis',
         targetType: 'storyboard',
         handler: handleSceneStateAnalysis,
+        dependencies: [1], // 也依赖步骤1，与步骤2并行执行
         buildInput: createBuildInput([
           'scriptId', 'textModel', { key: 'think', defaultValue: true }
+        ])
+      }
+    ]
+  },
+
+  /**
+   * 单场景分镜生成
+   * 用于按场景分割的分镜生成模式
+   * 
+   * 流程：
+   *   1. scene_storyboard_generation - AI 将单个场景转化为分镜
+   *   2. save_storyboards - 保存分镜到数据库
+   */
+  scene_storyboard_generation: {
+    name: '场景分镜',
+    steps: [
+      {
+        type: 'scene_storyboard_generation',
+        targetType: 'storyboard',
+        handler: handleSceneStoryboardGeneration,
+        buildInput: createBuildInput([
+          'sceneContent', 'sceneName', 'sceneNumber', 'totalScenes',
+          'previousSceneContext', 'scriptTitle', 'textModel',
+          { key: 'think', defaultValue: true }
+        ])
+      },
+      {
+        type: 'save_storyboards',
+        targetType: 'storyboard',
+        handler: handleSaveStoryboards,
+        dependencies: [0],
+        buildInput: createBuildInput([
+          { key: 'scenes', from: ctx => ctx.previousResults[0]?.scenes || [] },
+          'scriptId', 'projectId', 'userId', 'sceneNumber', 'appendMode'
+        ])
+      }
+    ]
+  },
+
+  /**
+   * 批量分镜生成（整合版）
+   * 将多场景分镜生成整合为单一任务显示
+   * 
+   * 特点：
+   *   - 用户界面只显示一个统一任务
+   *   - 后台按场景分割顺序处理
+   *   - 统一进度反馈
+   *   - 保持场景间连贯性
+   *   - 结果按顺序整合后一次性保存
+   *   - 分镜保存后自动提取角色
+   */
+  batch_storyboard_generation: {
+    name: '分镜生成',
+    steps: [
+      {
+        type: 'batch_storyboard_generation',
+        targetType: 'storyboard',
+        handler: handleBatchStoryboardGeneration,
+        buildInput: createBuildInput([
+          'scriptId', 'projectId', 'userId', 'textModel',
+          { key: 'clearExisting', defaultValue: true },
+          { key: 'think', defaultValue: false }
+        ])
+      },
+      {
+        // 分镜保存后提取角色
+        type: 'character_extraction',
+        targetType: 'characters',
+        handler: handleCharacterExtraction,
+        dependencies: [0],
+        buildInput: createBuildInput([
+          'scriptContent', 'projectId', 'scriptId', 'userId', 'textModel'
         ])
       }
     ]

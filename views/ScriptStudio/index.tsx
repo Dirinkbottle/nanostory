@@ -62,7 +62,8 @@ const ScriptStudio: React.FC = () => {
     showEpisodeModal,
     setShowEpisodeModal,
     handleGenerateClick,
-    handleGenerate
+    handleGenerate,
+    generationProgress
   } = useScriptGeneration({
     selectedProject,
     setSelectedProject,
@@ -309,6 +310,7 @@ const ScriptStudio: React.FC = () => {
                     onTitleChange={setTitle}
                     onDescriptionChange={setDescription}
                     onLengthChange={setLength}
+                    generationProgress={generationProgress}
                     onGenerate={() => {
                       if (!aiModels.selected.text) {
                         showToast('请先点击右上角「AI 模型」按钮选择文本模型', 'warning');

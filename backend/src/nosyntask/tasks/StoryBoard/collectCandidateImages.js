@@ -120,9 +120,19 @@ const collectCandidateImages = traced('收集候选参考图', async function _c
     throw new Error(`场景「${location}」未与该分镜建立关联。请先运行智能分镜生成以建立资源关联。`);
   }
   assertNonEmptyString(linkedScene.description, 'description', `场景「${location}」`);
-  assertNonEmptyString(linkedScene.environment, 'environment', `场景「${location}」`);
-  assertNonEmptyString(linkedScene.lighting, 'lighting', `场景「${location}」`);
-  assertNonEmptyString(linkedScene.mood, 'mood', `场景「${location}」`);
+  // 对于老数据缺失的字段，自动填充默认值而不是报错
+  if (!linkedScene.environment || linkedScene.environment.trim() === '') {
+    linkedScene.environment = `${location}场景`;
+    console.log(`[CandidateImages] 场景「${location}」缺少 environment 字段，已自动填充默认值`);
+  }
+  if (!linkedScene.lighting || linkedScene.lighting.trim() === '') {
+    linkedScene.lighting = '自然光';
+    console.log(`[CandidateImages] 场景「${location}」缺少 lighting 字段，已自动填充默认值`);
+  }
+  if (!linkedScene.mood || linkedScene.mood.trim() === '') {
+    linkedScene.mood = '中性';
+    console.log(`[CandidateImages] 场景「${location}」缺少 mood 字段，已自动填充默认值`);
+  }
   assertNonEmptyString(linkedScene.image_url, 'image_url', `场景「${location}」`);
 
   // A 面候选图（附带生成提示词摘要，帮助 AI 推断拍摄方向）

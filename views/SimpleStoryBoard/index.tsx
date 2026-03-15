@@ -9,7 +9,8 @@ import DarkEpisodeSelector from './DarkEpisodeSelector';
 import AutoStoryboardModal from '../StoryBoard/AutoStoryboardModal';
 import StoryboardTable from './StoryboardTable';
 import ResourceSidebar from './ResourceSidebar';
-import { Wand2 } from 'lucide-react';
+import { Wand2, Users, Image, Film, Video } from 'lucide-react';
+import { Button } from '@heroui/react';
 import { getAuthToken } from '../../services/auth';
 
 interface Script {
@@ -165,6 +166,122 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
     }
   };
 
+  // 批量生成角色
+  const handleBatchCharacterGeneration = async () => {
+    if (!currentProjectId || !currentScriptId) {
+      showToast('请先选择项目和剧本', 'warning');
+      return;
+    }
+    if (!imageModel) {
+      showToast('请先选择图像模型', 'warning');
+      return;
+    }
+    try {
+      showToast('正在启动角色批量生成...', 'info');
+      const token = getAuthToken();
+      // 不过滤 scriptId，角色是项目级别的
+      const charRes = await fetch(`/api/characters/project/${currentProjectId}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (!charRes.ok) throw new Error('获取角色数据失败');
+      const result = await charRes.json();
+      const characters = result.characters || [];
+      if (characters.length === 0) {
+        showToast('没有找到角色数据', 'warning');
+        return;
+      }
+      for (const character of characters) {
+        await fetch(`/api/characters/${character.id}/generate-views`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ imageModel, textModel, style: '' })
+        });
+      }
+      showToast(`已启动 ${characters.length} 个角色的批量生成`, 'success');
+      loadCharacters();
+    } catch (error: any) {
+      showToast('角色批量生成失败: ' + error.message, 'error');
+    }
+  };
+
+  // 批量生成场景
+  const handleBatchSceneGeneration = async () => {
+    if (!currentProjectId || !currentScriptId) {
+      showToast('请先选择项目和剧本', 'warning');
+      return;
+    }
+    if (!imageModel) {
+      showToast('请先选择图像模型', 'warning');
+      return;
+    }
+    try {
+      showToast('正在启动场景批量生成...', 'info');
+      const token = getAuthToken();
+      const sceneRes = await fetch(`/api/scenes/project/${currentProjectId}?scriptId=${currentScriptId}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (!sceneRes.ok) throw new Error('获取场景数据失败');
+      const result = await sceneRes.json();
+      const sceneList = result.scenes || [];
+      if (sceneList.length === 0) {
+        showToast('没有找到场景数据', 'warning');
+        return;
+      }
+      for (const scene of sceneList) {
+        await fetch(`/api/scenes/${scene.id}/generate-image`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ imageModel, textModel, width: 1024, height: 576 })
+        });
+      }
+      showToast(`已启动 ${sceneList.length} 个场景的批量生成`, 'success');
+      loadScenes();
+    } catch (error: any) {
+      showToast('场景批量生成失败: ' + error.message, 'error');
+    }
+  };
+
+  // 批量生成首尾帧
+  const handleBatchFrameGeneration = async () => {
+    if (!currentScriptId || scenes.length === 0) {
+      showToast('请先生成分镜', 'warning');
+      return;
+    }
+    if (!imageModel) {
+      showToast('请先选择图像模型', 'warning');
+      return;
+    }
+    showToast(`正在批量生成 ${scenes.length} 个分镜的首尾帧...`, 'info');
+    for (const scene of scenes) {
+      generateImage(scene.id, 'first');
+      generateImage(scene.id, 'last');
+    }
+    showToast(`已启动 ${scenes.length} 个分镜的首尾帧生成`, 'success');
+  };
+
+  // 批量生成视频
+  const handleBatchVideoGeneration = async () => {
+    if (!currentScriptId || scenes.length === 0) {
+      showToast('请先生成分镜', 'warning');
+      return;
+    }
+    if (!videoModel) {
+      showToast('请先选择视频模型', 'warning');
+      return;
+    }
+    showToast(`正在批量生成 ${scenes.length} 个分镜的视频...`, 'info');
+    for (const scene of scenes) {
+      generateVideo(scene.id);
+    }
+    showToast(`已启动 ${scenes.length} 个分镜的视频生成`, 'success');
+  };
+
 
   return (
     <div className="h-full flex flex-col bg-slate-900 text-slate-200">
@@ -177,6 +294,47 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
           onSelect={handleEpisodeSelect}
         />
         {isLoading && <span className="text-xs text-slate-500">加载中...</span>}
+        
+        {/* 批量生成按钮 */}
+        <div className="flex-1" />
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all cursor-pointer"
+            startContent={<Users className="w-3.5 h-3.5" />}
+            onPress={handleBatchCharacterGeneration}
+            isDisabled={!currentScriptId}
+          >
+            批量生成角色
+          </Button>
+          <Button
+            size="sm"
+            className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold shadow-lg shadow-green-500/30 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all cursor-pointer"
+            startContent={<Image className="w-3.5 h-3.5" />}
+            onPress={handleBatchSceneGeneration}
+            isDisabled={!currentScriptId}
+          >
+            批量生成场景
+          </Button>
+          <Button
+            size="sm"
+            className="bg-gradient-to-r from-purple-500 to-violet-500 text-white font-bold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all cursor-pointer"
+            startContent={<Film className="w-3.5 h-3.5" />}
+            onPress={handleBatchFrameGeneration}
+            isDisabled={!currentScriptId}
+          >
+            批量生成首尾帧
+          </Button>
+          <Button
+            size="sm"
+            className="bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold shadow-lg shadow-rose-500/30 hover:shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-all cursor-pointer"
+            startContent={<Video className="w-3.5 h-3.5" />}
+            onPress={handleBatchVideoGeneration}
+            isDisabled={!currentScriptId}
+          >
+            批量生成视频
+          </Button>
+        </div>
       </div>
 
       {/* 无剧本提示 */}

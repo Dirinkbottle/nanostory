@@ -4,12 +4,367 @@
  * 同时输出角色和场景信息，减少重复 AI 调用
  * 
  * input:  { scriptContent, scriptTitle, textModel }
- * output: { scenes, characters, locations, count }
+ * output: { scenes, characters, locations, count, totalDuration }
  */
 
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
-const handleRepairJsonResponse = require('./repairJsonResponse');
 const { stripThinkTags, extractCodeBlock, extractJSON, stripInvisible } = require('../../../utils/washBody');
+
+// 目标时长范围（秒）
+const MIN_TOTAL_DURATION = 60;  // 1分钟
+const MAX_TOTAL_DURATION = 180; // 3分钟
+const DEFAULT_SCENE_DURATION = 2; // 默认单个分镜时长
+
+/**
+ * 从分镜描述中提取角色名称
+ * 使用严格的模式匹配中文人名，避免误识别
+ * @param {string} description - 分镜描述文本
+ * @param {Set} knownCharacters - 已知角色名集合
+ * @returns {string[]} 提取到的角色名数组
+ */
+function extractCharactersFromDescription(description, knownCharacters = new Set()) {
+  if (!description) return [];
+  
+  const extracted = new Set();
+  
+  // 1. 从已知角色列表中精确匹配（优先级最高）
+  for (const char of knownCharacters) {
+    if (char && char.length >= 2 && description.includes(char)) {
+      extracted.add(char);
+    }
+  }
+  
+  // 2. 只提取已知角色，不再使用模糊匹配
+  // 原因：模糊匹配会将"清晨""黑板上""表情心不"等非人名误识为角色
+  // AI 在生成分镜时已经明确指定了 characters 数组，无需从 description 中重新提取
+  
+  return Array.from(extracted);
+}
+
+/**
+ * 检查是否为有效的中文人名
+ * 中文人名特征：
+ * - 通常为 2-3 个字，偶尔 4 个字（复姓）
+ * - 第一个字通常是常见姓氏
+ * - 不应该是常见词汇、动词、形容词等
+ */
+function isValidChineseName(word) {
+  if (!word || word.length < 2 || word.length > 4) return false;
+  
+  // 检查是否在常见非人名词汇列表中
+  if (isCommonWord(word)) return false;
+  
+  // 检查第一个字是否是常见姓氏（可选的加强验证）
+  const commonSurnames = '王李张刘陈杨赵黄周吴徐孙胡朱高林何郭马罗梁宋郑谢韩唐冯于董萧程曹袁邓许傅沈曾彭吕苏卢蒋蔡贾丁魏薛叶阎余潘杉戴夏锡汪田任姜范方石姚谭廖邹熊金陆郝孔白崔康毛邱秦江史顾侯邵孟龙万段章钱汤尹黎易常武乔贺赖龚文';
+  const firstChar = word.charAt(0);
+  
+  // 如果第一个字是常见姓氏，更可能是人名
+  if (commonSurnames.includes(firstChar)) {
+    return true;
+  }
+  
+  // 对于非常见姓氏开头的，需要更严格的检查
+  // 检查是否以常见非人名前缀/后缀结尾
+  if (hasInvalidNamePattern(word)) {
+    return false;
+  }
+  
+  return false; // 默认不认为是人名，除非有常见姓氏
+}
+
+/**
+ * 检查是否包含无效的人名模式
+ */
+function hasInvalidNamePattern(word) {
+  // 以这些词开头的不太可能是人名
+  const invalidPrefixes = [
+    '教室', '客厅', '卧室', '街道', '大街', '小巷', '广场', '公园',
+    '清晨', '晚上', '下午', '上午', '晚间', '白天', '夜晚', '黄昏',
+    '黑板', '白板', '桌子', '椅子', '沙发', '窗帘', '窗户', '门口',
+    '表情', '动作', '眼神', '脸上', '手上', '脚下', '身上', '头上',
+    '快速', '慢慢', '突然', '逐渐', '立即', '正在', '已经', '尚未',
+    '今天', '明天', '昨天', '现在', '此时', '当时', '那时', '这时',
+    '距离', '朝向', '向着', '对着', '背对', '面对', '侧身',
+    '学生', '同学', '老师', '父亲', '母亲', '爸爸', '妈妈', '哥哥', '姐姐',
+    '流声', '似乎', '不稳', '但刺', '一阵',
+    '纸条', '信封', '铅笔', '书本', '本子', '笔记',
+    '抬头', '低头', '点头', '摇头', '转头', '回头',
+    '广播', '声音', '电影', '电视', '手机', '电脑',
+    '无聊', '焦虑', '担心', '期待', '愤怒', '快乐',
+  ];
+  
+  // 以这些词结尾的不太可能是人名
+  const invalidSuffixes = [
+    '上', '下', '里', '外', '中', '前', '后', '左', '右', '旁',
+    '时', '间', '处', '边', '面',
+    '们', '着', '了', '过', '完', '掉',
+    '声', '色', '光', '影', '水', '火',
+    '意', '地', '的', '得', '来', '去',
+    '高考', '考试', '答案', '纸张',
+  ];
+  
+  for (const prefix of invalidPrefixes) {
+    if (word.startsWith(prefix)) return true;
+  }
+  
+  for (const suffix of invalidSuffixes) {
+    if (word.endsWith(suffix)) return true;
+  }
+  
+  return false;
+}
+
+/**
+ * 检查是否为常见非人名词汇（大幅扩充）
+ */
+function isCommonWord(word) {
+  const commonWords = new Set([
+    // 连接词/副词
+    '然后', '之后', '之前', '不过', '如果', '虽然', '但是', '因为', '所以',
+    '已经', '正在', '还是', '一个', '这个', '那个', '什么', '这样', '那样',
+    '怎么', '怎样', '为什么', '为何', '何时', '何地', '何人',
+    '我们', '他们', '她们', '你们', '自己', '大家', '各自', '彼此',
+    '这里', '那里', '哪里', '时候', '地方', '事情', '东西', '问题', '结果',
+    '开始', '结束', '继续', '一边', '同时', '首先', '接着', '随后', '最后',
+    '然而', '于是', '并且', '而且', '只是', '只有', '就是', '也是',
+    '一定', '一般', '一起', '一直', '一点', '一下', '一些', '一样',
+    
+    // 时间相关
+    '清晨', '早晨', '上午', '中午', '下午', '晚上', '夜晚', '半夜',
+    '白天', '黄昏', '日落', '日出', '深夜', '凌晨', '拂晓', '黎明',
+    '今天', '明天', '昨天', '后天', '前天', '现在', '当时', '此时',
+    '那时', '这时', '很久', '一会', '片刻', '瞬间', '刚才', '马上',
+    
+    // 地点/场景
+    '教室', '客厅', '卧室', '厅堂', '走廊', '楼梯', '操场', '食堂',
+    '街道', '大街', '小巷', '广场', '公园', '商店', '超市', '医院',
+    '室内', '室外', '屋内', '屋外', '地上', '天上', '树上', '桌上',
+    '壁上', '墙上', '门口', '窗口', '床上', '椅子', '桌子', '沙发',
+    '海边', '山上', '桥上', '路上', '车上', '船上', '飞机',
+    '墙角', '墟角', '门后', '窗前', '床头', '桌边',
+    
+    // 物品/道具
+    '黑板', '白板', '窗帘', '窗户', '大门', '小门', '电灯', '电视',
+    '手机', '电脑', '书本', '笔记', '纸张', '纸条', '铅笔', '粉笔',
+    '杆子', '食物', '餐具', '茶杯', '水杯', '雨伞', '行李',
+    '广播', '小说', '电影', '图片', '照片', '报纸', '杂志',
+    
+    // 身体部位
+    '左手', '右手', '双手', '双脚', '双眼', '嘴唇', '眉头', '额头',
+    '肩膀', '后背', '腰部', '膈部', '脸部', '脸上', '眼中', '眼里',
+    '手上', '手中', '手里', '脚下', '脚边', '身上', '身边', '身后',
+    '头上', '头顶', '心中', '心里', '脑中', '脑海',
+    
+    // 镜头/画面术语
+    '表情', '动作', '场景', '画面', '镜头', '角度', '光线', '背景',
+    '前景', '特写', '远景', '近景', '中景', '全景', '仰拍', '俑拍',
+    '左侧', '右侧', '上方', '下方', '前方', '后方', '周围', '中央',
+    '旁边', '对面', '侧面', '正面', '背面', '侧身',
+    '切换', '转场', '淡入', '淡出', '推近', '拉远', '平移', '跳切',
+    
+    // 情绪/状态
+    '冷淡', '紧张', '平静', '激动', '惊讶', '愤怒', '悲伤', '快乐',
+    '忧虑', '焦虑', '担心', '期待', '失望', '满足', '兴奋', '沮丧',
+    '无聊', '寂寞', '孤独', '疲惫', '困倦', '精神', '振奋', '淈弱',
+    '认真', '专注', '分心', '恐惧', '害怕', '勇敢', '胆怯', '自信',
+    
+    // 动作/行为
+    '抬头', '低头', '点头', '摇头', '转头', '回头', '仰头', '埋头',
+    '开口', '张嘴', '闭嘴', '喘气', '叹气', '伸手', '缩手', '挥手',
+    '抬手', '举手', '放手', '抱拳', '挤眼', '眨眼', '闭眼', '睁眼',
+    '起身', '转身', '俑身', '直身', '弯腰', '下蹲', '站起', '坐下',
+    '走过', '走来', '跑咄', '传递', '接过', '递给', '拿起', '放下',
+    '快速', '缓慢', '慢慢', '突然', '逐渐', '立即', '即刻', '最终',
+    // 学校相关
+    '学生', '同学', '老师', '校长', '主任', '班级', '年级', '课程',
+    '高考', '考试', '作业', '课本', '习题', '答案', '试卷', '成绩',
+    '距离', '还有', '年后', '天后', '下课', '上课', '放学', '放假',
+    
+    // 家庭称谓
+    '父亲', '母亲', '爸爸', '妈妈', '哥哥', '姐姐', '弟弟', '妹妹',
+    '爷爷', '奶奶', '外公', '外婆', '叔叔', '姑姑', '舅舅', '姨妈',
+    // 程度/形容
+    '简单', '复杂', '重要', '关键', '主要', '其他', '全部', '部分',
+    '对比', '明暗', '色调', '氛围', '情绪', '强度', '微弱', '中等',
+    '持续', '间歇', '完全', '严重', '轻微', '明显', '模糊', '清晰',
+    '很大', '很小', '很多', '很少', '非常', '十分', '特别', '格外',
+    
+    // 其他常见误识别词
+    '流声', '似乎', '不稳', '但刺', '一阵', '阵阵', '一块', '一起',
+    '走过', '发出', '传来', '响起', '收到', '带着', '看到', '听到',
+    '间或', '或者', '还有', '而是', '而且', '并且', '因此', '所以',
+    '随着', '跟着', '带着', '含着', '拿着', '拿起', '放下', '继续',
+    '但集', '心不', '同学有', '敲地', '维持', '活地', '纸条',
+    '快递', '快速递', '慢递', '传给', '递给',
+  ]);
+  return commonWords.has(word);
+}
+
+/**
+ * 计算分镜总时长并在需要时调整
+ * @param {Array} scenes - 分镜数组
+ * @returns {Object} { scenes: 调整后的分镜, totalDuration: 总时长 }
+ */
+function adjustSceneDurations(scenes) {
+  if (!scenes || scenes.length === 0) return { scenes: [], totalDuration: 0 };
+  
+  // 计算当前总时长
+  let totalDuration = scenes.reduce((sum, s) => sum + (s.duration || DEFAULT_SCENE_DURATION), 0);
+  console.log('[StoryboardGen] 原始总时长:', totalDuration, '秒');
+  
+  // 如果在合理范围内，直接返回
+  if (totalDuration >= MIN_TOTAL_DURATION && totalDuration <= MAX_TOTAL_DURATION) {
+    console.log('[StoryboardGen] 时长在合理范围内');
+    return { scenes, totalDuration };
+  }
+  
+  // 如果时长过短，增加每个分镜的时长
+  if (totalDuration < MIN_TOTAL_DURATION) {
+    const scaleFactor = MIN_TOTAL_DURATION / totalDuration;
+    scenes = scenes.map(s => ({
+      ...s,
+      duration: Math.round((s.duration || DEFAULT_SCENE_DURATION) * scaleFactor)
+    }));
+    totalDuration = scenes.reduce((sum, s) => sum + s.duration, 0);
+    console.log('[StoryboardGen] 时长过短，调整后:', totalDuration, '秒');
+  }
+  
+  // 如果时长过长，减少每个分镜的时长（最低1秒）
+  if (totalDuration > MAX_TOTAL_DURATION) {
+    const scaleFactor = MAX_TOTAL_DURATION / totalDuration;
+    scenes = scenes.map(s => ({
+      ...s,
+      duration: Math.max(1, Math.round((s.duration || DEFAULT_SCENE_DURATION) * scaleFactor))
+    }));
+    totalDuration = scenes.reduce((sum, s) => sum + s.duration, 0);
+    console.log('[StoryboardGen] 时长过长，调整后:', totalDuration, '秒');
+  }
+  
+  return { scenes, totalDuration };
+}
+
+/**
+ * 后处理分镜数据，确保角色列表完整
+ * @param {Array} scenes - AI 生成的分镜数组
+ * @returns {Array} 修复后的分镜数组
+ */
+function postProcessScenes(scenes) {
+  if (!scenes || scenes.length === 0) return scenes;
+  
+  // 第一遍：收集所有已知角色
+  const allKnownCharacters = new Set();
+  scenes.forEach(scene => {
+    if (Array.isArray(scene.characters)) {
+      scene.characters.forEach(c => allKnownCharacters.add(c));
+    }
+  });
+  console.log('[StoryboardGen] 已知角色列表:', Array.from(allKnownCharacters));
+  
+  // 第二遍：从 description 中提取遗漏的角色
+  let fixedCount = 0;
+  scenes = scenes.map((scene, idx) => {
+    const originalChars = new Set(scene.characters || []);
+    
+    // 从多个字段提取角色
+    const textsToCheck = [
+      scene.description,
+      scene.startFrame,
+      scene.endFrame,
+      scene.endState
+    ].filter(Boolean).join(' ');
+    
+    const extractedChars = extractCharactersFromDescription(textsToCheck, allKnownCharacters);
+    
+    // 合并角色列表
+    const mergedChars = new Set([...originalChars, ...extractedChars]);
+    
+    // 如果发现新角色，记录日志
+    const newChars = extractedChars.filter(c => !originalChars.has(c));
+    if (newChars.length > 0) {
+      console.log(`[StoryboardGen] 分镜 ${idx + 1} 补充角色:`, newChars);
+      fixedCount++;
+      // 将新发现的角色添加到全局已知列表
+      newChars.forEach(c => allKnownCharacters.add(c));
+    }
+    
+    return {
+      ...scene,
+      characters: Array.from(mergedChars),
+      // 确保 duration 有默认值
+      duration: scene.duration || DEFAULT_SCENE_DURATION
+    };
+  });
+  
+  console.log(`[StoryboardGen] 角色修复完成，共修复 ${fixedCount} 个分镜`);
+  
+  return scenes;
+}
+
+/**
+ * 尝试部分解析 JSON 数组
+ * 当 AI 返回的 JSON 不完整时，提取已完成的元素
+ * @param {string} jsonStr - 原始 JSON 字符串
+ * @returns {Array} 解析出的分镜数组
+ */
+function tryPartialParse(jsonStr) {
+  const scenes = [];
+  
+  // 查找数组开始
+  const arrayStart = jsonStr.indexOf('[');
+  if (arrayStart === -1) return scenes;
+  
+  let content = jsonStr.slice(arrayStart + 1);
+  let depth = 0;
+  let objectStart = -1;
+  let inString = false;
+  let escaped = false;
+  
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    
+    // 处理转义字符
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (char === '\\' && inString) {
+      escaped = true;
+      continue;
+    }
+    
+    // 处理字符串
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    
+    if (inString) continue;
+    
+    // 处理对象边界
+    if (char === '{') {
+      if (depth === 0) objectStart = i;
+      depth++;
+    } else if (char === '}') {
+      depth--;
+      if (depth === 0 && objectStart !== -1) {
+        // 找到一个完整的对象
+        const objectStr = content.slice(objectStart, i + 1);
+        try {
+          const obj = JSON.parse(objectStr);
+          // 验证是否是有效的分镜对象
+          if (obj && typeof obj.order === 'number' && typeof obj.description === 'string') {
+            scenes.push(obj);
+          }
+        } catch (e) {
+          // 忽略解析失败的对象
+        }
+        objectStart = -1;
+      }
+    }
+  }
+  
+  return scenes;
+}
 
 // 超时包装函数
 function withTimeout(promise, ms, errorMessage) {
@@ -34,179 +389,78 @@ async function handleStoryboardGeneration(inputParams, onProgress) {
 
   if (onProgress) onProgress(10);
 
-  const fullPrompt = `你是一个专业的电影分镜师，精通连续性剪辑（Continuity Editing）规则。你的任务是将剧本细化为分镜，确保相邻镜头在视觉上可以无缝衔接。
+  const fullPrompt = `你是一个分镜师，将剧本内容转化为分镜。
 
-规则：
-1）每句对白独立一个镜头
-2）每个动作分解为准备-进行-结果
-3）场景切换要从远到近层层推进
-4）一个剧本场景至少拆成5-10个镜头
-**重要：必须输出严格的 JSON 格式！**
-- 所有字符串值必须用双引号包裹
-- 确保 JSON 格式完整，以 ] 结尾
-- 只输出 JSON 数组，不要添加其他说明文字
-·
+**核心原则：忠实于剧本**
+- 严格按照剧本内容生成分镜，不添加剧本中没有的情节、对话或角色
+- 描述简洁明了，避免过度艺术加工
+- 专注于剧本内容的视觉化呈现
+
+**时长目标**：所有分镜的 duration 总和应在 60-180 秒之间（即1-3分钟）
+
+**输出格式**：严格 JSON 数组，不要添加其他文字
+
 ---
-
-请根据以下剧本内容，将其细化为电影级分镜镜头。
 
 【剧本内容】
 ${scriptContent}
 
-【核心要求 - 极度细化】
-1. 每个分镜 = 一个静止画面，可直接生成一张图片
-   - 无角色的空镜头（如风景、物品特写）characters为空数组[]
-2. **description 字段必须包含完整的视觉信息，足够直接用于 AI 绘图**：
-   - 必须描述光源方向和光线质感（如「左侧篝火暖光映照」「背光剪影」「顶光投下锐利阴影」）
-   - 必须描述色调和氛围（如「暖橙色调」「冷蓝灰色调」「高对比度明暗交织」）
-   - 必须描述景深效果（如「前景虚化」「背景虚化突出人物」「全景深锐利」）
-   - 必须描述材质和质感细节（如「粗糙的石墙」「光滑的丝绸」「生锈的铁器」）
-   - 角色的表情必须精确到具体的面部肌肉状态（如「眉头紧锁、嘴角下撇」而非「悲伤」）
-3. 对话场景必须拆分：
-   - 每句对白一个镜头（说话人特写，只包含说话人）
-   - 穿插听者反应镜头（只包含听者）
-   - 适时加入无人的场景全景空镜头
-4. 动作场景必须拆分：
-   - 动作准备阶段
-   - 动作进行中
-   - 动作结果
-5. 场景切换时：
-   - 先用远景/全景建立新场景（无角色空镜头）
-   - 再逐步推近到角色
-6. 情绪变化点要单独一个特写镜头
-7. 数量要求：一个场景至少拆成 5-10 个镜头
+---
 
-【镜头连续性规则 - 极其重要】
-相邻镜头必须在视觉上可以无缝衔接，遵守以下专业剪辑规则：
+【分镜转化要求】
 
-1. **姿态连续性（Match on Action）**：
-   - 上一镜头结束时角色的姿势/位置/朝向，必须与下一镜头开始时一致
-   - 例如：上一镜头角色站着结束 → 下一镜头角色必须站着开始，不能突然坐着或趴着
-   - 如果需要姿态变化（如站→坐），必须有一个过渡镜头展示这个动作
+1. **对话识别**：
+   - 每句对白独立一个镜头
+   - 说话人用近景/特写
+   - 可穿插听者反应镜头
 
-2. **景别渐变规则（30度规则）**：
-   - 同场景内相邻镜头的景别不能跳跃太大
-   - 允许的渐变：远景↔全景↔中景↔近景↔特写（相邻级别可以跳一级）
-   - 禁止直接跳跃：特写→远景 或 远景→特写（必须经过中间景别过渡）
-   - 不同场景之间切换不受此限制
+2. **角色识别**：
+   - 准确记录每个分镜中出现的角色
+   - characters 数组必须包含 description 中提到的所有角色名
+   - 空镜头（无角色）的 characters 为空数组 []
 
-3. **空间连续性（180度规则）**：
-   - 同一场景内，镜头的拍摄方向应保持在同一侧
-   - 角色面朝左离开画面 → 下一镜头应从右侧入画
+3. **场景转换**：
+   - 切换到新场景时，先用远景/全景建立环境
+   - 明确记录 location 字段
 
-4. **场景转换规则**：
-   - 切换到新场景时，第一个镜头必须是建立镜头（远景/全景），让观众理解新的空间
-   - 然后再逐步推近到角色
+4. **表情与动作**：
+   - 用简单自然的语言描述角色的微表情和细微动作
+   - 例如：「眉头微皱」「嘴角上扬」「眉头轻轻一挑」
+   - 有动作的镜头 hasAction=true，并填写 startFrame 和 endFrame
 
-5. **endState 必须精确**：
-   - 每个镜头必须填写 endState，完整描述该镜头结束时的状态
-   - 下一个镜头的 startFrame/description 的起始状态必须与上一个镜头的 endState 一致
+5. **画面描述**：
+   - description 简洁描述画面内容，包含角色位置和动作
+   - 不需要复杂的光影、色调、景深等艺术描述
+   - 保持朴实简单的风格
 
-6. **环境效果描述规范 - 极其重要**：
-   每个镜头的 description 中，所有环境效果必须按以下规则精确描述：
-
-   a) **持续性 vs 一次性**：必须区分持续性环境（全程不停）和一次性事件（发生一次就结束）
-      - 持续性环境必须明确标注"持续"/"不间断"/"全程"，如："暴风雪持续肆虐（全程不停）"
-      - 一次性事件用瞬时动词，如："一道闪电划过天空"
-      - 禁止模糊描述：不能只写"暴风雪"而不说明是持续还是短暂
-
-   b) **强度量化**：每个环境效果必须标注强度等级
-      - 使用明确的强度词：微弱/轻微/中等/强烈/猛烈
-      - 错误示例： "闪电在乌云中若隐若现" → 视频模型会生成猛烈闪电
-      - 正确示例： "极远处乌云中偶尔有一丝微弱的电光闪烁（非常微弱，仅是云层内部的微光，没有雷声）"
-      - 特别注意："若隐若现""隐约""淡淡的"这类含蓄修辞必须转换为明确的强度描述
-
-   c) **室内外环境隔离**：
-      - 室外环境效果不能直接"穿越"到室内
-      - 室内镜头描述外部天气时，必须明确说明是"透过窗户/门缝感受到的"，并且强度大幅衰减
-      - 错误示例： "庙内，风雪灌入" → 视频模型会在室内生成暴风雪
-      - 正确示例： "庙内，少量细小雪粒从破损的窗棂缝隙中被风带入，在火光中可见零星飘落的雪花"
-      - 室内不可能出现：室外级别的暴风雪、直接的闪电光照、大面积降雨
-
-   d) **物理交互合理性**：
-      - 环境效果与物体/空间的交互必须符合物理规律
-      - 通过缝隙进入的风雪：只能是少量、细小、被风挤入的
-      - 透过窗户的光：会被窗框遮挡和散射，不是直射
-      - 室内火焰受风影响：微微摇曳，不会被吹灭（除非剧情需要）
-
-7. **有声/无声动作区分 - 极其重要**：
-   视频模型会根据描述自动生成音频，因此必须严格区分有声和无声动作：
-
-   a) **dialogue 字段与 description 必须一致**：
-      - dialogue 有内容 = 角色发出声音的对白，description 中应写"说道"/"喊道"/"低声说"等有声动词
-      - dialogue 为空 = 该镜头无任何人声，description 中涉及口部动作必须加"无声地"前缀
-
-   b) **无声口部动作的正确写法**：
-      - ✅ "无声地嘴唇微动" "无声地默念" "嘴唇无声翕动"
-      - ❌ "嘴唇微动默念" "低声呢喃" "喃喃自语"（这些暗示有声音，会导致视频模型生成配音）
-      - 规则：只要 dialogue 为空，description 中一切涉及嘴/唇/念/说/语/喃/呢/吟/诵/叹的词前必须加"无声地"
-
-   c) **叹息/呼吸等非语言声音**：
-      - 如果需要叹息/叹气等非语言声音，dialogue 填写 "（叹息）" 或 "（叹气）"
-      - 如果不需要声音，写成"无声地长舒一口气"
-
-8. **环境变化追踪 - 极其重要**：
-   当镜头中发生环境的不可逆物理变化时，必须严格追踪并传递：
-
-   a) **变化发生的镜头**（description 中必须包含）：
-      - 变化的具体过程："杯子从桌上滑落摔碎在地" 而非简单的 "杯子碎了"
-      - 变化后的环境细节："碎片散落在地板上，咖啡渍在瓷砖上扩散"
-      - endState 中必须包含变化后的环境状态
-
-   b) **变化之后的同场景镜头**（description 和 endState 中必须保留）：
-      - 所有后续在同一场景（location 相同）的镜头，description 必须包含已发生的环境变化
-      - 例如：杯子在镜头3碎了 → 镜头5（同场景）的 description 必须提及 "地上仍有碎杯片和咖啡渍"
-      - endState 也必须包含这些持续存在的环境变化
-      - 禁止在后续镜头中遗忘已发生的变化（如碎杯子突然消失）
-
-   c) **不可逆变化的判定标准**：
-      - 属于不可逆变化：物品损坏/打翻/移位、液体泼洒、门窗开关、灯光变化、火焰熄灭/点燃、血迹/伤痕
-      - 不属于环境变化：角色姿势改变（由 endState 的角色状态部分管理）、表情变化、临时的手势
-      - 自然环境渐变：天色变化（黄昏→夜晚）、天气转变（晴→雨），需要在每个镜头中反映当前时间段的状态
+6. **endState 记录**：
+   - 简要记录镜头结束时角色的位置、姿势、表情
+   - 确保相邻镜头状态连贯
 
 【输出 JSON 格式】
 每个分镜包含：
 - order: 分镜序号（从1开始）
-- shotType: 镜头类型（"特写"/"近景"/"中景"/"全景"/"远景"/"俯拍"/"仰拍"/"过肩"）
-- description: 画面描述（非常详细地描述画面内容，包含光线、色调、材质、景深、角色精确表情和姿态，要足够详细可直接用于AI生图。至少50字）
+- shotType: 镜头类型（"特写"/"近景"/"中景"/"全景"/"远景"）
+- description: 画面描述（简洁明了，描述画面内容）
 - hasAction: 是否有动作（true/false）
-- startFrame: 首帧描述（仅当hasAction=true时，描述动作开始瞬间的静止画面，包含角色精确姿势和环境细节）
-- endFrame: 尾帧描述（仅当hasAction=true时，描述动作完成瞬间的静止画面，包含角色精确姿势和环境细节）
-- endState: 【必填】镜头结束时的完整状态快照。下一个镜头的起始状态必须与此一致。
-  · 有角色的镜头【必须】包含以下信息（缺一不可）：
-    ① 位置：角色在场景中的具体方位（如「庙内中央偏左」「门口右侧」「窗边」，需描述与场景地标的相对关系）
-    ② 朝向：角色面朝/背对的方向（如「面朝庙门方向」「背对窗户，侧身朝向篝火」）
-    ③ 姿势：身体姿态（站/坐/蹲/躺/跑等）+ 肢体位置 + 手中物品
-    ④ 表情：面部表情状态
-    ⑤ 时空方位：当前时间段（如「深夜」「黄昏」）及角色所处空间与周围环境的关系（如「篝火映照下」「月光从窗外透入」）
-  · 无角色镜头只描述场景环境状态（门开/关、灯亮/灭、天气变化等）+ 时空方位
-- dialogue: 对白内容（如果有）
-- duration: 建议时长（秒）
-- characters: 出现的角色数组（如["主角"]、["角色A", "角色B"]或[]。一个镜头中可以出现多个角色，但要注意每个角色的位置和朝向描述必须清晰明确）
+- startFrame: 动作开始时的画面（仅当hasAction=true时）
+- endFrame: 动作结束时的画面（仅当hasAction=true时）
+- endState: 镜头结束时的状态（角色位置、姿势、表情）
+- dialogue: 对白内容（没有则留空）
+- duration: 时长（秒，一般2-4秒）
+- characters: 出场角色数组（【重要】必须包含 description 中的所有角色名）
 - location: 场景地点
 - emotion: 情绪氛围
-- cameraMovement: 镜头运动描述，从以下选择或组合：
-  · "static"（静止）- 固定机位，无运动
-  · "push_in"（推近）- 镜头向主体推进，营造紧迫感或聚焦
-  · "pull_out"（拉远）- 镜头远离主体，揭示环境或制造疏离感
-  · "pan_left" / "pan_right"（左摇/右摇）- 镜头水平旋转，跟随或扫视
-  · "tilt_up" / "tilt_down"（上摇/下摇）- 镜头垂直旋转，仰视或俯视
-  · "track_left" / "track_right"（左移/右移）- 镜头平行移动，跟随角色行走
-  · "zoom_in" / "zoom_out"（变焦推/变焦拉）- 焦距变化，不改变机位
-  · "follow"（跟随）- 镜头跟随角色运动
-  · "crane_up" / "crane_down"（升/降）- 镜头垂直升降
-  · "orbit"（环绕）- 围绕主体旋转
-  · "shake"（手持晃动）- 模拟手持拍摄的不稳定感，适合紧张/动作场景
-  可以组合使用，如 "push_in + tilt_down"（推近同时下摇）
+- cameraMovement: 镜头运动（"static"/"push_in"/"pull_out"/"pan_left"/"pan_right"）
 
-只输出 JSON 数组，不要其他内容。示例（endState必须精确，相邻镜头状态必须衔接）：
+【示例】
 [
-  {"order": 1, "shotType": "远景", "description": "暴风雪持续肆虐的深夜（风雪全程不停，强度：猛烈），破败的山神庙孤立在荒山中，庙顶积雪厚重，枯树在强风中剧烈摇摆，极远处乌云深处偶尔闪过一丝微弱电光（强度：极微弱，仅云层内部微光，无雷声）", "hasAction": false, "endState": "【时空】深夜，山神庙外景，暴风雪持续肆虐；庙门半掩，庙前空地无人，远处云层偶现微弱电光", "dialogue": "", "duration": 2, "characters": [], "location": "山神庙外", "emotion": "萧瑟", "cameraMovement": "static"},
-  {"order": 2, "shotType": "全景", "description": "山神庙内部昏暗，中央篝火微弱摇曳（火光强度：微弱，持续燃烧），林冲裹着破旧棉袄侧卧在供桌旁稻草堆上，花枪靠墙。少量细小雪粒从破损窗棂缝隙被风带入（室内风雪强度：极轻微，仅零星雪粒飘落），庙外暴风雪的呼啸声隐约可闻", "hasAction": false, "endState": "【位置】庙内供桌旁稻草堆上（靠近东墙）【朝向】面朝供桌方向（身体朝西）【姿势】侧卧，双腿微曲，花枪靠墙于右手可及处【表情】双眼微闭，面容疲惫【时空】深夜，篝火微弱映照，窗缝偶有雪粒飘入", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "凄凉", "cameraMovement": "push_in"},
-  {"order": 3, "shotType": "特写", "description": "林冲耳朵特写，篝火微光映照（持续），他猛然睁眼侧耳倾听，庙外隐约传来马蹄声（强度：微弱，被风雪声遮盖大半）", "hasAction": true, "startFrame": "林冲侧卧姿态，耳朵特写，双眼微闭，篝火微光映照", "endFrame": "林冲双眼圆睁，眉头紧锁，侧耳凝听", "endState": "【位置】庙内供桌旁稻草堆上（靠近东墙）【朝向】面朝供桌方向，头微转向庙门方向侧耳【姿势】侧卧，肌肉紧绷，双手未动【表情】双眼圆睁，眉头紧锁，警觉【时空】深夜，篝火微光映照耳廓", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "警觉", "cameraMovement": "static"},
-  {"order": 4, "shotType": "近景", "description": "林冲从稻草堆上猛然翻身坐起，一手撑地一手去够墙边的花枪，篝火因动作带起的气流微微晃动（轻微晃动，不熄灭）", "hasAction": true, "startFrame": "林冲侧卧在稻草堆上，双眼圆睁警觉", "endFrame": "林冲坐起身，右手已握住花枪枪杆", "endState": "【位置】庙内稻草堆上（供桌旁，靠近东墙）【朝向】上身转向庙门方向（朝南）【姿势】坐姿，右手握花枪枪杆，左手撑地，上身前倾【表情】警惕，双眼紧盯庙门方向【时空】深夜，篝火因气流微微晃动", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "紧张", "cameraMovement": "track_right + tilt_up"},
-  {"order": 5, "shotType": "中景", "description": "林冲握枪站起，双脚分开站稳，花枪斜指地面，身体微前倾做戒备姿态，篝火在身后持续燃烧（持续），将他的影子投射在残破墙面上", "hasAction": true, "startFrame": "林冲坐在稻草堆上，右手握枪，篝火微光", "endFrame": "林冲站立，双脚分开，花枪斜指地面，戒备姿态，身后篝火映出长影", "endState": "【位置】庙内中央偏南（距庙门约三步）【朝向】面朝庙门方向（正南），身体微前倾【姿势】站立，双脚与肩同宽，右手握花枪斜指地面，左手微抬护身【表情】目光锐利，注视庙门方向【时空】深夜，身后篝火持续燃烧，将长影投射在北墙上", "dialogue": "", "duration": 2, "characters": ["林冲"], "location": "山神庙内", "emotion": "肃杀", "cameraMovement": "crane_up + pull_out"}
-]`;
+  {"order": 1, "shotType": "全景", "description": "早晨的客厅，阳光从窗帘缝隙透入，小明坐在沙发上看手机", "hasAction": false, "endState": "小明坐在沙发上，手持手机，表情平静", "dialogue": "", "duration": 2, "characters": ["小明"], "location": "客厅", "emotion": "平静", "cameraMovement": "static"},
+  {"order": 2, "shotType": "近景", "description": "小明抬头看向门口，眉头微皱", "hasAction": true, "startFrame": "小明低头看手机", "endFrame": "小明抬头，眉头微皱，望向门口", "endState": "小明坐在沙发上，抬头望向门口，眉头微皱", "dialogue": "", "duration": 2, "characters": ["小明"], "location": "客厅", "emotion": "疑惑", "cameraMovement": "static"},
+  {"order": 3, "shotType": "近景", "description": "小明开口说话", "hasAction": false, "endState": "小明坐在沙发上，面向门口", "dialogue": "谁在门外？", "duration": 2, "characters": ["小明"], "location": "客厅", "emotion": "疑惑", "cameraMovement": "static"}
+]
+
+只输出 JSON 数组，不要其他内容。`;
 
   const result = await handleBaseTextModelCall({
     prompt: fullPrompt,
@@ -218,7 +472,7 @@ ${scriptContent}
 
   if (onProgress) onProgress(80);
 
-  // 解析 AI 返回的 JSON
+  // 解析 AI 返回的 JSON（优化后的容错流程）
   let scenes = [];
   try {
     console.log('[StoryboardGen] 响应总长度:', result.content.length, '字符');
@@ -253,31 +507,17 @@ ${scriptContent}
         } catch (repairLibError) {
           console.error('[StoryboardGen] ❌ jsonrepair 修复失败:', repairLibError.message);
 
-          // 4. 最后手段：调用 AI 修复（60秒超时）
-          console.log('[StoryboardGen] 🔧 调用 AI 修复任务...');
-          try {
-            const repairResult = await withTimeout(
-              handleRepairJsonResponse({
-                incompleteJson: jsonStr,
-                originalPrompt: fullPrompt,
-                textModel: modelName
-              }, (progress) => {
-                if (onProgress) onProgress(80 + progress * 0.15);
-              }),
-              60000,
-              'AI 修复超时（60秒）'
-            );
-
-            if (repairResult.success && repairResult.repairedJson) {
-              scenes = repairResult.repairedJson;
-              console.log('[StoryboardGen] ✅ AI 修复成功，共', scenes.length, '个分镜');
-            } else {
-              throw new Error('AI 修复也失败: ' + (repairResult.error || directParseError.message));
-            }
-          } catch (aiRepairError) {
-            console.error('[StoryboardGen] ❌ AI 修复失败:', aiRepairError.message);
-            // 超时或修复失败，返回原始错误
-            throw new Error('分镜 JSON 解析失败: ' + (aiRepairError.message.includes('超时') ? aiRepairError.message : directParseError.message));
+          // 4. 尝试部分解析：提取已完成的分镜（替代60秒AI修复）
+          console.log('[StoryboardGen] 🔧 尝试部分解析...');
+          const partialScenes = tryPartialParse(jsonStr);
+          
+          if (partialScenes.length >= 3) {
+            // 至少解析出3个分镜才接受
+            scenes = partialScenes;
+            console.log('[StoryboardGen] ✅ 部分解析成功，共', scenes.length, '个分镜');
+          } else {
+            // 部分解析也失败，抛出原始错误
+            throw new Error('分镜 JSON 解析失败: ' + directParseError.message);
           }
         }
       }
@@ -292,11 +532,27 @@ ${scriptContent}
     throw new Error('AI 未返回有效的分镜数据');
   }
 
+  // 后处理：修复角色列表遗漏
+  scenes = postProcessScenes(scenes);
+
+  // 时长调整：确保总时长在 1-3 分钟范围内
+  const { scenes: adjustedScenes, totalDuration } = adjustSceneDurations(scenes);
+  scenes = adjustedScenes;
+
   if (onProgress) onProgress(100);
+
+  // 收集所有角色和场景
+  const allCharacters = [...new Set(scenes.flatMap(s => s.characters || []))];
+  const allLocations = [...new Set(scenes.map(s => s.location).filter(Boolean))];
+
+  console.log('[StoryboardGen] 最终统计 - 分镜:', scenes.length, '角色:', allCharacters.length, '场景:', allLocations.length, '总时长:', totalDuration, '秒');
 
   return {
     scenes,
+    characters: allCharacters,
+    locations: allLocations,
     count: scenes.length,
+    totalDuration,
     tokens: result.tokens || 0,
     provider: result._model?.provider || 'unknown'
   };

@@ -1,0 +1,526 @@
+/**
+ * 批量分镜生成处理器
+ * 将多场景分镜生成整合为单一任务，内部按场景顺序处理
+ * 
+ * 特点：
+ * 1. 用户界面只显示一个统一任务
+ * 2. 后台按场景分割顺序处理
+ * 3. 统一进度反馈（如"场景2/5 生成中"）
+ * 4. 保持场景间连贯性（传递上下文）
+ * 5. 结果按顺序整合后一次性保存
+ * 
+ * input:  { scriptId, projectId, userId, textModel, clearExisting }
+ * output: { totalScenes, totalShots, totalDuration, characters, locations }
+ */
+
+const handleBaseTextModelCall = require('../base/baseTextModelCall');
+const { queryOne, execute } = require('../../../dbHelper');
+const { parseScriptScenes } = require('../../../utils/parseScriptScenes');
+const { stripThinkTags, extractCodeBlock, extractJSON, stripInvisible } = require('../../../utils/washBody');
+
+// 时长常量
+const MIN_SCENE_DURATION = 15;
+const MAX_SCENE_DURATION = 60;
+const DEFAULT_SHOT_DURATION = 2;
+
+/**
+ * 从分镜描述中提取角色名称（严格模式）
+ */
+function extractCharactersFromDescription(description, knownCharacters = new Set()) {
+  if (!description) return [];
+  const extracted = new Set();
+  for (const char of knownCharacters) {
+    if (char && char.length >= 2 && description.includes(char)) {
+      extracted.add(char);
+    }
+  }
+  return Array.from(extracted);
+}
+
+/**
+ * 调整分镜时长
+ */
+function adjustSceneDurations(scenes) {
+  if (!scenes || scenes.length === 0) return { scenes: [], totalDuration: 0 };
+  
+  let totalDuration = scenes.reduce((sum, s) => sum + (s.duration || DEFAULT_SHOT_DURATION), 0);
+  
+  if (totalDuration >= MIN_SCENE_DURATION && totalDuration <= MAX_SCENE_DURATION) {
+    return { scenes, totalDuration };
+  }
+  
+  if (totalDuration < MIN_SCENE_DURATION) {
+    const scaleFactor = MIN_SCENE_DURATION / totalDuration;
+    scenes = scenes.map(s => ({
+      ...s,
+      duration: Math.round((s.duration || DEFAULT_SHOT_DURATION) * scaleFactor)
+    }));
+    totalDuration = scenes.reduce((sum, s) => sum + s.duration, 0);
+  }
+  
+  if (totalDuration > MAX_SCENE_DURATION) {
+    const scaleFactor = MAX_SCENE_DURATION / totalDuration;
+    scenes = scenes.map(s => ({
+      ...s,
+      duration: Math.max(1, Math.round((s.duration || DEFAULT_SHOT_DURATION) * scaleFactor))
+    }));
+    totalDuration = scenes.reduce((sum, s) => sum + s.duration, 0);
+  }
+  
+  return { scenes, totalDuration };
+}
+
+/**
+ * 后处理分镜数据
+ */
+function postProcessScenes(scenes) {
+  if (!scenes || scenes.length === 0) return scenes;
+  
+  const allKnownCharacters = new Set();
+  scenes.forEach(scene => {
+    if (Array.isArray(scene.characters)) {
+      scene.characters.forEach(c => allKnownCharacters.add(c));
+    }
+  });
+  
+  scenes = scenes.map((scene, idx) => {
+    const originalChars = new Set(scene.characters || []);
+    const textsToCheck = [scene.description, scene.startFrame, scene.endFrame, scene.endState]
+      .filter(Boolean).join(' ');
+    const extractedChars = extractCharactersFromDescription(textsToCheck, allKnownCharacters);
+    const mergedChars = new Set([...originalChars, ...extractedChars]);
+    
+    return {
+      ...scene,
+      characters: Array.from(mergedChars),
+      duration: scene.duration || DEFAULT_SHOT_DURATION
+    };
+  });
+  
+  return scenes;
+}
+
+/**
+ * 尝试部分解析 JSON 数组
+ */
+function tryPartialParse(jsonStr) {
+  const scenes = [];
+  const arrayStart = jsonStr.indexOf('[');
+  if (arrayStart === -1) return scenes;
+  
+  let content = jsonStr.slice(arrayStart + 1);
+  let depth = 0;
+  let objectStart = -1;
+  let inString = false;
+  let escaped = false;
+  
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    
+    if (escaped) { escaped = false; continue; }
+    if (char === '\\' && inString) { escaped = true; continue; }
+    if (char === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    
+    if (char === '{') {
+      if (depth === 0) objectStart = i;
+      depth++;
+    } else if (char === '}') {
+      depth--;
+      if (depth === 0 && objectStart !== -1) {
+        const objectStr = content.slice(objectStart, i + 1);
+        try {
+          const obj = JSON.parse(objectStr);
+          if (obj && typeof obj.order === 'number' && typeof obj.description === 'string') {
+            scenes.push(obj);
+          }
+        } catch (e) { /* ignore */ }
+        objectStart = -1;
+      }
+    }
+  }
+  
+  return scenes;
+}
+
+/**
+ * 生成单个场景的分镜
+ */
+async function generateSceneStoryboard(params) {
+  const { 
+    sceneContent, 
+    sceneName, 
+    sceneNumber, 
+    totalScenes,
+    previousSceneContext,
+    scriptTitle, 
+    textModel: modelName, 
+    think 
+  } = params;
+
+  // 构建上下文信息
+  let contextInfo = '';
+  if (previousSceneContext) {
+    contextInfo = `
+【上一场景结束状态】
+${previousSceneContext}
+请确保本场景的开始与上一场景自然衔接。
+`;
+  }
+
+  const fullPrompt = `你是一个分镜师，将场景内容转化为分镜。
+
+**任务**：将【${sceneName}】（第${sceneNumber}/${totalScenes}场景）转化为分镜镜头
+
+**核心原则：忠实于场景内容**
+- 严格按照场景内容生成分镜，不添加场景中没有的情节、对话或角色
+- 描述简洁明了，避免过度艺术加工
+- 专注于场景内容的视觉化呈现
+${contextInfo}
+**时长目标**：本场景所有分镜的 duration 总和应在 15-60 秒之间
+
+**输出格式**：严格 JSON 数组，不要添加其他文字
+
+---
+
+【场景内容】
+${sceneContent}
+
+---
+
+【分镜转化要求】
+
+1. **对话识别**：每句对白独立一个镜头，说话人用近景/特写
+2. **角色识别**：准确记录每个分镜中出现的角色，characters 数组必须完整
+3. **场景连贯**：${sceneNumber === 1 ? '作为第一个场景，用远景/全景建立环境' : '注意与上一场景的自然过渡'}
+4. **表情与动作**：用简单自然的语言描述角色的微表情和细微动作
+5. **endState 记录**：简要记录镜头结束时角色的位置、姿势、表情
+
+【输出 JSON 格式】
+每个分镜包含：
+- order: 分镜序号（从1开始，本场景内的序号）
+- shotType: 镜头类型（"特写"/"近景"/"中景"/"全景"/"远景"）
+- description: 画面描述（简洁明了）
+- hasAction: 是否有动作（true/false）
+- startFrame: 动作开始时的画面（仅当hasAction=true时）
+- endFrame: 动作结束时的画面（仅当hasAction=true时）
+- endState: 镜头结束时的状态
+- dialogue: 对白内容（没有则留空）
+- duration: 时长（秒，一般2-4秒）
+- characters: 出场角色数组
+- location: 场景地点
+- emotion: 情绪氛围
+- cameraMovement: 镜头运动（"static"/"push_in"/"pull_out"/"pan_left"/"pan_right"）
+
+只输出 JSON 数组，不要其他内容。`;
+
+  const result = await handleBaseTextModelCall({
+    prompt: fullPrompt,
+    textModel: modelName,
+    temperature: 0.3,
+    think
+    // 不设置 maxTokens，由模型自行决定输出长度
+  });
+
+  // 检查是否因 token 限制导致输出为空
+  if (!result.content || result.content.trim() === '') {
+    if (result.finishReason === 'length') {
+      throw new Error('AI 输出被截断（token 限制），请尝试使用更短的场景或关闭 thinking 模式');
+    }
+    throw new Error('AI 未返回有效内容');
+  }
+
+  // 解析 AI 返回的 JSON
+  let scenes = [];
+  try {
+    let jsonStr = stripThinkTags(result.content);
+    jsonStr = extractCodeBlock(jsonStr);
+    jsonStr = stripInvisible(jsonStr).trim();
+
+    try {
+      scenes = JSON.parse(jsonStr);
+    } catch (directParseError) {
+      const extracted = extractJSON(jsonStr);
+      if (extracted) {
+        try {
+          scenes = JSON.parse(extracted);
+        } catch (_) { /* fallback */ }
+      }
+
+      if (!Array.isArray(scenes) || scenes.length === 0) {
+        try {
+          const { jsonrepair } = await import('jsonrepair');
+          const repaired = jsonrepair(jsonStr);
+          scenes = JSON.parse(repaired);
+        } catch (repairLibError) {
+          const partialScenes = tryPartialParse(jsonStr);
+          if (partialScenes.length >= 1) {
+            scenes = partialScenes;
+          } else {
+            throw new Error('分镜 JSON 解析失败: ' + directParseError.message);
+          }
+        }
+      }
+    }
+  } catch (parseError) {
+    throw new Error('分镜解析失败: ' + parseError.message);
+  }
+
+  if (!Array.isArray(scenes) || scenes.length === 0) {
+    throw new Error('AI 未返回有效的分镜数据');
+  }
+
+  // 后处理
+  scenes = postProcessScenes(scenes);
+  const { scenes: adjustedScenes, totalDuration } = adjustSceneDurations(scenes);
+  scenes = adjustedScenes;
+
+  // 获取最后一个分镜的结束状态
+  const lastSceneEndState = scenes.length > 0 
+    ? scenes[scenes.length - 1].endState || scenes[scenes.length - 1].description
+    : '';
+
+  return {
+    scenes,
+    totalDuration,
+    lastSceneEndState,
+    tokens: result.tokens || 0
+  };
+}
+
+/**
+ * 批量分镜生成主处理函数
+ */
+async function handleBatchStoryboardGeneration(inputParams, onProgress) {
+  const { 
+    scriptId, 
+    projectId, 
+    userId, 
+    textModel, 
+    clearExisting = true,
+    think = true
+  } = inputParams;
+
+  if (!scriptId || !projectId) {
+    throw new Error('缺少 scriptId 或 projectId');
+  }
+  if (!textModel) {
+    throw new Error('textModel 参数是必需的');
+  }
+
+  // 1. 获取剧本内容
+  const script = await queryOne(
+    'SELECT * FROM scripts WHERE id = ? AND user_id = ?',
+    [scriptId, userId]
+  );
+
+  if (!script) {
+    throw new Error('剧本不存在');
+  }
+  if (!script.content || script.content.trim() === '') {
+    throw new Error('剧本内容为空，无法生成分镜');
+  }
+
+  // 2. 解析场景
+  const parsedScenes = parseScriptScenes(script.content);
+  const totalScenes = parsedScenes.length;
+
+  if (totalScenes === 0) {
+    throw new Error('未能从剧本中识别出场景');
+  }
+
+  console.log(`[BatchStoryboard] 识别到 ${totalScenes} 个场景，开始处理...`);
+  if (onProgress) onProgress(5);
+
+  // 3. 清理旧分镜（如果需要）
+  if (clearExisting) {
+    await execute('DELETE FROM storyboards WHERE script_id = ?', [scriptId]);
+    console.log('[BatchStoryboard] 已清理旧分镜');
+  }
+
+  // 4. 按场景顺序处理
+  const allStoryboards = [];
+  const allCharacters = new Set();
+  const allLocations = new Set();
+  let previousContext = '';
+  let totalTokens = 0;
+
+  for (let i = 0; i < totalScenes; i++) {
+    const scene = parsedScenes[i];
+    const sceneNumber = scene.sceneNumber || (i + 1);
+    const sceneName = scene.sceneName || `场景${sceneNumber}`;
+
+    // 计算进度：5% 开始，95% 结束，均匀分配
+    const sceneStartProgress = 5 + (i / totalScenes) * 85;
+    const sceneEndProgress = 5 + ((i + 1) / totalScenes) * 85;
+
+    console.log(`[BatchStoryboard] 处理场景 ${sceneNumber}/${totalScenes}: ${sceneName}`);
+    if (onProgress) onProgress(Math.round(sceneStartProgress));
+
+    try {
+      const result = await generateSceneStoryboard({
+        sceneContent: scene.content,
+        sceneName,
+        sceneNumber,
+        totalScenes,
+        previousSceneContext: previousContext,
+        scriptTitle: script.title || `第${script.episode_number}集`,
+        textModel,
+        think
+      });
+
+      // 收集结果
+      // 为每个分镜添加全局序号
+      const globalStartIdx = allStoryboards.length;
+      const sceneShotsWithGlobalIdx = result.scenes.map((shot, shotIdx) => ({
+        ...shot,
+        globalOrder: globalStartIdx + shotIdx + 1,
+        sceneNumber,
+        sceneName
+      }));
+
+      allStoryboards.push(...sceneShotsWithGlobalIdx);
+      
+      // 收集角色和场景
+      result.scenes.forEach(shot => {
+        if (Array.isArray(shot.characters)) {
+          shot.characters.forEach(c => allCharacters.add(c));
+        }
+        if (shot.location) {
+          allLocations.add(shot.location);
+        }
+      });
+
+      // 更新上下文
+      previousContext = result.lastSceneEndState;
+      totalTokens += result.tokens;
+
+      console.log(`[BatchStoryboard] 场景 ${sceneNumber} 完成: ${result.scenes.length} 个分镜`);
+      if (onProgress) onProgress(Math.round(sceneEndProgress));
+
+    } catch (sceneError) {
+      console.error(`[BatchStoryboard] 场景 ${sceneNumber} 生成失败:`, sceneError.message);
+      throw new Error(`场景 ${sceneNumber}(${sceneName}) 生成失败: ${sceneError.message}`);
+    }
+  }
+
+  console.log(`[BatchStoryboard] 所有场景处理完成，共 ${allStoryboards.length} 个分镜`);
+  if (onProgress) onProgress(92);
+
+  // 5. 保存所有分镜到数据库
+  let idxOffset = 0;
+  if (!clearExisting) {
+    const maxIdxRow = await queryOne(
+      'SELECT MAX(idx) as maxIdx FROM storyboards WHERE script_id = ?',
+      [scriptId]
+    );
+    idxOffset = (maxIdxRow?.maxIdx ?? -1) + 1;
+  }
+
+  for (let i = 0; i < allStoryboards.length; i++) {
+    const shot = allStoryboards[i];
+    const actualIdx = idxOffset + i;
+    await execute(
+      `INSERT INTO storyboards (project_id, script_id, idx, prompt_template, variables_json) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        projectId,
+        scriptId,
+        actualIdx,
+        shot.description || '',
+        JSON.stringify(shot)
+      ]
+    );
+  }
+
+  console.log(`[BatchStoryboard] 已保存 ${allStoryboards.length} 个分镜到数据库`);
+  if (onProgress) onProgress(96);
+
+  // 6. 提取场景信息并保存
+  let scenesExtracted = 0;
+  if (userId) {
+    const locationMap = new Map();
+
+    for (const shot of allStoryboards) {
+      const loc = shot.location?.trim();
+      if (!loc) continue;
+
+      if (!locationMap.has(loc)) {
+        locationMap.set(loc, {
+          descriptions: [],
+          emotions: new Set()
+        });
+      }
+      const data = locationMap.get(loc);
+      if (shot.description) data.descriptions.push(shot.description);
+      if (shot.emotion) data.emotions.add(shot.emotion);
+    }
+
+    for (const [locName, data] of locationMap.entries()) {
+      try {
+        const existing = await queryOne(
+          'SELECT id FROM scenes WHERE project_id = ? AND name = ? AND user_id = ?',
+          [projectId, locName, userId]
+        );
+
+        const envDescription = data.descriptions[0] || '';
+        const mood = Array.from(data.emotions).join(', ') || '';
+        const environment = `${locName}场景`;
+        const lighting = '自然光';
+
+        if (existing) {
+          await execute(
+            `UPDATE scenes 
+             SET description = COALESCE(NULLIF(description, ''), ?),
+                 mood = COALESCE(NULLIF(mood, ''), ?),
+                 environment = COALESCE(NULLIF(environment, ''), ?),
+                 lighting = COALESCE(NULLIF(lighting, ''), ?),
+                 script_id = ?,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?`,
+            [envDescription, mood, environment, lighting, scriptId, existing.id]
+          );
+        } else {
+          await execute(
+            `INSERT INTO scenes (user_id, project_id, script_id, name, description, mood, environment, lighting, source)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'auto_extracted')`,
+            [userId, projectId, scriptId, locName, envDescription, mood, environment, lighting]
+          );
+        }
+        scenesExtracted++;
+      } catch (dbError) {
+        console.error('[BatchStoryboard] 保存场景失败:', locName, dbError.message);
+      }
+    }
+  }
+
+  if (onProgress) onProgress(98);
+
+  // 7. 建立资源关联
+  try {
+    const { linkAllForScript } = require('../../../resourceLinks');
+    await linkAllForScript(scriptId, projectId);
+    console.log('[BatchStoryboard] 资源关联完成');
+  } catch (linkError) {
+    console.error('[BatchStoryboard] 资源关联失败（不影响分镜）:', linkError.message);
+  }
+
+  if (onProgress) onProgress(100);
+
+  // 计算总时长
+  const totalDuration = allStoryboards.reduce((sum, s) => sum + (s.duration || DEFAULT_SHOT_DURATION), 0);
+
+  console.log(`[BatchStoryboard] 全部完成: ${totalScenes}个场景, ${allStoryboards.length}个分镜, ${totalDuration}秒`);
+
+  return {
+    totalScenes,
+    totalShots: allStoryboards.length,
+    totalDuration,
+    characters: Array.from(allCharacters),
+    locations: Array.from(allLocations),
+    scenesExtracted,
+    tokens: totalTokens
+  };
+}
+
+module.exports = handleBatchStoryboardGeneration;

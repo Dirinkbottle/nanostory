@@ -2,21 +2,21 @@
  * 工作流步骤：保存分镜到数据库 + 提取场景信息
  * 
  * 逻辑与前端调用的 saveFromWorkflow API 完全一致：
- *   1. DELETE 旧分镜
+ *   1. DELETE 旧分镜（或追加模式下保留）
  *   2. INSERT 新分镜（prompt_template + variables_json）
  *   3. linkAllForScript 建立资源关联
  *   4. 从 scenes.location 汇总场景信息，直接保存到 scenes 表（无需 AI）
  * 
  * 确保 scene_state_analysis 执行前分镜已在 DB 中
  * 
- * input:  { scenes, scriptId, projectId, userId }
+ * input:  { scenes, scriptId, projectId, userId, sceneNumber?, appendMode? }
  * output: { saved: number, scenesExtracted: number }
  */
 
-const { execute, queryOne } = require('../../../dbHelper');
+const { execute, queryOne, queryAll } = require('../../../dbHelper');
 
 async function handleSaveStoryboards(inputParams, onProgress) {
-  const { scenes, scriptId, projectId, userId } = inputParams;
+  const { scenes, scriptId, projectId, userId, sceneNumber, appendMode } = inputParams;
 
   if (!scenes || !Array.isArray(scenes) || scenes.length === 0) {
     throw new Error('缺少分镜数据（scenes 为空）');
@@ -25,23 +25,36 @@ async function handleSaveStoryboards(inputParams, onProgress) {
     throw new Error('缺少 scriptId 或 projectId');
   }
 
-  console.log(`[SaveStoryboards] 保存 ${scenes.length} 个分镜到 DB, scriptId=${scriptId}`);
+  console.log(`[SaveStoryboards] 保存 ${scenes.length} 个分镜到 DB, scriptId=${scriptId}, appendMode=${appendMode}, sceneNumber=${sceneNumber}`);
   if (onProgress) onProgress(10);
 
-  // 删除该剧本的旧分镜（与 saveFromWorkflow 一致）
-  await execute('DELETE FROM storyboards WHERE script_id = ?', [scriptId]);
-  console.log('[SaveStoryboards] 已删除旧分镜');
+  // 计算分镜序号偏移（追加模式下需要）
+  let idxOffset = 0;
+  if (appendMode) {
+    // 追加模式：获取当前最大 idx
+    const maxIdxRow = await queryOne(
+      'SELECT MAX(idx) as maxIdx FROM storyboards WHERE script_id = ?',
+      [scriptId]
+    );
+    idxOffset = (maxIdxRow?.maxIdx ?? -1) + 1;
+    console.log(`[SaveStoryboards] 追加模式，从 idx=${idxOffset} 开始`);
+  } else {
+    // 非追加模式：删除该剧本的旧分镜
+    await execute('DELETE FROM storyboards WHERE script_id = ?', [scriptId]);
+    console.log('[SaveStoryboards] 已删除旧分镜');
+  }
 
   // 保存新分镜（与 saveFromWorkflow 一致：prompt_template + variables_json）
   for (let i = 0; i < scenes.length; i++) {
     const scene = scenes[i];
+    const actualIdx = idxOffset + i;
     await execute(
       `INSERT INTO storyboards (project_id, script_id, idx, prompt_template, variables_json) 
        VALUES (?, ?, ?, ?, ?)`,
       [
         projectId,
         scriptId,
-        i,
+        actualIdx,
         scene.description || scene.prompt_template || '',
         JSON.stringify(scene.variables || scene)
       ]
@@ -49,23 +62,11 @@ async function handleSaveStoryboards(inputParams, onProgress) {
   }
 
   console.log('[SaveStoryboards] 保存了', scenes.length, '个分镜');
-  if (onProgress) onProgress(50);
-
-  // 建立分镜与角色/场景的强ID关联（与 saveFromWorkflow 一致）
-  try {
-    const { linkAllForScript } = require('../../../resourceLinks');
-    const linkResult = await linkAllForScript(scriptId, projectId);
-    console.log('[SaveStoryboards] 资源关联结果:', linkResult);
-  } catch (linkError) {
-    // 关联失败不影响分镜保存结果
-    console.error('[SaveStoryboards] 资源关联失败（不影响分镜）:', linkError.message);
-  }
-
-  if (onProgress) onProgress(70);
+  if (onProgress) onProgress(40);
 
   // ============================================
   // 从 scenes.location 汇总场景信息，直接保存到 scenes 表
-  // 代替了原来的 scene_extraction 的 AI 调用
+  // 必须在 linkAllForScript 之前执行，否则关联时找不到场景
   // ============================================
   let scenesExtracted = 0;
   if (userId) {
@@ -102,23 +103,29 @@ async function handleSaveStoryboards(inputParams, onProgress) {
         const envDescription = data.descriptions[0] || '';
         const mood = Array.from(data.emotions).join(', ') || '';
 
+        // 自动生成 environment 和 lighting 默认值
+        const environment = `${locName}场景`;
+        const lighting = '自然光';
+
         if (existing) {
-          // 更新现有场景
+          // 更新现有场景（补充缺失字段）
           await execute(
             `UPDATE scenes 
              SET description = COALESCE(NULLIF(description, ''), ?),
                  mood = COALESCE(NULLIF(mood, ''), ?),
+                 environment = COALESCE(NULLIF(environment, ''), ?),
+                 lighting = COALESCE(NULLIF(lighting, ''), ?),
                  script_id = ?,
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = ?`,
-            [envDescription, mood, scriptId, existing.id]
+            [envDescription, mood, environment, lighting, scriptId, existing.id]
           );
         } else {
-          // 插入新场景
+          // 插入新场景（包含所有必需字段）
           await execute(
-            `INSERT INTO scenes (user_id, project_id, script_id, name, description, mood, source)
-             VALUES (?, ?, ?, ?, ?, ?, 'auto_extracted')`,
-            [userId, projectId, scriptId, locName, envDescription, mood]
+            `INSERT INTO scenes (user_id, project_id, script_id, name, description, mood, environment, lighting, source)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'auto_extracted')`,
+            [userId, projectId, scriptId, locName, envDescription, mood, environment, lighting]
           );
         }
         scenesExtracted++;
@@ -127,6 +134,19 @@ async function handleSaveStoryboards(inputParams, onProgress) {
       }
     }
     console.log('[SaveStoryboards] 场景提取完成:', scenesExtracted);
+  }
+
+  if (onProgress) onProgress(70);
+
+  // 建立分镜与角色/场景的强ID关联（与 saveFromWorkflow 一致）
+  // 注意：必须在场景保存之后执行，否则关联时找不到场景
+  try {
+    const { linkAllForScript } = require('../../../resourceLinks');
+    const linkResult = await linkAllForScript(scriptId, projectId);
+    console.log('[SaveStoryboards] 资源关联结果:', linkResult);
+  } catch (linkError) {
+    // 关联失败不影响分镜保存结果
+    console.error('[SaveStoryboards] 资源关联失败（不影响分镜）:', linkError.message);
   }
 
   if (onProgress) onProgress(100);

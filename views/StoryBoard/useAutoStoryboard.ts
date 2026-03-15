@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStoryboardGeneration } from './hooks/useStoryboardGeneration';
+import { useStoryboardGeneration, GenerationProgress } from './hooks/useStoryboardGeneration';
 import { StoryboardScene } from './useSceneManager';
 import { getAuthToken } from '../../services/auth';
 
@@ -11,6 +11,8 @@ interface UseAutoStoryboardOptions {
   textModel: string;
   onScenesGenerated: (scenes: StoryboardScene[]) => void;
   onError?: (message: string) => void;
+  loadStoryboards?: (scriptId: number) => Promise<void>; // 新增：增量加载回调
+  useSceneMode?: boolean; // 新增：是否使用按场景生成模式
 }
 
 export function useAutoStoryboard({
@@ -20,20 +22,27 @@ export function useAutoStoryboard({
   hasExistingScenes,
   textModel,
   onScenesGenerated,
-  onError
+  onError,
+  loadStoryboards,
+  useSceneMode = true // 默认使用按场景生成模式
 }: UseAutoStoryboardOptions) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
 
   // 使用分镜生成 hook
-  const { isGenerating, startGeneration } = useStoryboardGeneration({
+  const { isGenerating, startGeneration, progress, job } = useStoryboardGeneration({
     scriptId,
     projectId,
     isActive,
-    onComplete: () => {
-      // 工作流完成后，刷新页面重新加载分镜
-      window.location.reload();
+    onComplete: async () => {
+      // 工作流完成后，优先使用增量加载，避免整页刷新
+      if (loadStoryboards && scriptId) {
+        await loadStoryboards(scriptId);
+      } else {
+        // 回退：刷新页面
+        window.location.reload();
+      }
     }
   });
 
@@ -49,7 +58,7 @@ export function useAutoStoryboard({
     }
 
     if (!hasExistingScenes) {
-      startGeneration(textModel);
+      startGeneration(textModel, useSceneMode);
       return;
     }
 
@@ -89,7 +98,7 @@ export function useAutoStoryboard({
       return;
     }
     setIsCleaning(false);
-    startGeneration(textModel);
+    startGeneration(textModel, useSceneMode);
   };
 
   // 确认弹窗后执行
@@ -108,6 +117,8 @@ export function useAutoStoryboard({
     dontShowAgain,
     setDontShowAgain,
     handleAutoGenerateClick,
-    handleConfirmGenerate
+    handleConfirmGenerate,
+    progress, // 新增：实时进度信息
+    job // 新增：工作流状态
   };
 }

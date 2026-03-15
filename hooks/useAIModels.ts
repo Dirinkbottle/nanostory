@@ -107,7 +107,9 @@ export function useAIModels(projectId: number | null | undefined): UseAIModelsRe
               restored[key] = modelName;
             }
           }
-          setSelectedState(restored);
+          // 加载完成后立即应用默认值
+          const withDefaults = applyDefaultModels(restored, models);
+          setSelectedState(withDefaults);
         }
       } catch (err) {
         console.error('[useAIModels] 加载已保存模型失败:', err);
@@ -117,7 +119,7 @@ export function useAIModels(projectId: number | null | undefined): UseAIModelsRe
       }
     };
     fetchSaved();
-  }, [projectId]);
+  }, [projectId, models]);
 
   // 3. 当 models 加载完成且 selected 有空值时，自动设置默认模型
   useEffect(() => {

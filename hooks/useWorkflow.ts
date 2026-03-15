@@ -142,7 +142,8 @@ export async function consumeWorkflow(jobId: number): Promise<void> {
 // ============================================================
 
 export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = {}) {
-  const { interval = 500, onCompleted, onFailed, onProgress } = options;
+  // 性能优化：默认轮询间隔从 500ms 降低到 300ms，加快响应速度
+  const { interval = 300, onCompleted, onFailed, onProgress } = options;
 
   const [job, setJob] = useState<WorkflowJob | null>(null);
   const [loading, setLoading] = useState(false);
@@ -161,12 +162,17 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
   // 标识轮询是否活跃（用于 setTimeout 链式调度的中止控制）
   const pollingActiveRef = useRef(false);
 
-  // 自适应轮询间隔：前20次用初始间隔，之后逐渐放慢
+  // 性能优化：自适应轮询间隔
+  // - 前15次：300ms（快速响应）
+  // - 15-30次：600ms（中速）
+  // - 30-50次：1000ms（稳定）
+  // - 50次以上：1500ms（长时任务）
   const getAdaptiveInterval = useCallback(() => {
     const count = pollCountRef.current;
-    if (count < 20) return interval;
-    if (count < 40) return interval * 2;
-    return interval * 3;
+    if (count < 15) return interval;          // 前15次用初始间隔
+    if (count < 30) return interval * 2;      // 15-30次放慢一3倍
+    if (count < 50) return Math.min(1000, interval * 3); // 30-50次最多1秒
+    return 1500;                              // 50次以上固定1.5秒
   }, [interval]);
 
   const fetchJob = useCallback(async (): Promise<boolean> => {

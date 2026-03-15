@@ -196,6 +196,17 @@ ${contentForAnalysis}
     console.warn('[CharacterExtraction] 缺少 projectId 或 userId，跳过数据库保存');
   }
 
+  // 角色创建完成后，重新建立分镜与角色的关联
+  if (scriptId && projectId) {
+    try {
+      const { linkAllForScript } = require('../../../resourceLinks');
+      await linkAllForScript(scriptId, projectId);
+      console.log('[CharacterExtraction] 角色与分镜关联完成');
+    } catch (linkError) {
+      console.error('[CharacterExtraction] 资源关联失败（不影响角色提取）:', linkError.message);
+    }
+  }
+
   if (onProgress) onProgress(100);
 
   return {

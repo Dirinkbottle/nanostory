@@ -149,6 +149,42 @@ module.exports = {
     description: '场景名称',
     category: 'scene'
   },
+  sceneContent: {
+    from: 'sceneContent',
+    defaultValue: null,
+    description: '场景内容（用于按场景生成分镜）',
+    category: 'scene'
+  },
+  sceneNumber: {
+    from: 'sceneNumber',
+    defaultValue: null,
+    description: '场景序号（用于按场景生成分镜）',
+    category: 'scene'
+  },
+  totalScenes: {
+    from: 'totalScenes',
+    defaultValue: null,
+    description: '总场景数（用于按场景生成分镜）',
+    category: 'scene'
+  },
+  previousSceneContext: {
+    from: 'previousSceneContext',
+    defaultValue: '',
+    description: '上一场景的结束状态（用于保持连贯性）',
+    category: 'scene'
+  },
+  appendMode: {
+    from: 'appendMode',
+    defaultValue: false,
+    description: '追加模式（不删除旧分镜，直接追加）',
+    category: 'scene'
+  },
+  clearExisting: {
+    from: 'clearExisting',
+    defaultValue: true,
+    description: '是否清理现有分镜（批量分镜生成时使用）',
+    category: 'scene'
+  },
   environment: {
     from: 'environment',
     defaultValue: null,

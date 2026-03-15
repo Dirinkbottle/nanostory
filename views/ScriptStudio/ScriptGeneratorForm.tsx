@@ -14,6 +14,13 @@ interface ScriptGeneratorFormProps {
   onLengthChange: (value: string) => void;
   onGenerate: () => void;
   onManualSave: (title: string, content: string) => void;
+  // 新增：生成进度信息
+  generationProgress?: {
+    step: number;
+    totalSteps: number;
+    stepName: string;
+    progress: number;
+  } | null;
 }
 
 const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
@@ -26,7 +33,8 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
   onDescriptionChange,
   onLengthChange,
   onGenerate,
-  onManualSave
+  onManualSave,
+  generationProgress
 }) => {
   const isFirstEpisode = nextEpisode === 1;
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
@@ -134,11 +142,17 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
             <Button
               className="w-full text-white font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 bg-gradient-to-r from-blue-500 to-violet-600 hover:from-blue-600 hover:to-violet-700 shadow-blue-500/20"
               size="lg"
-              startContent={<FileText className="w-5 h-5" />}
+              startContent={!loading && <FileText className="w-5 h-5" />}
               isLoading={loading}
               onPress={onGenerate}
             >
-              {loading ? '生成中...' : `生成第${nextEpisode}集`}
+              {loading 
+                ? (generationProgress 
+                    ? `${generationProgress.step}/${generationProgress.totalSteps} ${generationProgress.stepName}...` 
+                    : '启动生成...'
+                  )
+                : `生成第${nextEpisode}集`
+              }
             </Button>
           </>
         ) : (

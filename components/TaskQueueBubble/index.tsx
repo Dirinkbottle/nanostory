@@ -5,6 +5,23 @@ import { getAuthToken } from '../../services/auth';
 import { useTaskQueue } from './useTaskQueue';
 import TaskItem from './TaskItem';
 
+// 自定义滚动条样式
+const scrollbarStyles = `
+  .task-list-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .task-list-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .task-list-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.5);
+    border-radius: 3px;
+  }
+  .task-list-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.8);
+  }
+`;
+
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'running': return 'text-blue-400';
@@ -316,6 +333,9 @@ const TaskQueueBubble: React.FC = () => {
 
   return (
     <>
+      {/* 注入滚动条样式 */}
+      <style>{scrollbarStyles}</style>
+      
       {/* 浮动小球 */}
       {!isOpen && (
         <button
@@ -378,8 +398,11 @@ const TaskQueueBubble: React.FC = () => {
             </button>
           </div>
 
-          {/* 任务列表 */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {/* 任务列表 - 最多显示3个，超出滚动 */}
+          <div 
+            className="overflow-y-auto p-3 space-y-2 task-list-scrollbar"
+            style={{ maxHeight: '240px' }}
+          >
             {loading && jobs.length === 0 ? (
               <div className="flex items-center justify-center py-8">
                 <Spinner size="sm" />

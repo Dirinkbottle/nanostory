@@ -9,6 +9,87 @@ interface ScriptPreviewProps {
   onContentChange: (value: string) => void;
 }
 
+// 剧本内容渲染器：将 Markdown 格式的剧本转换为美化的 HTML
+const renderScriptContent = (content: string) => {
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+  let key = 0;
+
+  lines.forEach((line, index) => {
+    const trimmedLine = line.trim();
+    
+    // 场景标题: ## 场景X：XXX
+    if (trimmedLine.startsWith('## ')) {
+      const title = trimmedLine.substring(3);
+      elements.push(
+        <h2 key={key++} className="text-xl font-bold text-blue-400 mt-8 mb-4 pb-2 border-b border-slate-600/50 first:mt-0">
+          {title}
+        </h2>
+      );
+      return;
+    }
+
+    // 分隔线: ---
+    if (trimmedLine === '---') {
+      elements.push(
+        <hr key={key++} className="my-6 border-t border-slate-600/30" />
+      );
+      return;
+    }
+
+    // 场景描述: *...*
+    if (trimmedLine.startsWith('*') && trimmedLine.endsWith('*') && trimmedLine.length > 2) {
+      const desc = trimmedLine.slice(1, -1);
+      elements.push(
+        <p key={key++} className="text-slate-400 italic my-4 pl-4 border-l-2 border-slate-600/50 leading-relaxed">
+          {desc}
+        </p>
+      );
+      return;
+    }
+
+    // 角色对白: **角色名**：“...” 或 **角色名**："..."
+    const dialogueMatch = trimmedLine.match(/^\*\*(.+?)\*\*[:：]\s*[\u201c"](.+)[\u201d"]$/);
+    if (dialogueMatch) {
+      const [, characterName, dialogue] = dialogueMatch;
+      elements.push(
+        <div key={key++} className="my-3 flex items-start gap-3">
+          <span className="font-bold text-emerald-400 whitespace-nowrap min-w-[4rem]">{characterName}</span>
+          <span className="text-slate-200 leading-relaxed">“{dialogue}”</span>
+        </div>
+      );
+      return;
+    }
+
+    // 动作指示: （...） 或 (...)
+    if ((trimmedLine.startsWith('（') && trimmedLine.endsWith('）')) ||
+        (trimmedLine.startsWith('(') && trimmedLine.endsWith(')'))) {
+      const action = trimmedLine.slice(1, -1);
+      elements.push(
+        <p key={key++} className="text-amber-400/80 text-sm my-2 pl-6 italic">
+          （{action}）
+        </p>
+      );
+      return;
+    }
+
+    // 空行
+    if (trimmedLine === '') {
+      elements.push(<div key={key++} className="h-2" />);
+      return;
+    }
+
+    // 普通文本
+    elements.push(
+      <p key={key++} className="text-slate-300 my-2 leading-relaxed">
+        {line}
+      </p>
+    );
+  });
+
+  return elements;
+};
+
 const ScriptPreview: React.FC<ScriptPreviewProps> = ({
   content,
   isEditing,
@@ -48,13 +129,11 @@ const ScriptPreview: React.FC<ScriptPreviewProps> = ({
             <textarea
               value={content}
               onChange={(e) => onContentChange(e.target.value)}
-              className="flex-1 min-h-0 w-full bg-slate-800/60 text-slate-200 font-medium leading-relaxed text-base border border-slate-600/50 rounded-lg p-4 resize-none overflow-auto outline-none focus:border-blue-500/70 transition-colors"
+              className="flex-1 min-h-0 w-full bg-slate-800/60 text-slate-200 font-medium leading-relaxed text-base border border-slate-600/50 rounded-lg p-4 resize-none overflow-auto outline-none focus:border-blue-500/70 transition-colors font-mono"
             />
           ) : (
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
-              <pre className="whitespace-pre-wrap text-slate-300 font-medium leading-relaxed text-base break-words">
-                {content}
-              </pre>
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 script-content">
+              {renderScriptContent(content)}
             </div>
           )}
         </CardBody>
