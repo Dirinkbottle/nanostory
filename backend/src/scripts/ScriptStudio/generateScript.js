@@ -3,7 +3,7 @@
  * 生成剧本（使用工作流引擎）
  */
 
-const { queryOne, execute, getLastInsertId } = require('../../dbHelper');
+const { queryOne, execute } = require('../../dbHelper');
 
 async function generateScript(req, res) {
   const { projectId, title, description, style, length, episodeNumber, textModel } = req.body || {};
@@ -65,11 +65,11 @@ async function generateScript(req, res) {
     }
 
     // 创建生成中的剧本记录
-    await execute(
+    const insertResult = await execute(
       'INSERT INTO scripts (user_id, project_id, episode_number, title, content, status) VALUES (?, ?, ?, ?, ?, ?)', 
       [userId, projectId, targetEpisode, title || `第${targetEpisode}集`, '', 'generating']
     );
-    const scriptId = await getLastInsertId();
+    const scriptId = insertResult.insertId;
 
     // 使用工作流引擎生成剧本
     const engine = require('../../nosyntask/engine/index');

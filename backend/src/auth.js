@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { queryOne, execute, getLastInsertId } = require('./dbHelper');
+const { queryOne, execute } = require('./dbHelper');
 const { JWT_SECRET } = require('./middleware');
 
 const router = express.Router();
@@ -70,8 +70,8 @@ router.post('/register', async (req, res) => {
 
     const passwordHash = bcrypt.hashSync(password, 10);
 
-    await execute('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)', [username, passwordHash, 'user']);
-    const userId = await getLastInsertId();
+    const result = await execute('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)', [username, passwordHash, 'user']);
+    const userId = result.insertId;
 
     const token = jwt.sign({ userId, email: username, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
     return res.json({

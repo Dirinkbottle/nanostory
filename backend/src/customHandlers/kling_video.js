@@ -10,37 +10,8 @@
  */
 
 const fetch = require('node-fetch');
-const jwt = require('jsonwebtoken');
-
-/**
- * 用 AK/SK 生成可灵 API 的 JWT token
- * @param {string} apiKey - 格式: "access_key+secret_key"（用 '+' 分隔）
- * @returns {string} JWT token
- */
-function generateKlingJWT(apiKey) {
-  const plusIdx = apiKey.indexOf('+');
-  if (plusIdx <= 0 || plusIdx >= apiKey.length - 1) {
-    throw new Error('可灵 API Key 格式错误，应为 "AccessKey+SecretKey"（用 + 分隔）');
-  }
-  const ak = apiKey.substring(0, plusIdx).trim();
-  const sk = apiKey.substring(plusIdx + 1).trim();
-
-  console.log(`[Kling JWT] AK: ${ak.substring(0, 6)}..., SK length: ${sk.length}`);
-
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: ak,
-    exp: now + 1800, // 有效时间 30 分钟
-    nbf: now - 300,  // 开始生效时间：当前时间 - 5 分钟（容忍时钟偏差）
-    iat: now - 300   // 签发时间也往前调
-  };
-
-  const token = jwt.sign(payload, sk, {
-    algorithm: 'HS256',
-    header: { alg: 'HS256', typ: 'JWT' }
-  });
-  return token;
-}
+const { generateKlingJWT } = require('./kling_utils');
+const { sanitizeHeaders } = require('../utils/logSanitizer');
 
 module.exports = {
   /**
@@ -60,7 +31,7 @@ module.exports = {
       }
     }
     rendered.headers['Authorization'] = `Bearer ${token}`;
-    console.log('[Kling Handler] Headers:', JSON.stringify(rendered.headers));
+    console.log('[Kling Handler] Headers:', JSON.stringify(sanitizeHeaders(rendered.headers)));
 
     // 2. 处理图片参数：imageUrls 拆分为首帧和尾帧
     //    imageUrls[0] → image（首帧，必须）
@@ -88,11 +59,25 @@ module.exports = {
     console.log(`[Kling Handler] Call ${rendered.url}`);
     console.log('[Kling Handler] Body:', JSON.stringify(rendered.body, null, 2));
 
-    const response = await fetch(rendered.url, {
-      method: rendered.method || 'POST',
-      headers: rendered.headers,
-      body: JSON.stringify(rendered.body)
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000);
+
+    let response;
+    try {
+      response = await fetch(rendered.url, {
+        method: rendered.method || 'POST',
+        headers: rendered.headers,
+        body: JSON.stringify(rendered.body),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+    } catch (err) {
+      clearTimeout(timeout);
+      if (err.name === 'AbortError') {
+        throw new Error('Kling API 请求超时（120秒）');
+      }
+      throw err;
+    }
 
     const responseText = await response.text();
     console.log('[Kling Handler] Response status:', response.status);

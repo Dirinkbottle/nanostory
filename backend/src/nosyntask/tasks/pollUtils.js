@@ -44,17 +44,142 @@ function parseJson(val) {
 function evaluateCondition(mappedResult, conditionExpr) {
   if (!conditionExpr) return false;
   try {
-    // 把映射结果的所有 key 作为局部变量注入
-    const keys = Object.keys(mappedResult);
-    const values = Object.values(mappedResult).map(v => 
-      v === undefined || v === null ? '' : v
-    );
-    const fn = new Function(...keys, `return (${conditionExpr});`);
-    return !!fn(...values);
+    return !!_safeEval(mappedResult, conditionExpr);
   } catch (err) {
     console.warn('[PollUtils] 条件表达式执行失败:', conditionExpr, err.message);
     return false;
   }
+}
+
+/**
+ * 安全条件表达式求值器（递归下降解析器）
+ * 
+ * 仅支持：== != || && 运算符、字符串/数字字面量、变量标识符、括号分组
+ * 不使用 eval / new Function，杜绝代码注入风险
+ */
+function _safeEval(vars, expr) {
+  let pos = 0;
+
+  function peek() { skipSpaces(); return expr[pos]; }
+  function skipSpaces() { while (pos < expr.length && expr[pos] === ' ') pos++; }
+
+  // 词法：读取一个 token
+  function readToken() {
+    skipSpaces();
+    if (pos >= expr.length) return null;
+    const ch = expr[pos];
+
+    // 字符串字面量
+    if (ch === '"' || ch === "'") {
+      const quote = ch;
+      pos++;
+      let str = '';
+      while (pos < expr.length && expr[pos] !== quote) {
+        if (expr[pos] === '\\' && pos + 1 < expr.length) { pos++; str += expr[pos]; }
+        else { str += expr[pos]; }
+        pos++;
+      }
+      if (pos < expr.length) pos++; // 跳过闭合引号
+      return { type: 'string', value: str };
+    }
+
+    // 数字字面量
+    if (ch >= '0' && ch <= '9') {
+      let num = '';
+      while (pos < expr.length && ((expr[pos] >= '0' && expr[pos] <= '9') || expr[pos] === '.')) {
+        num += expr[pos]; pos++;
+      }
+      return { type: 'number', value: Number(num) };
+    }
+
+    // 运算符
+    if (ch === '=' && expr[pos + 1] === '=') { pos += 2; return { type: 'op', value: '==' }; }
+    if (ch === '!' && expr[pos + 1] === '=') { pos += 2; return { type: 'op', value: '!=' }; }
+    if (ch === '|' && expr[pos + 1] === '|') { pos += 2; return { type: 'op', value: '||' }; }
+    if (ch === '&' && expr[pos + 1] === '&') { pos += 2; return { type: 'op', value: '&&' }; }
+
+    // 括号
+    if (ch === '(') { pos++; return { type: 'paren', value: '(' }; }
+    if (ch === ')') { pos++; return { type: 'paren', value: ')' }; }
+
+    // 标识符（变量名）
+    if (/[a-zA-Z_$]/.test(ch)) {
+      let id = '';
+      while (pos < expr.length && /[a-zA-Z0-9_$]/.test(expr[pos])) {
+        id += expr[pos]; pos++;
+      }
+      return { type: 'ident', value: id };
+    }
+
+    throw new Error(`不支持的字符: '${ch}' (位置 ${pos})`);
+  }
+
+  // 向前看 token（带回退）
+  const tokenCache = [];
+  function nextToken() {
+    if (tokenCache.length > 0) return tokenCache.shift();
+    return readToken();
+  }
+  function pushBack(tok) { if (tok) tokenCache.unshift(tok); }
+
+  // 解析基本值
+  function parsePrimary() {
+    const tok = nextToken();
+    if (!tok) throw new Error('表达式意外结束');
+    if (tok.type === 'string') return tok.value;
+    if (tok.type === 'number') return tok.value;
+    if (tok.type === 'ident') {
+      const v = vars[tok.value];
+      return (v === undefined || v === null) ? '' : v;
+    }
+    if (tok.type === 'paren' && tok.value === '(') {
+      const val = parseOr();
+      const close = nextToken();
+      if (!close || close.value !== ')') throw new Error('缺少闭合括号');
+      return val;
+    }
+    throw new Error(`不支持的 token: ${JSON.stringify(tok)}`);
+  }
+
+  // 解析比较 == !=
+  function parseComparison() {
+    let left = parsePrimary();
+    while (true) {
+      const tok = nextToken();
+      if (!tok || tok.type !== 'op') { pushBack(tok); return left; }
+      if (tok.value === '==') { left = (String(left) === String(parsePrimary())); continue; }
+      if (tok.value === '!=') { left = (String(left) !== String(parsePrimary())); continue; }
+      pushBack(tok); return left;
+    }
+  }
+
+  // 解析 &&
+  function parseAnd() {
+    let left = parseComparison();
+    while (true) {
+      const tok = nextToken();
+      if (tok && tok.type === 'op' && tok.value === '&&') { left = parseComparison() && left; continue; }
+      pushBack(tok); return left;
+    }
+  }
+
+  // 解析 ||
+  function parseOr() {
+    let left = parseAnd();
+    while (true) {
+      const tok = nextToken();
+      if (tok && tok.type === 'op' && tok.value === '||') { left = parseAnd() || left; continue; }
+      pushBack(tok); return left;
+    }
+  }
+
+  const result = parseOr();
+  // 确保表达式完全消费
+  const remaining = nextToken();
+  if (remaining) {
+    throw new Error(`表达式末尾有多余内容: ${JSON.stringify(remaining)}`);
+  }
+  return result;
 }
 
 

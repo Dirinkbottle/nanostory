@@ -9,10 +9,13 @@ const ContextBuilder = require('./ContextBuilder');
 const JobStatusManager = require('./JobStatusManager');
 const { runWithTrace } = require('./generationTrace');
 
+const MAX_STEPS = 50; // 单个工作流最大步骤数，防止无限递归
+
 class WorkflowExecutor {
   constructor() {
     this.contextBuilder = new ContextBuilder();
     this.jobStatusManager = new JobStatusManager();
+    this.stepCounters = new Map(); // jobId -> 已执行步骤计数
   }
 
   /**
@@ -20,6 +23,15 @@ class WorkflowExecutor {
    * 这是引擎的核心调度逻辑
    */
   async runNextStep(jobId) {
+    // 步骤计数保护：防止无限递归
+    const count = (this.stepCounters.get(jobId) || 0) + 1;
+    this.stepCounters.set(jobId, count);
+    if (count > MAX_STEPS) {
+      this.stepCounters.delete(jobId);
+      await this.jobStatusManager.failJob(jobId, `工作流执行超过最大步骤数（${MAX_STEPS}），已强制终止`);
+      return;
+    }
+
     // 获取 Job 信息
     const job = await queryOne('SELECT * FROM workflow_jobs WHERE id = ?', [jobId]);
     if (!job) {
@@ -48,6 +60,7 @@ class WorkflowExecutor {
 
     if (!pendingTask) {
       // 所有步骤都完成了
+      this.stepCounters.delete(jobId);
       await this.jobStatusManager.completeJob(jobId);
       return;
     }

@@ -1,5 +1,5 @@
 const express = require('express');
-const { queryOne, queryAll, execute, getLastInsertId } = require('./dbHelper');
+const { queryOne, queryAll, execute } = require('./dbHelper');
 const { authMiddleware, requireAdmin } = require('./middleware');
 
 const router = express.Router();
@@ -84,7 +84,7 @@ router.post('/admin', authMiddleware, requireAdmin, async (req, res) => {
       return res.status(409).json({ message: '配置键已存在' });
     }
 
-    await execute(
+    const result = await execute(
       `INSERT INTO system_configs (config_key, config_name, config_type, config_value, description, is_active)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [
@@ -97,7 +97,7 @@ router.post('/admin', authMiddleware, requireAdmin, async (req, res) => {
       ]
     );
 
-    const id = await getLastInsertId();
+    const id = result.insertId;
     const config = await queryOne('SELECT * FROM system_configs WHERE id = ?', [id]);
 
     res.json({ message: '配置创建成功', config });

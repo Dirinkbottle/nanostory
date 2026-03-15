@@ -25,8 +25,8 @@ module.exports = {
       throw new Error('Nano Banana Query: 缺少 taskId 参数');
     }
 
-    // 使用国内节点
-    const queryUrl = 'https://grsai.dakka.com.cn/v1/draw/result';
+    // 使用模板渲染的 URL，如果有的话；否则使用默认国内节点
+    const queryUrl = rendered.url || 'https://grsai.dakka.com.cn/v1/draw/result';
 
     const requestBody = {
       id: taskId
@@ -36,14 +36,28 @@ module.exports = {
     console.log('[Nano Banana Query] 请求体:', JSON.stringify(requestBody, null, 2));
 
     // 2. 发送查询请求
-    const response = await fetch(queryUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${model.api_key}`
-      },
-      body: JSON.stringify(requestBody)
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
+    let response;
+    try {
+      response = await fetch(queryUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${model.api_key}`
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+    } catch (err) {
+      clearTimeout(timeout);
+      if (err.name === 'AbortError') {
+        throw new Error('Nano Banana Query API 请求超时（60秒）');
+      }
+      throw err;
+    }
 
     const responseText = await response.text();
     console.log('[Nano Banana Query] 响应状态:', response.status);

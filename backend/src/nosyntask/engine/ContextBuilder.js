@@ -19,15 +19,27 @@ class ContextBuilder {
 
     const previousResults = {};
     for (const task of completedTasks) {
-      const data = typeof task.result_data === 'string' 
-        ? JSON.parse(task.result_data) 
-        : task.result_data;
+      let data;
+      try {
+        data = typeof task.result_data === 'string' 
+          ? JSON.parse(task.result_data) 
+          : task.result_data;
+      } catch (e) {
+        console.error(`[ContextBuilder] JSON.parse result_data 失败 (step ${task.step_index}):`, e.message);
+        data = null;
+      }
       previousResults[task.step_index] = data;
     }
 
-    const jobParams = typeof job.input_params === 'string'
-      ? JSON.parse(job.input_params)
-      : job.input_params;
+    let jobParams;
+    try {
+      jobParams = typeof job.input_params === 'string'
+        ? JSON.parse(job.input_params)
+        : job.input_params;
+    } catch (e) {
+      console.error(`[ContextBuilder] JSON.parse input_params 失败 (jobId ${jobId}):`, e.message);
+      jobParams = {};
+    }
 
     return {
       jobParams,

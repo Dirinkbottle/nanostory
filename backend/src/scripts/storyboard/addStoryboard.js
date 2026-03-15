@@ -3,7 +3,7 @@
  * 手动添加单个分镜，返回真实 DB ID
  */
 
-const { queryOne, execute, getLastInsertId } = require('../../dbHelper');
+const { queryOne, execute } = require('../../dbHelper');
 
 async function addStoryboard(req, res) {
   const userId = req.user.id;
@@ -22,12 +22,12 @@ async function addStoryboard(req, res) {
       return res.status(404).json({ message: '剧本不存在或无权限' });
     }
 
-    await execute(
+    const result = await execute(
       'INSERT INTO storyboards (project_id, script_id, idx, prompt_template, variables_json) VALUES (?, ?, ?, ?, ?)',
       [script.project_id, scriptId, idx || 0, prompt_template || '', JSON.stringify(variables_json || {})]
     );
 
-    const id = await getLastInsertId();
+    const id = result.insertId;
     console.log(`[AddStoryboard] 新增分镜 id=${id}, scriptId=${scriptId}, idx=${idx}`);
 
     res.json({ id, message: '分镜已添加' });

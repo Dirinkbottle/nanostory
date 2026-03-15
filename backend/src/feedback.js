@@ -1,5 +1,5 @@
 const express = require('express');
-const { queryOne, queryAll, execute, getLastInsertId } = require('./dbHelper');
+const { queryOne, queryAll, execute } = require('./dbHelper');
 const { authMiddleware } = require('./middleware');
 
 const router = express.Router();
@@ -46,13 +46,13 @@ router.post('/', authMiddleware, async (req, res) => {
     const validTypes = ['bug', 'feature', 'improvement', 'other'];
     const feedbackType = validTypes.includes(type) ? type : 'other';
 
-    await execute(
+    const result = await execute(
       `INSERT INTO feedback (user_id, project_id, type, content, contact)
        VALUES (?, ?, ?, ?, ?)`,
       [userId, projectId || null, feedbackType, content.trim(), contact || null]
     );
 
-    const id = await getLastInsertId();
+    const id = result.insertId;
     res.status(201).json({ success: true, id });
   } catch (err) {
     console.error('[Feedback] 提交反馈失败:', err);

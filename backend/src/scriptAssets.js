@@ -1,5 +1,5 @@
 const express = require('express');
-const { queryOne, queryAll, execute, getLastInsertId } = require('./dbHelper');
+const { queryOne, queryAll, execute } = require('./dbHelper');
 const { authMiddleware } = require('./middleware');
 
 const router = express.Router();
@@ -53,13 +53,13 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 
   try {
-    await execute(
+    const result = await execute(
       `INSERT INTO script_assets (user_id, name, description, content, genre, duration, image_url, tags) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [userId, name, description || '', content || '', genre || '', duration || '', image_url || '', tags || '']
     );
 
-    const id = await getLastInsertId();
+    const id = result.insertId;
     const scriptAsset = await queryOne('SELECT * FROM script_assets WHERE id = ?', [id]);
 
     res.json({ message: '剧本创建成功', scriptAsset });

@@ -1,5 +1,5 @@
 const express = require('express');
-const { queryOne, queryAll, execute, getLastInsertId } = require('../../dbHelper');
+const { queryOne, queryAll, execute } = require('../../dbHelper');
 const { authMiddleware } = require('../../middleware');
 
 const router = express.Router();
@@ -90,13 +90,13 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 
   try {
-    await execute(
+    const result = await execute(
       `INSERT INTO scenes (user_id, name, description, environment, lighting, mood, image_url, tags) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [userId, name, description || '', environment || '', lighting || '', mood || '', image_url || '', tags || '']
     );
 
-    const id = await getLastInsertId();
+    const id = result.insertId;
     const scene = await queryOne('SELECT * FROM scenes WHERE id = ?', [id]);
 
     res.json({ message: '场景创建成功', scene });

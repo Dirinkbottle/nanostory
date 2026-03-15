@@ -189,11 +189,26 @@ module.exports = {
 
     // 4. 发送请求
     console.log(`[Seedance1.5 Handler] 调用 ${rendered.url}`);
-    const response = await fetch(rendered.url, {
-      method: rendered.method || 'POST',
-      headers: rendered.headers,
-      body: JSON.stringify(requestBody)
-    });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000);
+
+    let response;
+    try {
+      response = await fetch(rendered.url, {
+        method: rendered.method || 'POST',
+        headers: rendered.headers,
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+    } catch (err) {
+      clearTimeout(timeout);
+      if (err.name === 'AbortError') {
+        throw new Error('Seedance 1.5 API 请求超时（120秒）');
+      }
+      throw err;
+    }
 
     const responseText = await response.text();
     console.log('[Seedance1.5 Handler] 响应状态:', response.status);

@@ -12,7 +12,7 @@ if (!JWT_SECRET || JWT_SECRET === 'dev-secret-change-me') {
   }
 }
 
-const ACTUAL_SECRET = JWT_SECRET || 'dev-temp-secret-' + Date.now();
+const ACTUAL_SECRET = JWT_SECRET || require('crypto').randomBytes(64).toString('hex');
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers['authorization'];

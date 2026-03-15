@@ -1,4 +1,4 @@
-const { queryOne, execute, getLastInsertId } = require('../../dbHelper');
+const { queryOne, execute } = require('../../dbHelper');
 const { authMiddleware } = require('../../middleware');
 
 // POST / - 创建角色
@@ -12,13 +12,13 @@ module.exports = (router) => {
     }
 
     try {
-      await execute(
+      const result = await execute(
         `INSERT INTO characters (user_id, name, description, appearance, personality, image_url, tags) 
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [userId, name, description || '', appearance || '', personality || '', image_url || '', tags || '']
       );
 
-      const id = await getLastInsertId();
+      const id = result.insertId;
       const character = await queryOne('SELECT * FROM characters WHERE id = ?', [id]);
 
       res.json({ message: '角色创建成功', character });

@@ -1,5 +1,5 @@
 const express = require('express');
-const { queryOne, queryAll, execute, getLastInsertId } = require('./dbHelper');
+const { queryOne, queryAll, execute } = require('./dbHelper');
 const { authMiddleware } = require('./middleware');
 const { VISUAL_STYLE_PRESETS } = require('./utils/getProjectStyle');
 
@@ -60,13 +60,13 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 
   try {
-    await execute(
+    const result = await execute(
       `INSERT INTO projects (user_id, name, description, cover_url, type, status, settings_json) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [userId, name, description || '', cover_url || '', type || 'comic', status || 'draft', settings_json || '{}']
     );
 
-    const id = await getLastInsertId();
+    const id = result.insertId;
     const project = await queryOne('SELECT * FROM projects WHERE id = ?', [id]);
 
     res.json({ message: '工程创建成功', project });

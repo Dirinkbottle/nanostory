@@ -57,19 +57,32 @@ interface UseWorkflowOptions {
 
 async function fetchApi(url: string, options: RequestInit = {}) {
   const token = getAuthToken();
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || '请求失败');
     }
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || '请求失败');
+    return data;
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('请求超时（30秒）');
+    }
+    throw err;
   }
-  return data;
 }
 
 /** 启动工作流 */
@@ -135,8 +148,9 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const callbackRefs = useRef({ onCompleted, onFailed, onProgress });
+  const pollCountRef = useRef(0);
 
   // 保持回调引用最新
   useEffect(() => {
@@ -144,11 +158,21 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
   }, [onCompleted, onFailed, onProgress]);
 
   const isInitialFetch = useRef(true);
+  // 标识轮询是否活跃（用于 setTimeout 链式调度的中止控制）
+  const pollingActiveRef = useRef(false);
 
-  const fetchJob = useCallback(async () => {
-    if (!jobId) return;
+  // 自适应轮询间隔：前20次用初始间隔，之后逐渐放慢
+  const getAdaptiveInterval = useCallback(() => {
+    const count = pollCountRef.current;
+    if (count < 20) return interval;
+    if (count < 40) return interval * 2;
+    return interval * 3;
+  }, [interval]);
+
+  const fetchJob = useCallback(async (): Promise<boolean> => {
+    if (!jobId) return true; // 返回 true 表示终态，应停止轮询
+    pollCountRef.current++;
     try {
-      // 仅首次拉取时显示 loading，轮询中不触发重渲染
       if (isInitialFetch.current) {
         setLoading(true);
       }
@@ -156,48 +180,61 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
       const data = await getWorkflowStatus(jobId);
       setJob(data);
 
-      // 进度回调
       callbackRefs.current.onProgress?.(data);
 
-      // 终态：停止轮询
       if (data.status === 'completed') {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
         callbackRefs.current.onCompleted?.(data);
+        return true;
       } else if (data.status === 'failed') {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
         callbackRefs.current.onFailed?.(data);
+        return true;
       } else if (data.status === 'cancelled') {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
+        return true;
       }
+      return false;
     } catch (err: any) {
       setError(err.message);
+      return false; // 出错继续轮询
     } finally {
       setLoading(false);
       isInitialFetch.current = false;
     }
   }, [jobId]);
 
-  // 开始轮询
+  // 开始轮询（使用 setTimeout 递归实现自适应间隔）
   const startPolling = useCallback(() => {
     if (!jobId) return;
-    fetchJob();
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(fetchJob, interval);
-  }, [jobId, interval, fetchJob]);
+    pollCountRef.current = 0;
+    pollingActiveRef.current = true;
+
+    const scheduleNext = () => {
+      if (!pollingActiveRef.current) return;
+      intervalRef.current = setTimeout(async () => {
+        const done = await fetchJob();
+        if (done || !pollingActiveRef.current) {
+          pollingActiveRef.current = false;
+          intervalRef.current = null;
+        } else {
+          scheduleNext();
+        }
+      }, getAdaptiveInterval());
+    };
+
+    // 立即执行第一次，然后开始调度
+    fetchJob().then(done => {
+      if (done || !pollingActiveRef.current) {
+        pollingActiveRef.current = false;
+      } else {
+        scheduleNext();
+      }
+    });
+  }, [jobId, fetchJob, getAdaptiveInterval]);
 
   // 停止轮询
   const stopPolling = useCallback(() => {
+    pollingActiveRef.current = false;
     if (intervalRef.current) {
-      clearInterval(intervalRef.current);
+      clearTimeout(intervalRef.current);
       intervalRef.current = null;
     }
   }, []);

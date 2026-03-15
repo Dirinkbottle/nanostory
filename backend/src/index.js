@@ -25,7 +25,18 @@ const app = express();
 
 // Helmet - 设置安全 HTTP 响应头
 app.use(helmet({
-  contentSecurityPolicy: false, // 前端 SPA 需要灵活的 CSP
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      mediaSrc: ["'self'", "https:", "blob:"],
+      connectSrc: ["'self'", "https:"],
+      fontSrc: ["'self'", "data:"],
+      frameSrc: ["'none'"]
+    }
+  },
   crossOriginEmbedderPolicy: false // 允许加载跨域图片资源
 }));
 

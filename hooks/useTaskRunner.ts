@@ -85,8 +85,11 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
       try {
         const job = await getWorkflowStatus(jobId);
         failCount = 0; // 请求成功，重置失败计数
-        const task = job.tasks?.[0];
-        const progress = task?.progress ?? 0;
+        // 计算所有任务的加权进度
+        const allTasks = job.tasks || [];
+        const progress = allTasks.length > 0
+          ? Math.round(allTasks.reduce((sum: number, t: any) => sum + (t.progress ?? 0), 0) / allTasks.length)
+          : 0;
 
         updateTask(key, {
           status: job.status,
@@ -95,16 +98,18 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
 
         if (job.status === 'completed') {
           stopPolling(key);
+          const lastTask = allTasks[allTasks.length - 1];
           updateTask(key, {
             status: 'completed',
             progress: 100,
-            result: task?.result_data ?? null
+            result: lastTask?.result_data ?? null
           });
         } else if (job.status === 'failed' || job.status === 'cancelled') {
           stopPolling(key);
+          const failedTask = allTasks.find((t: any) => t.status === 'failed');
           updateTask(key, {
             status: job.status,
-            error: job.error_message || task?.error_message || '任务失败'
+            error: job.error_message || failedTask?.error_message || '任务失败'
           });
         }
       } catch (err: any) {

@@ -27,7 +27,7 @@ INSERT INTO ai_model_configs (
   'POST',
   'https://api.x.ai/v1/chat/completions',
   '{"Content-Type": "application/json", "Authorization": "Bearer {{apiKey}}"}',
-  '{"model": "grok-4.1-fast", "messages": {{messages}}, "max_tokens": {{maxTokens}}, "temperature": {{temperature}}}',
+  '{"model": "grok-4.1-fast", "messages": "{{messages}}", "max_tokens": "{{maxTokens}}", "temperature": "{{temperature}}"}',
   '{"maxTokens": 8192, "temperature": 0.7}',
   '{"content": "choices.0.message.content", "tokens": "usage.total_tokens", "finishReason": "choices.0.finish_reason"}'
 )

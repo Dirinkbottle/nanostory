@@ -9,6 +9,11 @@ const {
   renderWithFallback
 } = require('./utils/templateRenderer');
 const { getHandler } = require('./customHandlers');
+const { sanitizeHeaders } = require('./utils/logSanitizer');
+const { parseJsonField } = require('./utils/parseJsonField');
+
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const isDebug = LOG_LEVEL === 'debug';
 
 /**
  * 统一的 AI 模型调用接口
@@ -30,25 +35,11 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
     }
     
     // 解析 JSON 字段
-    const priceConfig = typeof model.price_config === 'string' 
-      ? JSON.parse(model.price_config) 
-      : model.price_config;
-    
-    const headersTemplate = typeof model.headers_template === 'string'
-      ? JSON.parse(model.headers_template)
-      : model.headers_template;
-    
-    const bodyTemplate = model.body_template 
-      ? (typeof model.body_template === 'string' ? JSON.parse(model.body_template) : model.body_template)
-      : null;
-    
-    const defaultParams = model.default_params
-      ? (typeof model.default_params === 'string' ? JSON.parse(model.default_params) : model.default_params)
-      : {};
-    
-    const responseMapping = typeof model.response_mapping === 'string'
-      ? JSON.parse(model.response_mapping)
-      : model.response_mapping;
+    const priceConfig = parseJsonField(model.price_config);
+    const headersTemplate = parseJsonField(model.headers_template);
+    const bodyTemplate = parseJsonField(model.body_template);
+    const defaultParams = parseJsonField(model.default_params, {});
+    const responseMapping = parseJsonField(model.response_mapping);
     
     // API Key 优先级：1. 数据库配置 2. 函数参数 3. 环境变量
     if (!apiKey) {
@@ -143,8 +134,8 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
     // 发送请求
     console.log(`[AI Model] Calling ${modelName}:`, url);
     console.log('[AI Model] Request Method:', requestOptions.method);
-    console.log('[AI Model] Request Headers:', JSON.stringify(requestOptions.headers, null, 2));
-    if (requestOptions.body) {
+    console.log('[AI Model] Request Headers:', JSON.stringify(sanitizeHeaders(requestOptions.headers), null, 2));
+    if (isDebug && requestOptions.body) {
       try {
         const bodyObj = JSON.parse(requestOptions.body);
         const fields = Object.keys(bodyObj);
@@ -192,17 +183,21 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
       clearTimeout(timeout);
       
       console.log('[AI Model] Response Status:', response.status, response.statusText);
-      console.log('[AI Model] Response Headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
+      console.log('[AI Model] Response Headers:', JSON.stringify(sanitizeHeaders(Object.fromEntries(response.headers.entries())), null, 2));
     
       // 获取响应文本
       const responseText = await response.text();
-      console.log('[AI Model] Response Text (first 500 chars):', responseText.substring(0, 500));
+      if (isDebug) {
+        console.log('[AI Model] Response Text (first 500 chars):', responseText.substring(0, 500));
+      }
     
       // 尝试解析 JSON
       try {
         data = JSON.parse(responseText);
-        const dataStr = JSON.stringify(data, null, 2);
-        console.log('[AI Model] Response Data (first 100 chars):', dataStr.substring(0, 100) + (dataStr.length > 100 ? '...' : ''));
+        if (isDebug) {
+          const dataStr = JSON.stringify(data, null, 2);
+          console.log('[AI Model] Response Data (first 100 chars):', dataStr.substring(0, 100) + (dataStr.length > 100 ? '...' : ''));
+        }
       } catch (parseError) {
         console.error('[AI Model] JSON Parse Error:', parseError.message);
         console.error('[AI Model] Raw Response:', responseText);
@@ -306,17 +301,13 @@ async function queryAIModel(modelName, params = {}, apiKey = null) {
     const mergedParams = { ...runtimeParams };
 
     // 解析 default_params 作为兜底
-    const defaultParams = model.default_params
-      ? (typeof model.default_params === 'string' ? JSON.parse(model.default_params) : model.default_params)
-      : {};
+    const defaultParams = parseJsonField(model.default_params, {});
 
     // 两轮渲染查询 URL
     const url = renderWithFallback('string', model.query_url_template, runtimeParams, defaultParams, 'query_url');
 
     // 两轮渲染查询 Headers
-    const queryHeadersTemplate = model.query_headers_template
-      ? (typeof model.query_headers_template === 'string' ? JSON.parse(model.query_headers_template) : model.query_headers_template)
-      : {};
+    const queryHeadersTemplate = parseJsonField(model.query_headers_template, {});
     const headers = renderWithFallback('json', queryHeadersTemplate, runtimeParams, defaultParams, 'query_headers');
 
     // 构建请求
@@ -324,9 +315,7 @@ async function queryAIModel(modelName, params = {}, apiKey = null) {
     const requestOptions = { method: queryMethod, headers };
 
     // 两轮渲染查询 Body
-    const queryBodyTemplate = model.query_body_template
-      ? (typeof model.query_body_template === 'string' ? JSON.parse(model.query_body_template) : model.query_body_template)
-      : null;
+    const queryBodyTemplate = parseJsonField(model.query_body_template);
 
     if (queryBodyTemplate && queryMethod !== 'GET') {
       const renderedBody = renderWithFallback('json', queryBodyTemplate, runtimeParams, defaultParams, 'query_body');
@@ -363,12 +352,12 @@ async function queryAIModel(modelName, params = {}, apiKey = null) {
         
         // handler 返回原始 API 响应 data
         const data = await handler.query(model, mergedParams, rendered);
-        console.log('[AI Model Query] Response:', JSON.stringify(data, null, 2));
+        if (isDebug) {
+          console.log('[AI Model Query] Response:', JSON.stringify(data, null, 2));
+        }
         
         // 外层统一做 query_response_mapping
-        const queryResponseMapping = model.query_response_mapping
-          ? (typeof model.query_response_mapping === 'string' ? JSON.parse(model.query_response_mapping) : model.query_response_mapping)
-          : null;
+        const queryResponseMapping = parseJsonField(model.query_response_mapping);
         
         let result = data;
         if (queryResponseMapping) {
@@ -383,14 +372,30 @@ async function queryAIModel(modelName, params = {}, apiKey = null) {
     
     // === 默认模板 fetch 流程 ===
     console.log(`[AI Model Query] Querying ${modelName}:`, url);
-    const response = await fetch(url, requestOptions);
-    const data = await response.json();
-    console.log('[AI Model Query] Response:', JSON.stringify(data, null, 2));
+
+    // 添加超时控制（60秒）
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
+    let data;
+    try {
+      const response = await fetch(url, { ...requestOptions, signal: controller.signal });
+      clearTimeout(timeout);
+      data = await response.json();
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      if (fetchError.name === 'AbortError') {
+        throw new Error('查询请求超时（60秒），请稍后重试');
+      }
+      throw fetchError;
+    }
+
+    if (isDebug) {
+      console.log('[AI Model Query] Response:', JSON.stringify(data, null, 2));
+    }
 
     // 使用查询响应映射
-    const queryResponseMapping = model.query_response_mapping
-      ? (typeof model.query_response_mapping === 'string' ? JSON.parse(model.query_response_mapping) : model.query_response_mapping)
-      : null;
+    const queryResponseMapping = parseJsonField(model.query_response_mapping);
 
     let result = data;
     if (queryResponseMapping) {

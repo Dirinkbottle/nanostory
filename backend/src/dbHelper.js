@@ -18,6 +18,7 @@ async function queryAll(sql, params = []) {
   return rows || [];
 }
 
+/** @deprecated 使用 result.insertId 替代，在连接池中此函数不安全 */
 async function getLastInsertId() {
   const pool = getPool();
   const [result] = await pool.query('SELECT LAST_INSERT_ID() as id');

@@ -68,7 +68,7 @@ module.exports = {
     } catch (err) {
       clearTimeout(timeout);
       if (err.name === 'AbortError') {
-        throw new Error('DeepSeek API 请求超时（600秒）');
+        throw new Error('DeepSeek API 请求超时（1200秒）');
       }
       throw err;
     }

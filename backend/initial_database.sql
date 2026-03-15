@@ -342,11 +342,11 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
   INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI生成任务追踪表';
 
--- 初始化默认管理员账户
--- 账号: admin, 密码: 123 (使用 bcrypt 加密，cost=10)
-INSERT INTO users (email, password_hash, role, balance) 
-VALUES ('admin', '$2a$10$Np.BhyKQQ3Tj56Ls1NE3Xu3ChejTyovBjvlNuOkdmori5CyCCWiSq', 'admin', 999999.00)
-ON DUPLICATE KEY UPDATE email=email;
+-- 初始化默认管理员账户（已移除硬编码凭证，请手动创建）
+-- NOTE: Default admin removed for security. Create admin via:
+--   INSERT INTO users (email, password_hash, role, balance)
+--   VALUES ('admin', '<bcrypt_hash>', 'admin', 100.00);
+-- Generate hash: node -e "console.log(require('bcryptjs').hashSync('your-password', 10))"
 
 -- 初始化 DeepSeek 模型配置
 -- 注意：api_key 字段需要手动在数据库中更新，或通过管理后台配置

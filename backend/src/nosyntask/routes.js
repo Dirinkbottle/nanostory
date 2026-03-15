@@ -69,6 +69,9 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!workflowType) {
       return res.status(400).json({ message: '缺少 workflowType' });
     }
+    if (!projectId || !Number.isInteger(Number(projectId)) || Number(projectId) <= 0) {
+      return res.status(400).json({ message: 'projectId 必须为正整数' });
+    }
 
     const result = await engine.startWorkflow(workflowType, {
       userId,

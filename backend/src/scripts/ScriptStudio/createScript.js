@@ -3,7 +3,7 @@
  * 手动创建剧本（非 AI 生成）
  */
 
-const { queryOne, execute, getLastInsertId } = require('../../dbHelper');
+const { queryOne, execute } = require('../../dbHelper');
 
 async function createScript(req, res) {
   const { projectId, title, content, episodeNumber } = req.body || {};
@@ -43,11 +43,11 @@ async function createScript(req, res) {
     }
 
     // 插入剧本记录
-    await execute(
+    const result = await execute(
       'INSERT INTO scripts (user_id, project_id, episode_number, title, content, status, model_provider, token_used) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [userId, projectId, targetEpisode, title || `第${targetEpisode}集`, content, 'completed', 'manual', 0]
     );
-    const scriptId = await getLastInsertId();
+    const scriptId = result.insertId;
 
     res.json({
       success: true,
