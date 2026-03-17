@@ -11,7 +11,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { startWorkflow, getWorkflowStatus, getActiveWorkflows, consumeWorkflow, WorkflowJob } from './useWorkflow';
+import { startWorkflow, getWorkflowStatus, getActiveWorkflows, consumeWorkflow, WorkflowJob, ApiError } from './useWorkflow';
 
 export interface TaskState {
   jobId: number;
@@ -50,6 +50,7 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
   const timersRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   // 用 ref 追踪 tasks，供 clearTask 读取 jobId
   const tasksRef = useRef<Record<string, TaskState>>({});
+  const activeKeysRef = useRef<Set<string>>(new Set());
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
 
   // 清理所有定时器
@@ -78,6 +79,7 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
   // 开始轮询某个 jobId
   const startPolling = useCallback((key: string, jobId: number) => {
     stopPolling(key);
+    activeKeysRef.current.add(key);
     let failCount = 0;
     const MAX_FAIL = 3; // 连续失败 3 次才真正停止
 
@@ -142,6 +144,11 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
     workflowType: string,
     params: Record<string, any>
   ): Promise<number> => {
+    if (activeKeysRef.current.has(key)) {
+      throw new Error('任务正在进行中，请等待当前任务结束');
+    }
+
+    activeKeysRef.current.add(key);
     // 初始化状态
     updateTask(key, {
       jobId: 0,
@@ -151,12 +158,32 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
       error: null
     });
 
-    const { jobId } = await startWorkflow(workflowType, projectId, params);
+    try {
+      const { jobId } = await startWorkflow(workflowType, projectId, params);
+      updateTask(key, { jobId, status: 'running' });
+      startPolling(key, jobId);
+      return jobId;
+    } catch (error: any) {
+      if (error instanceof ApiError && error.status === 409 && error.data?.jobId) {
+        const conflictJobId = Number(error.data.jobId);
+        updateTask(key, {
+          jobId: conflictJobId,
+          status: 'running',
+          progress: 0,
+          result: null,
+          error: null
+        });
+        startPolling(key, conflictJobId);
+        return conflictJobId;
+      }
 
-    updateTask(key, { jobId, status: 'running' });
-    startPolling(key, jobId);
-
-    return jobId;
+      activeKeysRef.current.delete(key);
+      updateTask(key, {
+        status: 'failed',
+        error: error.message || '启动任务失败'
+      });
+      throw error;
+    }
   }, [projectId, updateTask, startPolling]);
 
   /**
@@ -184,6 +211,7 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
         if (tasksRef.current[key]) continue;
 
         console.log(`[useTaskRunner] 恢复任务: key=${key}, jobId=${job.id}, type=${job.workflow_type}`);
+        activeKeysRef.current.add(key);
         updateTask(key, {
           jobId: job.id,
           status: (job.status === 'completed' || job.status === 'failed') ? job.status : 'running',
@@ -206,6 +234,7 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
         console.warn('[useTaskRunner] consumeWorkflow 失败:', err)
       );
     }
+    activeKeysRef.current.delete(key);
     stopPolling(key);
     setTasks(prev => {
       const next = { ...prev };
@@ -213,6 +242,8 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
       return next;
     });
   }, [stopPolling]);
+
+  const isTaskActive = useCallback((key: string) => activeKeysRef.current.has(key), []);
 
   // 是否有任何任务在运行
   const isRunning = (Object.values(tasks) as TaskState[]).some(
@@ -225,6 +256,7 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
     recoverTasks,
     clearTask,
     stopPolling,
-    isRunning
+    isRunning,
+    isTaskActive
   };
 }

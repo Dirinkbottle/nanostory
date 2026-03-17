@@ -46,6 +46,10 @@ export function useBatchFrameGeneration({
   });
 
   const startBatchGeneration = useCallback(async (overwriteFrames: boolean) => {
+    if (recovery.isGenerating) {
+      onError?.('批量帧生成任务正在进行中');
+      return;
+    }
     if (!scriptId) {
       onError?.('请先选择剧本');
       return;
@@ -91,7 +95,7 @@ export function useBatchFrameGeneration({
 
       const data = await res.json();
 
-      if (res.ok && data.jobId) {
+      if (data.jobId && (res.ok || res.status === 409)) {
         console.log('[useBatchFrameGen] 任务已启动, jobId:', data.jobId);
         recovery.startJob(data.jobId);
       } else {
@@ -101,7 +105,7 @@ export function useBatchFrameGeneration({
       console.error('[useBatchFrameGen] 启动失败:', error);
       onError?.('启动批量生成失败，请检查网络连接');
     }
-  }, [scriptId, imageModel, aspectRatio, projectId, scenes, recovery.startJob]);
+  }, [scriptId, imageModel, aspectRatio, projectId, scenes, recovery, onError]);
 
   return {
     startBatchGeneration,

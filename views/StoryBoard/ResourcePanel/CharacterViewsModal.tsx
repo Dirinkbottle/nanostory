@@ -58,7 +58,7 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
               </div>
             </ModalHeader>
             <ModalBody>
-              {(selectedResource?.frontViewUrl || selectedResource?.sideViewUrl || selectedResource?.backViewUrl) && (
+              {(selectedResource?.frontViewUrl || selectedResource?.sideViewUrl || selectedResource?.backViewUrl || isGenerating) && (
                 <div className="mb-6">
                   <h3 className="text-sm font-semibold text-slate-300 mb-3">已生成的三视图</h3>
                   <div className="grid grid-cols-3 gap-4">
@@ -74,7 +74,7 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
                         </div>
                       ) : (
                         <div className="w-full h-48 bg-slate-800/60 rounded flex items-center justify-center text-slate-500 text-sm">
-                          {selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}
+                          {isGenerating || selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}
                         </div>
                       )}
                     </div>
@@ -91,7 +91,7 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
                         </div>
                       ) : (
                         <div className="w-full h-48 bg-slate-800/60 rounded flex items-center justify-center text-slate-500 text-sm">
-                          {selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}
+                          {isGenerating || selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}
                         </div>
                       )}
                     </div>
@@ -108,7 +108,7 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
                         </div>
                       ) : (
                         <div className="w-full h-48 bg-slate-800/60 rounded flex items-center justify-center text-slate-500 text-sm">
-                          {selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}
+                          {isGenerating || selectedResource.generationStatus === 'generating' ? '生成中...' : '未生成'}
                         </div>
                       )}
                     </div>

@@ -51,6 +51,18 @@ interface UseWorkflowOptions {
   onProgress?: (job: WorkflowJob) => void;
 }
 
+export class ApiError extends Error {
+  status: number;
+  data: any;
+
+  constructor(message: string, status: number, data: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
 // ============================================================
 // API 函数
 // ============================================================
@@ -71,9 +83,9 @@ async function fetchApi(url: string, options: RequestInit = {}) {
       signal: controller.signal
     });
     clearTimeout(timeoutId);
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.message || '请求失败');
+      throw new ApiError(data.message || '请求失败', res.status, data);
     }
     return data;
   } catch (err: any) {

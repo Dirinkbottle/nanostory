@@ -27,8 +27,28 @@ interface UseWorkflowRecoveryOptions {
   onCompleted?: (job: WorkflowJob) => void;
   /** 工作流失败回调 */
   onFailed?: (job: WorkflowJob) => void;
+  /** 工作流恢复回调 */
+  onRecovered?: (job: WorkflowJob) => void;
+  /** 额外过滤条件 */
+  matchJob?: (job: WorkflowJob) => boolean;
   /** 日志前缀 */
   logPrefix?: string;
+}
+
+function parseJobInputParams(inputParams: WorkflowJob['input_params']) {
+  if (!inputParams) {
+    return {};
+  }
+
+  if (typeof inputParams === 'string') {
+    try {
+      return JSON.parse(inputParams);
+    } catch (error) {
+      return {};
+    }
+  }
+
+  return inputParams;
 }
 
 export function useWorkflowRecovery({
@@ -37,16 +57,34 @@ export function useWorkflowRecovery({
   isActive = true,
   onCompleted,
   onFailed,
+  onRecovered,
+  matchJob,
   logPrefix = '[WorkflowRecovery]'
 }: UseWorkflowRecoveryOptions) {
   const [jobId, setJobId] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
   // 用 ref 保持回调最新，避免 useWorkflow 闭包过期
-  const callbackRefs = useRef({ onCompleted, onFailed });
+  const callbackRefs = useRef({ onCompleted, onFailed, onRecovered, matchJob });
   useEffect(() => {
-    callbackRefs.current = { onCompleted, onFailed };
-  }, [onCompleted, onFailed]);
+    callbackRefs.current = { onCompleted, onFailed, onRecovered, matchJob };
+  }, [onCompleted, onFailed, onRecovered, matchJob]);
+
+  const matchesJob = useCallback((job: WorkflowJob) => {
+    if (!workflowTypes.includes(job.workflow_type)) {
+      return false;
+    }
+
+    const currentMatchJob = callbackRefs.current.matchJob;
+    if (!currentMatchJob) {
+      return true;
+    }
+
+    return currentMatchJob({
+      ...job,
+      input_params: parseJobInputParams(job.input_params)
+    });
+  }, [workflowTypes]);
 
   // 检查并恢复活跃工作流
   const checkAndResume = useCallback(async () => {
@@ -59,12 +97,16 @@ export function useWorkflowRecovery({
       const { jobs } = await getActiveWorkflows(projectId);
 
       if (jobs && jobs.length > 0) {
-        const matchedJob = jobs.find((j: any) => workflowTypes.includes(j.workflow_type));
+        const matchedJob = jobs.find((job: WorkflowJob) => matchesJob(job));
 
         if (matchedJob) {
           console.log(`${logPrefix} 恢复工作流:`, matchedJob.id, matchedJob.workflow_type);
           setJobId(matchedJob.id);
           setIsGenerating(true);
+          callbackRefs.current.onRecovered?.({
+            ...matchedJob,
+            input_params: parseJobInputParams(matchedJob.input_params)
+          });
           return;
         }
       }
@@ -75,7 +117,7 @@ export function useWorkflowRecovery({
     } catch (error) {
       console.error(`${logPrefix} 检查活跃工作流失败:`, error);
     }
-  }, [projectId, isActive, workflowTypes, logPrefix]);
+  }, [projectId, isActive, matchesJob, logPrefix]);
 
   // 页面加载 / isActive 变化时自动检查
   useEffect(() => {

@@ -21,6 +21,7 @@ const deleteStoryboard = require('./deleteStoryboard');
 const reorderStoryboards = require('./reorderStoryboards');
 const validateReadiness = require('./validateReadiness');
 const updateMedia = require('./updateMedia');
+const updateContent = require('./updateContent');
 const cleanBeforeRegenerate = require('./cleanBeforeRegenerate');
 const fixLinks = require('./fixLinks');
 const updateDirectorParams = require('./updateDirectorParams');
@@ -35,6 +36,7 @@ router.delete('/scene/:storyboardId', authMiddleware, deleteStoryboard);
 router.patch('/reorder', authMiddleware, reorderStoryboards);
 router.get('/:storyboardId/validate', authMiddleware, validateReadiness);
 router.patch('/:storyboardId/media', authMiddleware, updateMedia);
+router.patch('/:storyboardId/content', authMiddleware, updateContent);
 updateDirectorParams(router);  // 导演参数更新
 
 getTemplates(router);

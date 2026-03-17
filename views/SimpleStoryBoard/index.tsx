@@ -2,6 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSceneManager } from '../StoryBoard/useSceneManager';
 import { useAutoStoryboard } from '../StoryBoard/useAutoStoryboard';
 import { useSceneGeneration } from '../StoryBoard/useSceneGeneration';
+import { useBatchFrameGeneration } from '../StoryBoard/hooks/useBatchFrameGeneration';
+import { useBatchSceneVideoGeneration } from '../StoryBoard/hooks/useBatchSceneVideoGeneration';
+import { useWorkflowRecovery } from '../StoryBoard/hooks/useWorkflowRecovery';
 import { useCharacterData } from '../StoryBoard/ResourcePanel/useCharacterData';
 import { useSceneData } from '../StoryBoard/ResourcePanel/useSceneData';
 import { useToast } from '../../contexts/ToastContext';
@@ -48,6 +51,8 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
   const [currentScriptId, setCurrentScriptId] = useState<number | null>(scriptId || null);
   const [currentProjectId, setCurrentProjectId] = useState<number | null>(projectId || null);
   const [currentEpisode, setCurrentEpisode] = useState(episodeNumber);
+  const [isSubmittingCharacterBatch, setIsSubmittingCharacterBatch] = useState(false);
+  const [isSubmittingSceneBatch, setIsSubmittingSceneBatch] = useState(false);
   const { showToast } = useToast();
 
   // 右侧面板联动状态
@@ -100,6 +105,50 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
     videoModel,
     videoAspectRatio,
     videoDuration,
+  });
+
+  const characterBatchRecovery = useWorkflowRecovery({
+    projectId: currentProjectId,
+    workflowTypes: ['character_views_generation'],
+    isActive: true,
+    logPrefix: '[SimpleStoryBoardCharacterBatch]',
+  });
+
+  const sceneBatchRecovery = useWorkflowRecovery({
+    projectId: currentProjectId,
+    workflowTypes: ['scene_image_generation'],
+    isActive: true,
+    logPrefix: '[SimpleStoryBoardSceneBatch]',
+  });
+
+  const batchFrameGen = useBatchFrameGeneration({
+    scriptId: currentScriptId,
+    projectId: currentProjectId,
+    imageModel,
+    aspectRatio: imageAspectRatio,
+    textModel,
+    scenes,
+    onComplete: () => {
+      if (currentScriptId) {
+        loadStoryboards(currentScriptId);
+      }
+    },
+    onError: (msg) => showToast(msg, 'error'),
+  });
+
+  const batchSceneVideoGen = useBatchSceneVideoGeneration({
+    scriptId: currentScriptId,
+    projectId: currentProjectId,
+    videoModel,
+    textModel,
+    aspectRatio: videoAspectRatio,
+    duration: videoDuration,
+    onComplete: () => {
+      if (currentScriptId) {
+        loadStoryboards(currentScriptId);
+      }
+    },
+    onError: (msg) => showToast(msg, 'error'),
   });
 
   // 数据库角色/场景
@@ -196,6 +245,10 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
 
   // 批量生成角色
   const handleBatchCharacterGeneration = async () => {
+    if (isSubmittingCharacterBatch || characterBatchRecovery.isGenerating) {
+      showToast('角色批量生成任务正在进行中', 'warning');
+      return;
+    }
     if (!currentProjectId || !currentScriptId) {
       showToast('请先选择项目和剧本', 'warning');
       return;
@@ -209,6 +262,7 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
       return;
     }
     try {
+      setIsSubmittingCharacterBatch(true);
       showToast('正在启动角色批量生成...', 'info');
       const token = getAuthToken();
       // 不过滤 scriptId，角色是项目级别的
@@ -222,8 +276,10 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
         showToast('没有找到角色数据', 'warning');
         return;
       }
+      let startedCount = 0;
+      let recoveredCount = 0;
       for (const character of characters) {
-        await fetch(`/api/characters/${character.id}/generate-views`, {
+        const response = await fetch(`/api/characters/${character.id}/generate-views`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -231,16 +287,29 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
           },
           body: JSON.stringify({ imageModel, textModel, style: '' })
         });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) {
+          startedCount += 1;
+        } else if (response.status === 409 && data.jobId) {
+          recoveredCount += 1;
+        }
       }
-      showToast(`已启动 ${characters.length} 个角色的批量生成`, 'success');
+      await characterBatchRecovery.checkAndResume();
+      showToast(`角色批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
       loadCharacters();
     } catch (error: any) {
       showToast('角色批量生成失败: ' + error.message, 'error');
+    } finally {
+      setIsSubmittingCharacterBatch(false);
     }
   };
 
   // 批量生成场景
   const handleBatchSceneGeneration = async () => {
+    if (isSubmittingSceneBatch || sceneBatchRecovery.isGenerating) {
+      showToast('场景批量生成任务正在进行中', 'warning');
+      return;
+    }
     if (!currentProjectId || !currentScriptId) {
       showToast('请先选择项目和剧本', 'warning');
       return;
@@ -250,6 +319,7 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
       return;
     }
     try {
+      setIsSubmittingSceneBatch(true);
       showToast('正在启动场景批量生成...', 'info');
       const token = getAuthToken();
       const sceneRes = await fetch(`/api/scenes/project/${currentProjectId}?scriptId=${currentScriptId}`, {
@@ -262,8 +332,10 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
         showToast('没有找到场景数据', 'warning');
         return;
       }
+      let startedCount = 0;
+      let recoveredCount = 0;
       for (const scene of sceneList) {
-        await fetch(`/api/scenes/${scene.id}/generate-image`, {
+        const response = await fetch(`/api/scenes/${scene.id}/generate-image`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -271,11 +343,20 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
           },
           body: JSON.stringify({ imageModel, textModel, aspectRatio: imageAspectRatio })
         });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok) {
+          startedCount += 1;
+        } else if (response.status === 409 && data.jobId) {
+          recoveredCount += 1;
+        }
       }
-      showToast(`已启动 ${sceneList.length} 个场景的批量生成`, 'success');
+      await sceneBatchRecovery.checkAndResume();
+      showToast(`场景批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
       loadScenes();
     } catch (error: any) {
       showToast('场景批量生成失败: ' + error.message, 'error');
+    } finally {
+      setIsSubmittingSceneBatch(false);
     }
   };
 
@@ -290,11 +371,8 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
       return;
     }
     showToast(`正在批量生成 ${scenes.length} 个分镜的首尾帧...`, 'info');
-    for (const scene of scenes) {
-      generateImage(scene.id, 'first');
-      generateImage(scene.id, 'last');
-    }
-    showToast(`已启动 ${scenes.length} 个分镜的首尾帧生成`, 'success');
+    await batchFrameGen.startBatchGeneration(false);
+    showToast('首尾帧批量生成任务已提交', 'success');
   };
 
   // 批量生成视频
@@ -303,15 +381,9 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
       showToast('请先生成分镜', 'warning');
       return;
     }
-    if (!videoModel) {
-      showToast('请先选择视频模型', 'warning');
-      return;
-    }
     showToast(`正在批量生成 ${scenes.length} 个分镜的视频...`, 'info');
-    for (const scene of scenes) {
-      generateVideo(scene.id);
-    }
-    showToast(`已启动 ${scenes.length} 个分镜的视频生成`, 'success');
+    await batchSceneVideoGen.startBatchVideoGeneration(false);
+    showToast('批量视频生成任务已提交', 'success');
   };
 
 
@@ -335,7 +407,8 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
             className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all cursor-pointer"
             startContent={<Users className="w-3.5 h-3.5" />}
             onPress={handleBatchCharacterGeneration}
-            isDisabled={!currentScriptId}
+            isDisabled={!currentScriptId || isSubmittingCharacterBatch || characterBatchRecovery.isGenerating}
+            isLoading={isSubmittingCharacterBatch || characterBatchRecovery.isGenerating}
           >
             批量生成角色
           </Button>
@@ -344,7 +417,8 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
             className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold shadow-lg shadow-green-500/30 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all cursor-pointer"
             startContent={<Image className="w-3.5 h-3.5" />}
             onPress={handleBatchSceneGeneration}
-            isDisabled={!currentScriptId}
+            isDisabled={!currentScriptId || isSubmittingSceneBatch || sceneBatchRecovery.isGenerating}
+            isLoading={isSubmittingSceneBatch || sceneBatchRecovery.isGenerating}
           >
             批量生成场景
           </Button>
@@ -353,7 +427,8 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
             className="bg-gradient-to-r from-purple-500 to-violet-500 text-white font-bold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all cursor-pointer"
             startContent={<Film className="w-3.5 h-3.5" />}
             onPress={handleBatchFrameGeneration}
-            isDisabled={!currentScriptId}
+            isDisabled={!currentScriptId || batchFrameGen.isGenerating}
+            isLoading={batchFrameGen.isGenerating}
           >
             批量生成首尾帧
           </Button>
@@ -362,7 +437,8 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
             className="bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold shadow-lg shadow-rose-500/30 hover:shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-all cursor-pointer"
             startContent={<Video className="w-3.5 h-3.5" />}
             onPress={handleBatchVideoGeneration}
-            isDisabled={!currentScriptId}
+            isDisabled={!currentScriptId || batchSceneVideoGen.isGenerating}
+            isLoading={batchSceneVideoGen.isGenerating}
           >
             批量生成视频
           </Button>

@@ -339,7 +339,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
   const description = prompt || storyboard.prompt_template || '';
   trace('查询分镜数据', { storyboardId, idx: storyboard.idx, sceneState: inputSceneState || variables.scene_state, hasAction: variables.hasAction, location: variables.location });
 
-  // 2. 收集候选参考图（角色三视图 + 场景图），多角色会抛异常
+  // 2. 收集候选参考图（角色三视图 + 场景图）
   if (onProgress) onProgress(10);
   const { candidateImages, characterName, characterInfo, location, sceneInfo } = await collectCandidateImages(storyboard, variables);
 

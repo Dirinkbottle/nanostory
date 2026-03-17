@@ -6,10 +6,11 @@ import { ResourceItem } from './types';
 interface UseResourceModalsOptions {
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
+  onJobAccepted?: () => void | Promise<void>;
 }
 
 export const useResourceModals = (options: UseResourceModalsOptions = {}) => {
-  const { onSuccess, onError } = options;
+  const { onSuccess, onError, onJobAccepted } = options;
   const [selectedResource, setSelectedResource] = useState<ResourceItem | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPrompts, setGeneratedPrompts] = useState<any>(null);
@@ -86,13 +87,20 @@ export const useResourceModals = (options: UseResourceModalsOptions = {}) => {
         })
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json();
+        if (res.status === 409 && data.jobId) {
+          await onJobAccepted?.();
+          onSuccess?.('已恢复该角色正在执行的三视图任务，请稍后刷新查看');
+          closeViewsModal();
+          return;
+        }
+
         throw new Error(data.message || '生成失败');
       }
 
-      const data = await res.json();
       console.log('[Generate Views] 工作流已启动:', data);
+      await onJobAccepted?.();
       
       onSuccess?.(`三视图生成已启动（工作流 ID: ${data.jobId}），请稍后刷新查看`);
       setGeneratedPrompts({ status: 'generating', jobId: data.jobId });

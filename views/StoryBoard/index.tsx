@@ -6,6 +6,7 @@ import { useAutoStoryboard } from './useAutoStoryboard';
 import { useSceneGeneration } from './useSceneGeneration';
 import { useBatchFrameGeneration } from './hooks/useBatchFrameGeneration';
 import { useBatchSceneVideoGeneration } from './hooks/useBatchSceneVideoGeneration';
+import { useWorkflowRecovery } from './hooks/useWorkflowRecovery';
 import EpisodeSelector from './EpisodeSelector';
 import AutoStoryboardModal from './AutoStoryboardModal';
 import ImportStoryboardModal from './ImportStoryboardModal';
@@ -55,6 +56,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   const [imageAspectRatio, setImageAspectRatio] = useState('');
   const [videoAspectRatio, setVideoAspectRatio] = useState('');
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [isSubmittingCharacterBatch, setIsSubmittingCharacterBatch] = useState(false);
+  const [isSubmittingSceneBatch, setIsSubmittingSceneBatch] = useState(false);
   const { showToast } = useToast();
 
   const imageModelConfig = useMemo(
@@ -179,14 +182,33 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     videoDuration
   });
 
+  const characterBatchRecovery = useWorkflowRecovery({
+    projectId: currentProjectId,
+    workflowTypes: ['character_views_generation'],
+    isActive: true,
+    logPrefix: '[StoryBoardCharacterBatch]'
+  });
+
+  const sceneBatchRecovery = useWorkflowRecovery({
+    projectId: currentProjectId,
+    workflowTypes: ['scene_image_generation'],
+    isActive: true,
+    logPrefix: '[StoryBoardSceneBatch]'
+  });
+
   // 批量生成功能
   const handleBatchCharacterGeneration = async () => {
+    if (isSubmittingCharacterBatch || characterBatchRecovery.isGenerating) {
+      showToast('角色批量生成任务正在进行中', 'warning');
+      return;
+    }
     if (!currentProjectId || !currentScriptId) {
       showToast('请先选择项目和剧本', 'warning');
       return;
     }
 
     try {
+      setIsSubmittingCharacterBatch(true);
       showToast('正在启动角色批量生成...', 'info');
       
       // 获取所有角色数据（不过滤 scriptId，角色是项目级别的）
@@ -208,9 +230,11 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       }
       
       // 为每个角色启动生成任务
+      let startedCount = 0;
+      let recoveredCount = 0;
       for (const character of characters) {
         try {
-          await fetch(`/api/characters/${character.id}/generate-views`, {
+          const response = await fetch(`/api/characters/${character.id}/generate-views`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -222,19 +246,35 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
               style: ''
             })
           });
+
+          const data = await response.json().catch(() => ({}));
+          if (response.ok) {
+            startedCount += 1;
+          } else if (response.status === 409 && data.jobId) {
+            recoveredCount += 1;
+          } else {
+            console.error(`生成角色 ${character.name} 图片失败:`, data.message || response.statusText);
+          }
         } catch (err) {
           console.error(`生成角色 ${character.name} 图片失败:`, err);
         }
       }
-      
-      showToast(`已启动 ${characters.length} 个角色的批量生成`, 'success');
+
+      await characterBatchRecovery.checkAndResume();
+      showToast(`角色批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
     } catch (error: any) {
       showToast('角色批量生成失败: ' + error.message, 'error');
       console.error('角色批量生成失败:', error);
+    } finally {
+      setIsSubmittingCharacterBatch(false);
     }
   };
 
   const handleBatchSceneGeneration = async () => {
+    if (isSubmittingSceneBatch || sceneBatchRecovery.isGenerating) {
+      showToast('场景批量生成任务正在进行中', 'warning');
+      return;
+    }
     if (!currentProjectId || !currentScriptId) {
       showToast('请先选择项目和剧本', 'warning');
       return;
@@ -245,6 +285,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     }
 
     try {
+      setIsSubmittingSceneBatch(true);
       showToast('正在启动场景批量生成...', 'info');
       
       // 获取所有场景数据
@@ -266,9 +307,11 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       }
       
       // 为每个场景启动生成任务
+      let startedCount = 0;
+      let recoveredCount = 0;
       for (const scene of scenesData) {
         try {
-          await fetch(`/api/scenes/${scene.id}/generate-image`, {
+          const response = await fetch(`/api/scenes/${scene.id}/generate-image`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -280,15 +323,27 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
               aspectRatio: imageAspectRatio
             })
           });
+
+          const data = await response.json().catch(() => ({}));
+          if (response.ok) {
+            startedCount += 1;
+          } else if (response.status === 409 && data.jobId) {
+            recoveredCount += 1;
+          } else {
+            console.error(`生成场景 ${scene.name} 图片失败:`, data.message || response.statusText);
+          }
         } catch (err) {
           console.error(`生成场景 ${scene.name} 图片失败:`, err);
         }
       }
-      
-      showToast(`已启动 ${scenesData.length} 个场景的批量生成`, 'success');
+
+      await sceneBatchRecovery.checkAndResume();
+      showToast(`场景批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
     } catch (error: any) {
       showToast('场景批量生成失败: ' + error.message, 'error');
       console.error('场景批量生成失败:', error);
+    } finally {
+      setIsSubmittingSceneBatch(false);
     }
   };
 
@@ -300,11 +355,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
 
     try {
       showToast('正在启动首尾帧批量生成...', 'info');
-      
-      // 调用批量帧生成功能
-      batchFrameGen.startBatchGeneration(false);
-      
-      showToast('首尾帧批量生成已启动', 'success');
+      await batchFrameGen.startBatchGeneration(false);
+      showToast('首尾帧批量生成任务已提交', 'success');
     } catch (error: any) {
       showToast('首尾帧批量生成失败: ' + error.message, 'error');
       console.error('首尾帧批量生成失败:', error);
@@ -316,16 +368,10 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       showToast('请先生成分镜', 'warning');
       return;
     }
-    if (!videoModel) {
-      showToast('请先选择视频模型', 'warning');
-      return;
-    }
     try {
       showToast(`正在批量生成 ${scenes.length} 个分镜的视频...`, 'info');
-      for (const scene of scenes) {
-        generateVideo(scene.id);
-      }
-      showToast(`已启动 ${scenes.length} 个分镜的视频生成`, 'success');
+      await batchSceneVideoGen.startBatchVideoGeneration(false);
+      showToast('批量视频生成任务已提交', 'success');
     } catch (error: any) {
       showToast('视频批量生成失败: ' + error.message, 'error');
       console.error('视频批量生成失败:', error);
@@ -502,7 +548,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
                 className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_25px_rgba(59,130,246,0.4)] transition-all"
                 startContent={<Wand2 className="w-4 h-4" />}
                 onPress={handleBatchCharacterGeneration}
-                isDisabled={!currentScriptId}
+                isDisabled={!currentScriptId || isSubmittingCharacterBatch || characterBatchRecovery.isGenerating}
+                isLoading={isSubmittingCharacterBatch || characterBatchRecovery.isGenerating}
               >
                 批量生成角色
               </Button>
@@ -511,7 +558,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
                 className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold shadow-lg shadow-green-500/30 hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all"
                 startContent={<Wand2 className="w-4 h-4" />}
                 onPress={handleBatchSceneGeneration}
-                isDisabled={!currentScriptId}
+                isDisabled={!currentScriptId || isSubmittingSceneBatch || sceneBatchRecovery.isGenerating}
+                isLoading={isSubmittingSceneBatch || sceneBatchRecovery.isGenerating}
               >
                 批量生成场景
               </Button>
@@ -530,7 +578,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
                 className="bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold shadow-lg shadow-rose-500/30 hover:shadow-[0_0_25px_rgba(244,63,94,0.4)] transition-all"
                 startContent={<Video className="w-4 h-4" />}
                 onPress={handleBatchVideoGeneration}
-                isDisabled={!currentScriptId}
+                isDisabled={!currentScriptId || batchSceneVideoGen.isGenerating}
+                isLoading={batchSceneVideoGen.isGenerating}
               >
                 批量生成视频
               </Button>

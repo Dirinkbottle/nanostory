@@ -6,9 +6,10 @@ import { StoryboardScene } from '../useSceneManager';
 interface SceneCardContentProps {
   scene: StoryboardScene;
   isEditingDescription: boolean;
+  isSavingDescription: boolean;
   editedDescription: string;
   onEditedDescriptionChange: (value: string) => void;
-  onSaveDescription: () => void;
+  onSaveDescription: () => Promise<void>;
   onStartEditing: () => void;
   onDelete: (id: number) => void;
 }
@@ -16,6 +17,7 @@ interface SceneCardContentProps {
 const SceneCardContent: React.FC<SceneCardContentProps> = ({
   scene,
   isEditingDescription,
+  isSavingDescription,
   editedDescription,
   onEditedDescriptionChange,
   onSaveDescription,
@@ -38,10 +40,11 @@ const SceneCardContent: React.FC<SceneCardContentProps> = ({
             />
             <button
               onClick={onSaveDescription}
-              className="px-3 py-1 bg-gradient-to-r from-blue-500 to-violet-600 text-white text-xs rounded-md hover:opacity-90 flex items-center gap-1"
+              disabled={isSavingDescription}
+              className="px-3 py-1 bg-gradient-to-r from-blue-500 to-violet-600 text-white text-xs rounded-md hover:opacity-90 flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Check className="w-3 h-3" />
-              保存
+              {isSavingDescription ? '保存中...' : '保存'}
             </button>
           </div>
         ) : (

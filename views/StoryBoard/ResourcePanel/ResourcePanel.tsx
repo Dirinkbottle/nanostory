@@ -14,13 +14,12 @@ import SceneDetailModal from './SceneDetailModal';
 import SceneImageModal from './SceneImageModal';
 import { useResourceModals } from './useResourceModals';
 import { Character } from './types';
-import { useSceneImageGeneration } from '../hooks/useSceneImageGeneration';
 import { getAuthToken } from '../../../services/auth';
 import { useToast } from '../../../contexts/ToastContext';
+import { useWorkflowTargetMonitor } from '../hooks/useWorkflowTargetMonitor';
 
 const ResourcePanel: React.FC<ResourcePanelProps> = ({ 
   characters, 
-  locations, 
   props,
   projectId,
   scriptId,
@@ -43,6 +42,34 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   const [isSceneDetailModalOpen, setIsSceneDetailModalOpen] = useState(false);
   const [isSceneImageModalOpen, setIsSceneImageModalOpen] = useState(false);
 
+  const characterViewMonitor = useWorkflowTargetMonitor({
+    projectId: projectId ?? null,
+    workflowTypes: ['character_views_generation'],
+    targetParamKey: 'characterId',
+    isActive: true,
+    onCompleted: async (job) => {
+      await loadCharacters();
+      showToast(`角色三视图生成完成：${job.input_params?.characterName || '角色'}`, 'success');
+    },
+    onFailed: async (job) => {
+      showToast(`角色三视图生成失败：${job.input_params?.characterName || '角色'}`, 'error');
+    }
+  });
+
+  const sceneImageMonitor = useWorkflowTargetMonitor({
+    projectId: projectId ?? null,
+    workflowTypes: ['scene_image_generation'],
+    targetParamKey: 'sceneId',
+    isActive: true,
+    onCompleted: async (job) => {
+      await loadScenes();
+      showToast(`场景图片生成完成：${job.input_params?.sceneName || '场景'}`, 'success');
+    },
+    onFailed: async (job) => {
+      showToast(`场景图片生成失败：${job.input_params?.sceneName || '场景'}`, 'error');
+    }
+  });
+
   const {
     selectedResource,
     isGenerating,
@@ -52,7 +79,8 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     closeViewsModal
   } = useResourceModals({
     onSuccess: (msg) => showToast(msg, 'success'),
-    onError: (msg) => showToast(msg, 'error')
+    onError: (msg) => showToast(msg, 'error'),
+    onJobAccepted: () => characterViewMonitor.refreshNow()
   });
 
   const handleShowDetail = (character: Character) => {
@@ -70,17 +98,6 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     // 传空字符串表示仅打开弹窗查看，不立即生成
     handleGenerateViews(charName, '', '', characterId);
   };
-
-  const sceneImageGeneration = useSceneImageGeneration({
-    sceneId: selectedScene?.id?.toString() || null,
-    projectId: projectId ?? null,
-    isActive: isSceneImageModalOpen || isSceneDetailModalOpen,
-    onComplete: () => {
-      loadScenes();
-    },
-    onSuccess: (msg) => showToast(msg, 'success'),
-    onError: (msg) => showToast(msg, 'error')
-  });
 
   const handleRefreshResources = async () => {
     if (!projectId) {
@@ -106,13 +123,15 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     setSelectedScene(null);
   };
 
-  const handleShowSceneImageModal = (sceneName: string) => {
-    const scene = dbScenes.find(s => s.name === sceneName);
+  const handleShowSceneImageModal = (sceneNameOrScene: string | Scene) => {
+    const scene = typeof sceneNameOrScene === 'string'
+      ? dbScenes.find(s => s.name === sceneNameOrScene)
+      : sceneNameOrScene;
     if (scene) {
       setSelectedScene(scene);
       setIsSceneImageModalOpen(true);
     } else {
-      console.warn('[ResourcePanel] 未找到场景:', sceneName);
+      console.warn('[ResourcePanel] 未找到场景:', sceneNameOrScene);
     }
   };
 
@@ -139,17 +158,22 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
           aspectRatio: imageAspectRatio
         })
       });
-      
+
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || '启动生成失败');
+        if (res.status === 409 && data.jobId) {
+          await sceneImageMonitor.refreshNow();
+          showToast('已恢复该场景正在执行的生成任务', 'info');
+          return;
+        }
+
+        throw new Error(data.message || '启动生成失败');
       }
-      
-      const data = await res.json();
+
       console.log('[ResourcePanel] 场景图片生成已启动:', data.jobId);
       
-      // 立即触发轮询检测，避免重复点击
-      sceneImageGeneration.checkAndResumeNextWorkflow();
+      // 立即刷新工作流状态，确保只有当前目标进入生成中
+      await sceneImageMonitor.refreshNow();
     } catch (error: any) {
       console.error('[ResourcePanel] 生成场景图片失败:', error);
       showToast('生成场景图片失败: ' + error.message, 'error');
@@ -184,6 +208,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
             dbCharacters={dbCharacters}
             isLoadingCharacters={isLoadingCharacters}
             scenes={scenes}
+            activeCharacterIds={characterViewMonitor.activeTargetIds}
             onGenerateViews={handleGenerateViewsWrapper}
             onShowDetail={handleShowDetail}
           />
@@ -202,12 +227,13 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
               </div>
             ) : (
               <LocationsTab
-                locations={dbScenes.map(s => s.name)}
+                scenes={dbScenes}
+                activeSceneIds={sceneImageMonitor.activeTargetIds}
                 onPreview={(resource) => {
                   handleShowSceneDetail(resource.name);
                 }}
-                onGenerateImage={(sceneName) => {
-                  handleShowSceneImageModal(sceneName);
+                onGenerateImage={(scene) => {
+                  handleShowSceneImageModal(scene);
                 }}
               />
             )}
@@ -226,7 +252,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         isOpen={isViewsModalOpen}
         onClose={closeViewsModal}
         selectedResource={selectedResource}
-        isGenerating={isGenerating}
+        isGenerating={isGenerating || characterViewMonitor.isTargetActive(viewsCharacterId)}
         generatedPrompts={generatedPrompts}
         onGenerate={handleGenerateViews}
         characterId={viewsCharacterId}
@@ -246,7 +272,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         onClose={closeSceneDetailModal}
         scene={selectedScene}
         onGenerateImage={handleGenerateSceneImage}
-        isGenerating={sceneImageGeneration.isGenerating}
+        isGenerating={sceneImageMonitor.isTargetActive(selectedScene?.id)}
         imageModel={imageModel}
       />
 
@@ -254,7 +280,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         isOpen={isSceneImageModalOpen}
         onClose={closeSceneImageModal}
         scene={selectedScene}
-        isGenerating={sceneImageGeneration.isGenerating}
+        isGenerating={sceneImageMonitor.isTargetActive(selectedScene?.id)}
         onGenerate={handleGenerateSceneImage}
         imageModel={imageModel}
       />

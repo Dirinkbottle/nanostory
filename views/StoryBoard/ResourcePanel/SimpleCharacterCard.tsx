@@ -1,11 +1,12 @@
 import React from 'react';
 import { Card, CardBody, Button } from '@heroui/react';
-import { Layers, Eye } from 'lucide-react';
+import { Layers, Eye, Loader2 } from 'lucide-react';
 import { ResourceItem } from './types';
 
 interface SimpleCharacterCardProps {
   name: string;
   scenes?: any[];
+  isGenerating?: boolean;
   onGenerateViews: (charName: string) => void;
   onPreview: (resource: ResourceItem) => void;
 }
@@ -13,6 +14,7 @@ interface SimpleCharacterCardProps {
 const SimpleCharacterCard: React.FC<SimpleCharacterCardProps> = ({
   name,
   scenes,
+  isGenerating = false,
   onGenerateViews,
   onPreview
 }) => {
@@ -30,10 +32,11 @@ const SimpleCharacterCard: React.FC<SimpleCharacterCardProps> = ({
             size="sm"
             variant="flat"
             className="flex-1 bg-purple-500/10 text-purple-400 text-xs font-medium"
-            startContent={<Layers className="w-3 h-3" />}
+            startContent={isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Layers className="w-3 h-3" />}
             onPress={() => onGenerateViews(name)}
+            isDisabled={isGenerating}
           >
-            三视图
+            {isGenerating ? '生成中...' : '三视图'}
           </Button>
           <Button
             size="sm"

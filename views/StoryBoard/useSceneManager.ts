@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getAuthToken } from '../../services/auth';
 import { DirectorParams } from '../SimpleStoryBoard/DirectorAssistant';
+import { useToast } from '../../contexts/ToastContext';
 
 export interface LinkedCharacter {
   character_id: number;
@@ -46,6 +47,7 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
   const [scenes, setScenes] = useState<StoryboardScene[]>([]);
   const [selectedScene, setSelectedScene] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { showToast } = useToast();
 
   // 使用 ref 跟踪当前正在加载的 scriptId，防止竞态条件
   const loadingScriptIdRef = useRef<number | null>(null);
@@ -269,8 +271,38 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
     }
   };
 
-  const updateDescription = (id: number, description: string) => {
+  const updateDescription = async (id: number, description: string) => {
+    const previousScene = scenes.find((scene) => scene.id === id);
+    if (!previousScene) {
+      return false;
+    }
+
     setScenes(prevScenes => prevScenes.map(s => s.id === id ? { ...s, description } : s));
+
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/storyboards/${id}/content`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ prompt_template: description })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || '保存镜头描述失败');
+      }
+
+      return true;
+    } catch (error: any) {
+      setScenes(prevScenes => prevScenes.map(s =>
+        s.id === id ? { ...s, description: previousScene.description } : s
+      ));
+      showToast(error.message || '保存镜头描述失败', 'error');
+      return false;
+    }
   };
 
   // 更新导演参数并保存到后端

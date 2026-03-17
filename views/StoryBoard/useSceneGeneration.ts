@@ -45,7 +45,7 @@ export function useSceneGeneration({
   videoAspectRatio,
   videoDuration
 }: UseSceneGenerationOptions) {
-  const { tasks, runTask, recoverTasks, clearTask, isRunning } = useTaskRunner({ projectId: projectId || 0 });
+  const { tasks, runTask, recoverTasks, clearTask, isRunning, isTaskActive } = useTaskRunner({ projectId: projectId || 0 });
 
   // 页面加载时恢复未完成的单帧/视频任务
   useEffect(() => {
@@ -64,17 +64,7 @@ export function useSceneGeneration({
 
       // 失败/取消：清理任务 + localStorage 生成状态
       if (task.status === 'failed' || task.status === 'cancelled') {
-        const sceneId = Number(key.split('_')[1]);
         console.warn(`[useSceneGeneration] 任务${task.status}: key=${key}, error=${task.error}`);
-        // 清理 localStorage 中的图片生成状态
-        if (key.startsWith('img_')) {
-          try {
-            const GENERATING_KEY = 'nanostory_generating_images';
-            const items = JSON.parse(localStorage.getItem(GENERATING_KEY) || '[]');
-            const filtered = items.filter((item: any) => item.id !== sceneId);
-            localStorage.setItem(GENERATING_KEY, JSON.stringify(filtered));
-          } catch {}
-        }
         clearTask(key);
         continue;
       }
@@ -87,13 +77,6 @@ export function useSceneGeneration({
       if (key.startsWith('img_')) {
         const { startFrame, endFrame } = task.result;
         if (startFrame) {
-          // Clear localStorage generating state on completion
-          try {
-            const GENERATING_KEY = 'nanostory_generating_images';
-            const items = JSON.parse(localStorage.getItem(GENERATING_KEY) || '[]');
-            const filtered = items.filter((item: any) => item.id !== sceneId);
-            localStorage.setItem(GENERATING_KEY, JSON.stringify(filtered));
-          } catch {}
           setScenes(prev => prev.map(s =>
             s.id === sceneId
               ? { ...s, startFrame, endFrame, imageUrl: startFrame }
@@ -132,6 +115,10 @@ export function useSceneGeneration({
   // 启动首尾帧生成 workflow
   const generateImage = async (id: number, prompt: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      if (isTaskActive(`img_${id}`)) {
+        return { success: false, error: '当前镜头正在生成首尾帧，请等待完成后再试' };
+      }
+
       const sceneIdx = scenes.findIndex(s => s.id === id);
       const scene = sceneIdx >= 0 ? scenes[sceneIdx] : null;
       if (!scene) {
@@ -181,6 +168,10 @@ export function useSceneGeneration({
 
   // 启动视频生成 workflow
   const generateVideo = async (id: number): Promise<{ success: boolean; error?: string }> => {
+    if (isTaskActive(`vid_${id}`)) {
+      return { success: false, error: '当前镜头正在生成视频，请等待完成后再试' };
+    }
+
     const sceneIdx = scenes.findIndex(s => s.id === id);
     const scene = sceneIdx >= 0 ? scenes[sceneIdx] : null;
     if (!scene) {

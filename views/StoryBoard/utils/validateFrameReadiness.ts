@@ -2,7 +2,7 @@
  * 前端首尾帧生成预检校验
  * 
  * 与后端 frameGeneration.js 的 collectReferenceImages 保持一致：
- * - 角色数量 ≤ 1（多角色阻止）
+ * - 支持多角色镜头，逐个校验角色资源完整性
  * - 角色字段完整性：name, description, appearance, personality, image_url
  * - 场景必须存在且字段完整：name, description, environment, lighting, mood, image_url
  */
@@ -148,16 +148,7 @@ export async function validateFrameReadiness(
 ): Promise<ValidationResult> {
   const issues: ValidationIssue[] = [];
 
-  // 1. 角色数量校验：多角色阻止
-  // if (characters.length > 1) {
-  //   issues.push({
-  //     type: 'too_many_characters',
-  //     message: `当前仅支持单角色镜头，该镜头包含 ${characters.length} 个角色：${characters.join('、')}。请拆分镜头或手动处理。`,
-  //     blocking: true,
-  //   });
-  // }
-
-  // 2. 场景必须存在
+  // 1. 场景必须存在
   if (!location || location.trim() === '') {
     issues.push({
       type: 'no_location',
@@ -166,7 +157,7 @@ export async function validateFrameReadiness(
     });
   }
 
-  // 如果有阻止性问题（多角色/无场景），直接返回
+  // 如果有阻止性问题（例如无场景），直接返回
   const earlyBlocking = issues.filter(i => i.blocking);
   if (earlyBlocking.length > 0) {
     return {
@@ -210,14 +201,14 @@ export async function validateFrameReadiness(
     fetchProjectScenes(projectId, scriptId),
   ]);
 
-  if (characters.length === 1) {
-    const charName = characters[0];
+  for (const charName of characters) {
     const charRecord = allCharacters.find(c => c.name === charName);
     if (!charRecord) {
       issues.push({ type: 'character_not_found', message: `角色不存在：${charName}`, blocking: true });
-    } else {
-      issues.push(...validateCharacterFields(charRecord));
+      continue;
     }
+
+    issues.push(...validateCharacterFields(charRecord));
   }
 
   if (location && location.trim() !== '') {
@@ -271,17 +262,6 @@ export async function validateBatchFrameReadiness(
   });
 
   await Promise.all(validationPromises);
-
-  // 补充前端本地校验（多角色检查）
-  // for (const s of scenes) {
-  //   if ((s.characters || []).length > 1) {
-  //     allIssues.push({
-  //       type: 'too_many_characters',
-  //       message: `当前仅支持单角色镜头，某镜头包含 ${s.characters.length} 个角色：${s.characters.join('、')}`,
-  //       blocking: true,
-  //     });
-  //   }
-  // }
 
   // 去重（同一条 message 只保留一次）
   const seen = new Set<string>();

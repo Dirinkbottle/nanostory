@@ -98,13 +98,16 @@ async function handleCameraRunGeneration(inputParams, onProgress) {
   let characterAppearance = '';
   if (charNames.length > 0) {
     try {
-      const linkedChar = await queryOne(
-        `SELECT c.appearance FROM storyboard_characters sc
+      const linkedChars = await queryAll(
+        `SELECT c.name, c.appearance FROM storyboard_characters sc
          JOIN characters c ON sc.character_id = c.id
-         WHERE sc.storyboard_id = ? AND c.name = ?`,
-        [storyboardId, charNames[0]]
+         WHERE sc.storyboard_id = ?`,
+        [storyboardId]
       );
-      if (linkedChar) characterAppearance = linkedChar.appearance || '';
+      characterAppearance = linkedChars
+        .filter((char) => charNames.includes(char.name) && char.appearance)
+        .map((char) => `${char.name}: ${char.appearance}`)
+        .join('\n');
     } catch (e) { /* 忽略 */ }
   }
 

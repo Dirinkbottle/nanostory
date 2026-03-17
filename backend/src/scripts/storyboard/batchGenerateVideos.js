@@ -6,6 +6,7 @@
 const { authMiddleware } = require('../../middleware');
 const workflowEngine = require('../../nosyntask/engine');
 const { queryOne } = require('../../dbHelper');
+const { findWorkflowConflict, sendWorkflowConflict } = require('../../nosyntask/workflowConflict');
 
 module.exports = (router) => {
   router.post('/batch-generate-videos/:scriptId', authMiddleware, async (req, res) => {
@@ -22,6 +23,15 @@ module.exports = (router) => {
       }
 
       console.log(`[BatchGenerateVideos] 用户 ${userId} 请求批量生成视频，scriptId=${scriptId}, 覆盖=${overwriteVideos}`);
+
+      const conflict = await findWorkflowConflict({
+        userId,
+        workflowType: 'batch_scene_video_generation',
+        params: { scriptId: Number(scriptId) }
+      });
+      if (conflict) {
+        return sendWorkflowConflict(res, 'batch_scene_video_generation', conflict);
+      }
 
       // 获取剧本信息（集数）
       const script = await queryOne('SELECT episode_number FROM scripts WHERE id = ?', [scriptId]);

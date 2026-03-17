@@ -1,6 +1,5 @@
 import React from 'react';
-import { Chip } from '@heroui/react';
-import { Character, ResourceItem } from './types';
+import { Character } from './types';
 import CharacterCard from './CharacterCard';
 import SimpleCharacterCard from './SimpleCharacterCard';
 
@@ -9,6 +8,7 @@ interface CharactersTabProps {
   dbCharacters: Character[];
   isLoadingCharacters: boolean;
   scenes?: any[];
+  activeCharacterIds?: string[];
   onGenerateViews: (charName: string, characterId: number) => void;
   onShowDetail: (character: Character) => void;
   onPreview?: (character: Character) => void;
@@ -19,6 +19,7 @@ const CharactersTab: React.FC<CharactersTabProps> = ({
   dbCharacters,
   isLoadingCharacters,
   scenes,
+  activeCharacterIds = [],
   onGenerateViews,
   onShowDetail,
   onPreview
@@ -42,6 +43,7 @@ const CharactersTab: React.FC<CharactersTabProps> = ({
             key={char.id}
             character={char}
             scenes={scenes}
+            isGenerating={activeCharacterIds.includes(String(char.id))}
             onGenerateViews={onGenerateViews}
             onShowDetail={onShowDetail}
           />
@@ -53,6 +55,7 @@ const CharactersTab: React.FC<CharactersTabProps> = ({
               key={idx}
               name={char}
               scenes={scenes}
+              isGenerating={false}
               onGenerateViews={(charName) => onGenerateViews(charName, 0)}
               onPreview={(resource) => onPreview?.({ id: 0, name: resource.name } as Character)}
             />

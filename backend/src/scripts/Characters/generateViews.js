@@ -1,6 +1,7 @@
 const { queryOne, execute } = require('../../dbHelper');
 const { authMiddleware } = require('../../middleware');
 const { callAIModel } = require('../../aiModelService');
+const { findWorkflowConflict, sendWorkflowConflict } = require('../../nosyntask/workflowConflict');
 
 // POST /:id/generate-views - 生成角色三视图提示词
 module.exports = (router) => {
@@ -17,6 +18,15 @@ module.exports = (router) => {
 
       if (!character) {
         return res.status(404).json({ message: '角色不存在' });
+      }
+
+      const conflict = await findWorkflowConflict({
+        userId,
+        workflowType: 'character_views_generation',
+        params: { characterId: id }
+      });
+      if (conflict) {
+        return sendWorkflowConflict(res, 'character_views_generation', conflict);
       }
 
       // 启动异步工作流生成三视图

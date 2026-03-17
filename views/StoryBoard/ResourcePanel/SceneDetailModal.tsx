@@ -74,13 +74,15 @@ const SceneDetailModal: React.FC<SceneDetailModalProps> = ({
                       size="sm" 
                       variant="flat" 
                       className={
+                        isGenerating ? 'bg-amber-500/10 text-amber-400' :
                         scene.generation_status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
                         scene.generation_status === 'processing' ? 'bg-amber-500/10 text-amber-400' :
                         scene.generation_status === 'failed' ? 'bg-red-500/10 text-red-400' :
                         'bg-slate-700/50 text-slate-400'
                       }
                     >
-                      {scene.generation_status === 'completed' ? '已生成' :
+                      {isGenerating ? '生成中' :
+                       scene.generation_status === 'completed' ? '已生成' :
                        scene.generation_status === 'processing' ? '生成中' :
                        scene.generation_status === 'failed' ? '生成失败' :
                        '待生成'}

@@ -14,6 +14,7 @@ const express = require('express');
 const { authMiddleware } = require('../middleware');
 const engine = require('./engine/index');
 const { getAvailableWorkflows } = require('./definitions');
+const { findWorkflowConflict, sendWorkflowConflict } = require('./workflowConflict');
 
 const router = express.Router();
 
@@ -71,6 +72,15 @@ router.post('/', authMiddleware, async (req, res) => {
     }
     if (!projectId || !Number.isInteger(Number(projectId)) || Number(projectId) <= 0) {
       return res.status(400).json({ message: 'projectId 必须为正整数' });
+    }
+
+    const conflict = await findWorkflowConflict({
+      userId,
+      workflowType,
+      params: params || {}
+    });
+    if (conflict) {
+      return sendWorkflowConflict(res, workflowType, conflict);
     }
 
     const result = await engine.startWorkflow(workflowType, {

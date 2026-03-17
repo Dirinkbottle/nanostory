@@ -1,5 +1,6 @@
 const { queryOne, queryAll } = require('../../dbHelper');
 const { authMiddleware } = require('../../middleware');
+const { findWorkflowConflict, sendWorkflowConflict } = require('../../nosyntask/workflowConflict');
 
 // POST /:id/generate-image - 生成场景图片
 module.exports = (router) => {
@@ -18,19 +19,13 @@ module.exports = (router) => {
         return res.status(404).json({ message: '场景不存在' });
       }
 
-      // 检查是否已有进行中的生成任务
-      const activeJob = await queryOne(
-        `SELECT id FROM workflow_jobs 
-         WHERE user_id = ? AND workflow_type = 'scene_image_generation' 
-           AND status IN ('pending', 'running')
-           AND JSON_EXTRACT(input_params, '$.sceneId') = ?`,
-        [userId, id]
-      );
-      if (activeJob) {
-        return res.status(409).json({ 
-          message: '该场景已有进行中的生成任务',
-          jobId: activeJob.id
-        });
+      const conflict = await findWorkflowConflict({
+        userId,
+        workflowType: 'scene_image_generation',
+        params: { sceneId: id }
+      });
+      if (conflict) {
+        return sendWorkflowConflict(res, 'scene_image_generation', conflict);
       }
 
       // 参数验证：确保必要字段完整

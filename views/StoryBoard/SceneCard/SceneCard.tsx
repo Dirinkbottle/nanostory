@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Card, CardBody, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Checkbox } from '@heroui/react';
 import SceneImageGenerator from '../SceneImageGenerator';
 import { StoryboardScene } from '../useSceneManager';
@@ -25,7 +25,7 @@ export interface SceneCardProps {
   onMoveUp: (id: number) => void;
   onMoveDown: (id: number) => void;
   onDelete: (id: number) => void;
-  onUpdateDescription: (id: number, description: string) => void;
+  onUpdateDescription: (id: number, description: string) => Promise<boolean>;
   onGenerateImage: (id: number, prompt: string) => Promise<{ success: boolean; error?: string }>;
   onGenerateVideo: (id: number) => Promise<{ success: boolean; error?: string }>;
   onUpdateScene?: (id: number, updates: Partial<StoryboardScene>) => void;
@@ -54,12 +54,20 @@ const SceneCard: React.FC<SceneCardProps> = ({
 }) => {
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(scene.description);
+  const [isSavingDescription, setIsSavingDescription] = useState(false);
   const [showVideoPreview, setShowVideoPreview] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const { showToast } = useToast();
   const { confirm } = useConfirm();
 
+  useEffect(() => {
+    if (!isEditingDescription) {
+      setEditedDescription(scene.description);
+    }
+  }, [scene.description, isEditingDescription]);
+
+  const isGeneratingImage = imageTask?.status === 'pending' || imageTask?.status === 'running';
   const isGeneratingVideo = videoTask?.status === 'pending' || videoTask?.status === 'running';
 
   // 删除视频（数据库 + MinIO 存储桶）
@@ -105,9 +113,18 @@ const SceneCard: React.FC<SceneCardProps> = ({
     }
   }, [scene.id, onUpdateScene]);
 
-  const handleSaveDescription = () => {
-    onUpdateDescription(scene.id, editedDescription);
-    setIsEditingDescription(false);
+  const handleSaveDescription = async () => {
+    if (isSavingDescription) {
+      return;
+    }
+
+    setIsSavingDescription(true);
+    const success = await onUpdateDescription(scene.id, editedDescription);
+    setIsSavingDescription(false);
+
+    if (success) {
+      setIsEditingDescription(false);
+    }
   };
 
   // localStorage key: 按 scriptId 存储"不再提示"状态
@@ -246,6 +263,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
                 endFrame={scene.endFrame}
                 hasAction={scene.hasAction}
                 sceneDescription={scene.description}
+                isGenerating={isGeneratingImage}
                 onGenerate={handleGenerateImageWithValidation}
                 onDeleteFrames={handleDeleteFrames}
               />
@@ -255,6 +273,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
               <SceneCardContent
                 scene={scene}
                 isEditingDescription={isEditingDescription}
+                isSavingDescription={isSavingDescription}
                 editedDescription={editedDescription}
                 onEditedDescriptionChange={setEditedDescription}
                 onSaveDescription={handleSaveDescription}

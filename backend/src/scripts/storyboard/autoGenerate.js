@@ -1,5 +1,6 @@
 const { queryOne } = require('../../dbHelper');
 const { authMiddleware } = require('../../middleware');
+const { findWorkflowConflict, sendWorkflowConflict } = require('../../nosyntask/workflowConflict');
 
 // POST /auto-generate/:scriptId - 根据剧本内容自动生成分镜（异步工作流）
 module.exports = (router) => {
@@ -27,6 +28,15 @@ module.exports = (router) => {
       }
 
       const projectId = script.project_id;
+
+      const conflict = await findWorkflowConflict({
+        userId,
+        workflowType: 'storyboard_generation',
+        params: { scriptId }
+      });
+      if (conflict) {
+        return sendWorkflowConflict(res, 'storyboard_generation', conflict);
+      }
 
       // 使用工作流引擎生成分镜
       const engine = require('../../nosyntask/engine/index');

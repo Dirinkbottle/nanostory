@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Textarea, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Tooltip } from '@heroui/react';
 import { Check, Edit2, Trash2, Mic, Play, Lock, Unlock, Image, Clapperboard } from 'lucide-react';
 import { StoryboardScene } from '../StoryBoard/useSceneManager';
@@ -12,7 +12,7 @@ interface StoryboardRowProps {
   index: number;
   dbCharacters: Character[];
   dbScenes: Scene[];
-  onUpdateDescription: (id: number, desc: string) => void;
+  onUpdateDescription: (id: number, desc: string) => Promise<boolean>;
   onDelete: (id: number) => void;
   onCharacterClick: (charName: string) => void;
   onSceneClick: (sceneName: string) => void;
@@ -60,18 +60,34 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
 }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(scene.description);
+  const [isSaving, setIsSaving] = useState(false);
   const [locked, setLocked] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showVideoPreview, setShowVideoPreview] = useState(false);
   const [showDirectorAssistant, setShowDirectorAssistant] = useState(false);
 
+  useEffect(() => {
+    if (!editing) {
+      setDraft(scene.description);
+    }
+  }, [scene.description, editing]);
+
   // 获取当前分镜的导演参数
   const currentDirectorParams: DirectorParams = scene.directorParams || DEFAULT_DIRECTOR_PARAMS;
   const hasDirectorParams = !!scene.directorParams;
 
-  const save = () => {
-    onUpdateDescription(scene.id, draft);
-    setEditing(false);
+  const save = async () => {
+    if (isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+    const success = await onUpdateDescription(scene.id, draft);
+    setIsSaving(false);
+
+    if (success) {
+      setEditing(false);
+    }
   };
 
   // 匹配角色图片（优先用 linkedCharacters，回退到名字匹配）
@@ -131,8 +147,12 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
                 inputWrapper: 'bg-slate-800 border border-cyan-500/30 min-h-0',
               }}
             />
-            <button onClick={save} className="px-2 py-0.5 bg-cyan-600 text-white text-[10px] rounded flex items-center gap-1 hover:bg-cyan-500">
-              <Check className="w-3 h-3" /> 保存
+            <button
+              onClick={save}
+              disabled={isSaving}
+              className="px-2 py-0.5 bg-cyan-600 text-white text-[10px] rounded flex items-center gap-1 hover:bg-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Check className="w-3 h-3" /> {isSaving ? '保存中...' : '保存'}
             </button>
           </div>
         ) : (

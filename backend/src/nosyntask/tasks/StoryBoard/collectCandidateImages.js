@@ -25,11 +25,6 @@ const collectCandidateImages = traced('收集候选参考图', async function _c
   const location = variables.location || '';
   const candidateImages = [];
 
-  // 校验：多角色镜头阻止
-  // if (characterNames.length > 1) {
-  //   throw new Error(`当前仅支持单角色镜头，该镜头包含 ${characterNames.length} 个角色: ${characterNames.join('、')}。请拆分镜头或手动处理。`);
-  // }
-
   if (!location || String(location).trim() === '') {
     throw new Error('该镜头未指定场景：帧生成要求必须提供场景 location');
   }

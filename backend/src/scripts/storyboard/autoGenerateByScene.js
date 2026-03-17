@@ -14,6 +14,7 @@
 const { queryOne, queryAll, execute } = require('../../dbHelper');
 const { authMiddleware } = require('../../middleware');
 const { parseScriptScenes, getSceneCount } = require('../../utils/parseScriptScenes');
+const { findWorkflowConflict, sendWorkflowConflict } = require('../../nosyntask/workflowConflict');
 
 module.exports = (router) => {
   /**
@@ -44,6 +45,15 @@ module.exports = (router) => {
       }
 
       const projectId = script.project_id;
+
+      const conflict = await findWorkflowConflict({
+        userId,
+        workflowType: 'batch_storyboard_generation',
+        params: { scriptId }
+      });
+      if (conflict) {
+        return sendWorkflowConflict(res, 'batch_storyboard_generation', conflict);
+      }
 
       // 预解析场景数量（不实际处理，只是为了返回场景数）
       const totalScenes = getSceneCount(script.content);

@@ -45,6 +45,10 @@ export function useBatchSceneVideoGeneration({
   });
 
   const startBatchVideoGeneration = useCallback(async (overwriteVideos: boolean) => {
+    if (recovery.isGenerating) {
+      onError?.('批量视频生成任务正在进行中');
+      return;
+    }
     if (!scriptId) {
       onError?.('请先选择剧本');
       return;
@@ -82,7 +86,7 @@ export function useBatchSceneVideoGeneration({
 
       const data = await res.json();
 
-      if (res.ok && data.jobId) {
+      if (data.jobId && (res.ok || res.status === 409)) {
         console.log('[useBatchSceneVideoGen] 任务已启动, jobId:', data.jobId);
         recovery.startJob(data.jobId);
       } else {
@@ -92,7 +96,7 @@ export function useBatchSceneVideoGeneration({
       console.error('[useBatchSceneVideoGen] 启动失败:', error);
       onError?.('启动批量视频生成失败，请检查网络连接');
     }
-  }, [scriptId, videoModel, textModel, aspectRatio, duration, projectId, recovery.startJob]);
+  }, [scriptId, videoModel, textModel, aspectRatio, duration, projectId, recovery, onError]);
 
   return {
     startBatchVideoGeneration,

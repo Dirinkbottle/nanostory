@@ -14,7 +14,7 @@ interface StoryboardTableProps {
   tasks: Record<string, TaskState>;
   onAddScene: () => void;
   onDeleteScene: (id: number) => void;
-  onUpdateDescription: (id: number, desc: string) => void;
+  onUpdateDescription: (id: number, desc: string) => Promise<boolean>;
   onGenerateVideo: (id: number) => Promise<{ success: boolean; error?: string }>;
   onGenerateImage: (id: number, prompt: string) => Promise<{ success: boolean; error?: string }>;
   onCharacterClick: (name: string) => void;

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ImageFrames from './ImageFrames';
 import ImagePreviewModal from './ImagePreviewModal';
 import GenerateModal from './GenerateModal';
-import { useGeneratingState } from './useGeneratingState';
 
 interface SceneImageGeneratorProps {
   sceneId: number;
@@ -10,6 +9,7 @@ interface SceneImageGeneratorProps {
   endFrame?: string;
   hasAction?: boolean;
   sceneDescription: string;
+  isGenerating: boolean;
   onGenerate: (prompt: string) => Promise<{ success: boolean; error?: string }>;
   onDeleteFrames?: () => void;
 }
@@ -20,6 +20,7 @@ const SceneImageGenerator: React.FC<SceneImageGeneratorProps> = ({
   endFrame,
   hasAction,
   sceneDescription,
+  isGenerating,
   onGenerate,
   onDeleteFrames
 }) => {
@@ -30,7 +31,6 @@ const SceneImageGenerator: React.FC<SceneImageGeneratorProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const hasImages = !!(startFrame || endFrame);
-  const { isGenerating, setIsGenerating, addGeneratingId, removeGeneratingId } = useGeneratingState(sceneId, hasImages);
 
   const handleOpenGenerateModal = () => {
     setPrompt(sceneDescription);
@@ -40,29 +40,19 @@ const SceneImageGenerator: React.FC<SceneImageGeneratorProps> = ({
 
   const handleQuickGenerate = async () => {
     if (isGenerating) return;
-    setIsGenerating(true);
     setError(null);
-    addGeneratingId(sceneId);
-    
     const result = await onGenerate(sceneDescription);
     
     if (!result.success) {
-      removeGeneratingId(sceneId);
-      setIsGenerating(false);
       setError(result.error || '生成失败');
     }
   };
 
   const handleGenerate = async () => {
-    setIsGenerating(true);
     setError(null);
-    addGeneratingId(sceneId);
-    
     const result = await onGenerate(prompt);
     
     if (!result.success) {
-      removeGeneratingId(sceneId);
-      setIsGenerating(false);
       setError(result.error || '生成失败');
     } else {
       setIsOpen(false);
