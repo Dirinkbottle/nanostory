@@ -1,6 +1,7 @@
 import React from 'react';
 import { Select, SelectItem } from '@heroui/react';
 import { Coins } from 'lucide-react';
+import { summarizeCapabilityOptions } from '../utils/modelCapabilities';
 
 export interface AIModel {
   id?: number;
@@ -14,6 +15,8 @@ export interface AIModel {
     unit: string;
     price: number;
   };
+  supportedAspectRatios?: unknown;
+  supportedDurations?: unknown;
 }
 
 interface AIModelSelectorProps {
@@ -69,7 +72,16 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
   // 动态生成描述
   const dynamicDescription = description || (
     selectedModelInfo
-      ? `${selectedModelInfo.provider} - ${selectedModelInfo.description || '暂无描述'}`
+      ? [
+          `${selectedModelInfo.provider} - ${selectedModelInfo.description || '暂无描述'}`,
+          ((selectedModelInfo.type || selectedModelInfo.category)?.toUpperCase() === 'IMAGE' ||
+            (selectedModelInfo.type || selectedModelInfo.category)?.toUpperCase() === 'VIDEO')
+            ? `比例: ${summarizeCapabilityOptions(selectedModelInfo.supportedAspectRatios, 'aspectRatio')}`
+            : null,
+          (selectedModelInfo.type || selectedModelInfo.category)?.toUpperCase() === 'VIDEO'
+            ? `时长: ${summarizeCapabilityOptions(selectedModelInfo.supportedDurations, 'duration')}`
+            : null
+        ].filter(Boolean).join(' | ')
       : placeholder
   );
 
@@ -128,6 +140,14 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
               <span className="text-xs text-slate-400 truncate">
                 {model.provider} {model.description && `· ${model.description}`}
               </span>
+              {(((model.type || model.category)?.toUpperCase() === 'IMAGE') ||
+                ((model.type || model.category)?.toUpperCase() === 'VIDEO')) && (
+                <span className="text-[11px] text-slate-500 truncate">
+                  比例: {summarizeCapabilityOptions(model.supportedAspectRatios, 'aspectRatio')}
+                  {(model.type || model.category)?.toUpperCase() === 'VIDEO' &&
+                    ` · 时长: ${summarizeCapabilityOptions(model.supportedDurations, 'duration')}`}
+                </span>
+              )}
             </div>
             {model.priceConfig && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-md shrink-0">

@@ -18,13 +18,12 @@ const handleSingleFrameGeneration = require('./singleFrameGeneration');
  * @param {number} params.storyboardId - 分镜ID
  * @param {string} params.imageModel - 图片生成模型
  * @param {string} params.textModel - 文本模型（可选）
- * @param {number} params.width - 图片宽度
- * @param {number} params.height - 图片高度
+ * @param {string} params.aspectRatio - 图片比例
  * @param {Function} onProgress - 进度回调
  * @returns {Promise<{status, type, ...result}>}
  */
 async function generateFrameIndependent(params, onProgress) {
-  const { storyboardId, imageModel, textModel, width = 1024, height = 576 } = params;
+  const { storyboardId, imageModel, textModel, aspectRatio } = params;
 
   if (!storyboardId) {
     throw new Error('缺少必要参数: storyboardId');
@@ -62,8 +61,7 @@ async function generateFrameIndependent(params, onProgress) {
     description,
     imageModel,
     textModel,
-    width,
-    height,
+    aspectRatio,
     // 独立模式的关键：不传递链式参数
     prevEndFrameUrl: null,
     prevDescription: null,
@@ -103,8 +101,7 @@ async function generateFrameIndependent(params, onProgress) {
  * @param {number[]} params.storyboardIds - 分镜ID列表
  * @param {string} params.imageModel - 图片生成模型
  * @param {string} params.textModel - 文本模型（可选）
- * @param {number} params.width - 图片宽度
- * @param {number} params.height - 图片高度
+ * @param {string} params.aspectRatio - 图片比例
  * @param {number} params.maxConcurrency - 最大并发数，默认 5
  * @param {Function} onProgress - 进度回调
  * @returns {Promise<{total, completed, failed, results[]}>}
@@ -114,8 +111,7 @@ async function generateFramesParallel(params, onProgress) {
     storyboardIds,
     imageModel,
     textModel,
-    width = 1024,
-    height = 576,
+    aspectRatio,
     maxConcurrency = 5
   } = params;
 
@@ -149,8 +145,7 @@ async function generateFramesParallel(params, onProgress) {
             storyboardId: sbId,
             imageModel,
             textModel,
-            width,
-            height
+            aspectRatio
           }, null);  // 单个分镜的进度回调暂不处理
           completed++;
           return result;
@@ -191,8 +186,7 @@ async function generateFramesParallel(params, onProgress) {
  * @param {string} params.imageModel - 图片生成模型
  * @param {string} params.textModel - 文本模型
  * @param {boolean} params.overwriteFrames - 是否覆盖已有帧
- * @param {number} params.width - 图片宽度
- * @param {number} params.height - 图片高度
+ * @param {string} params.aspectRatio - 图片比例
  * @param {number} params.maxConcurrency - 最大并发数
  * @param {Function} onProgress - 进度回调
  * @returns {Promise<{total, completed, skipped, failed, results[]}>}
@@ -203,8 +197,7 @@ async function handleParallelFrameGeneration(params, onProgress) {
     imageModel,
     textModel,
     overwriteFrames = false,
-    width = 1024,
-    height = 576,
+    aspectRatio,
     maxConcurrency = 5
   } = params;
 
@@ -252,8 +245,7 @@ async function handleParallelFrameGeneration(params, onProgress) {
     storyboardIds,
     imageModel,
     textModel,
-    width,
-    height,
+    aspectRatio,
     maxConcurrency
   }, onProgress);
 

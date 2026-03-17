@@ -6,7 +6,7 @@ module.exports = (router) => {
   router.post('/:id/generate-image', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
-    const { imageModel, textModel, width, height } = req.body;
+    const { imageModel, textModel, width, height, aspectRatio } = req.body;
 
     try {
       const scene = await queryOne(
@@ -71,8 +71,9 @@ module.exports = (router) => {
           allScenes: sceneSummaries,
           imageModel,
           textModel,
-          width: width || 1024,
-          height: height || 576
+          width: width ?? null,
+          height: height ?? null,
+          aspectRatio: aspectRatio || null
         }
       });
 

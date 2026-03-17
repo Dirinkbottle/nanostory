@@ -367,6 +367,7 @@ const ScriptStudio: React.FC = () => {
               projectId={selectedProject?.id || null}
               episodeNumber={currentEpisode}
               scripts={scripts}
+              models={aiModels.models}
               textModel={aiModels.selected.text}
               imageModel={aiModels.selected.image}
               videoModel={aiModels.selected.video}
@@ -386,6 +387,7 @@ const ScriptStudio: React.FC = () => {
               projectId={selectedProject?.id || null}
               episodeNumber={currentEpisode}
               scripts={scripts}
+              models={aiModels.models}
               textModel={aiModels.selected.text}
               imageModel={aiModels.selected.image}
               videoModel={aiModels.selected.video}

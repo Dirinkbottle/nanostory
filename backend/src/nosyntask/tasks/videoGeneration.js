@@ -15,11 +15,16 @@ async function handleVideoGeneration(inputParams, onProgress) {
 
   if (onProgress) onProgress(10);
 
-  const result = await submitAndPoll(modelName, {
+  const submitParams = {
     prompt,
-    image_url: imageUrl,
-    duration: duration || 5
-  }, {
+    image_url: imageUrl
+  };
+
+  if (duration !== undefined && duration !== null) {
+    submitParams.duration = duration;
+  }
+
+  const result = await submitAndPoll(modelName, submitParams, {
     intervalMs: 5000,
     maxDurationMs: 3600000,
     logTag: 'VideoGen'

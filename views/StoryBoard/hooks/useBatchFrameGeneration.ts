@@ -13,6 +13,7 @@ interface UseBatchFrameGenerationProps {
   scriptId: number | null;
   projectId: number | null;
   imageModel: string;
+  aspectRatio: string;
   textModel: string;
   scenes: { id?: number; characters: string[]; location: string }[];
   onComplete?: () => void;
@@ -23,6 +24,7 @@ export function useBatchFrameGeneration({
   scriptId,
   projectId,
   imageModel,
+  aspectRatio,
   textModel,
   scenes,
   onComplete,
@@ -52,6 +54,10 @@ export function useBatchFrameGeneration({
       onError?.('请先选择图片模型');
       return;
     }
+    if (!aspectRatio) {
+      onError?.('当前图片模型未配置可用长宽比');
+      return;
+    }
 
     // 前置校验：检查所有分镜涉及的角色和场景是否完整
     if (projectId && scenes.length > 0) {
@@ -76,6 +82,7 @@ export function useBatchFrameGeneration({
         },
         body: JSON.stringify({
           imageModel,
+          aspectRatio,
           textModel,
           overwriteFrames,
           projectId
@@ -94,7 +101,7 @@ export function useBatchFrameGeneration({
       console.error('[useBatchFrameGen] 启动失败:', error);
       onError?.('启动批量生成失败，请检查网络连接');
     }
-  }, [scriptId, imageModel, projectId, scenes, recovery.startJob]);
+  }, [scriptId, imageModel, aspectRatio, projectId, scenes, recovery.startJob]);
 
   return {
     startBatchGeneration,

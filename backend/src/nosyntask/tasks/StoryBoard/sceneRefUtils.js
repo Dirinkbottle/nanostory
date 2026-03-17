@@ -24,11 +24,10 @@ const { downloadAndStore } = require('../../../utils/fileStorage');
  * @param {string} opts.environmentChange - 环境变化描述（英文）
  * @param {string} opts.imageModel - 图片模型名称
  * @param {string} opts.textModel - 文本模型名称
- * @param {number} opts.width
- * @param {number} opts.height
+ * @param {string} opts.aspectRatio
  * @returns {string|null} 持久化后的空镜场景图 URL，失败返回 null
  */
-async function generateUpdatedSceneImage({ storyboardId, location, environmentChange, imageModel, textModel, width, height }) {
+async function generateUpdatedSceneImage({ storyboardId, location, environmentChange, imageModel, textModel, aspectRatio }) {
   console.log(`[SceneRefUtils] 🎨 生成更新版场景图：场景「${location}」，变化: ${environmentChange}`);
 
   // 1. 查询原始场景信息
@@ -80,8 +79,7 @@ ${environmentChange}
     prompt: scenePrompt,
     imageModel,
     imageUrl: sceneRow.image_url,
-    width: width || 1024,
-    height: height || 576
+    aspectRatio
   });
 
   const generatedUrl = imageResult.image_url;

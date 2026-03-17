@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@heroui/react';
-import { Wand2, RefreshCw, Upload, Download, Video } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Button, Select, SelectItem } from '@heroui/react';
+import { Wand2, RefreshCw, Upload, Download, Video, ImageIcon } from 'lucide-react';
 import { useSceneManager } from './useSceneManager';
 import { useAutoStoryboard } from './useAutoStoryboard';
 import { useSceneGeneration } from './useSceneGeneration';
@@ -14,6 +14,8 @@ import SceneList from './SceneList';
 import ResourcePanel from './ResourcePanel';
 import { getAuthToken } from '../../services/auth';
 import { useToast } from '../../contexts/ToastContext';
+import { AIModel } from '../../components/AIModelSelector';
+import { normalizeCapabilityOptions } from '../../utils/modelCapabilities';
 
 interface Script {
   id: number;
@@ -27,6 +29,7 @@ interface StoryBoardProps {
   projectId?: number | null;
   episodeNumber?: number;
   scripts?: Script[];
+  models?: AIModel[];
   textModel: string;
   imageModel: string;
   videoModel: string;
@@ -38,6 +41,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   projectId,
   episodeNumber = 1,
   scripts = [],
+  models = [],
   textModel,
   imageModel,
   videoModel,
@@ -48,7 +52,32 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   const [currentEpisode, setCurrentEpisode] = useState(episodeNumber);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showBatchDownloadModal, setShowBatchDownloadModal] = useState(false);
+  const [imageAspectRatio, setImageAspectRatio] = useState('');
+  const [videoAspectRatio, setVideoAspectRatio] = useState('');
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const { showToast } = useToast();
+
+  const imageModelConfig = useMemo(
+    () => models.find((model) => model.name === imageModel && (model.type || model.category)?.toUpperCase() === 'IMAGE'),
+    [models, imageModel]
+  );
+  const videoModelConfig = useMemo(
+    () => models.find((model) => model.name === videoModel && (model.type || model.category)?.toUpperCase() === 'VIDEO'),
+    [models, videoModel]
+  );
+
+  const imageAspectRatioOptions = useMemo(
+    () => normalizeCapabilityOptions(imageModelConfig?.supportedAspectRatios, 'aspectRatio'),
+    [imageModelConfig]
+  );
+  const videoAspectRatioOptions = useMemo(
+    () => normalizeCapabilityOptions(videoModelConfig?.supportedAspectRatios, 'aspectRatio'),
+    [videoModelConfig]
+  );
+  const videoDurationOptions = useMemo(
+    () => normalizeCapabilityOptions(videoModelConfig?.supportedDurations, 'duration'),
+    [videoModelConfig]
+  );
 
   // 同步外部 props - 修复：添加缺失的依赖，避免无限循环
   useEffect(() => {
@@ -68,6 +97,42 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       setCurrentEpisode(episodeNumber);
     }
   }, [episodeNumber, currentEpisode]);
+
+  useEffect(() => {
+    if (imageAspectRatioOptions.length === 0) {
+      setImageAspectRatio('');
+      return;
+    }
+
+    setImageAspectRatio((current) =>
+      imageAspectRatioOptions.some((option) => option.value === current)
+        ? current
+        : imageAspectRatioOptions[0].value
+    );
+  }, [imageAspectRatioOptions]);
+
+  useEffect(() => {
+    if (videoAspectRatioOptions.length === 0) {
+      setVideoAspectRatio('');
+    } else {
+      setVideoAspectRatio((current) =>
+        videoAspectRatioOptions.some((option) => option.value === current)
+          ? current
+          : videoAspectRatioOptions[0].value
+      );
+    }
+
+    if (videoDurationOptions.length === 0) {
+      setVideoDuration(null);
+      return;
+    }
+
+    setVideoDuration((current) => {
+      const currentValue = current === null ? '' : String(current);
+      const matchedOption = videoDurationOptions.find((option) => option.value === currentValue);
+      return matchedOption ? Number(matchedOption.value) : Number(videoDurationOptions[0].value);
+    });
+  }, [videoAspectRatioOptions, videoDurationOptions]);
 
   // 1. 分镜列表管理
   const {
@@ -107,8 +172,11 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     scenes,
     setScenes,
     imageModel,
+    imageAspectRatio,
     textModel,
-    videoModel
+    videoModel,
+    videoAspectRatio,
+    videoDuration
   });
 
   // 批量生成功能
@@ -171,6 +239,10 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       showToast('请先选择项目和剧本', 'warning');
       return;
     }
+    if (!imageAspectRatio) {
+      showToast('当前图片模型未配置可用长宽比', 'warning');
+      return;
+    }
 
     try {
       showToast('正在启动场景批量生成...', 'info');
@@ -205,8 +277,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
             body: JSON.stringify({
               imageModel,
               textModel,
-              width: 1024,
-              height: 576
+              aspectRatio: imageAspectRatio
             })
           });
         } catch (err) {
@@ -267,6 +338,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     scriptId: currentScriptId,
     projectId: currentProjectId,
     imageModel,
+    aspectRatio: imageAspectRatio,
     textModel,
     scenes,
     onComplete: () => {
@@ -284,7 +356,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     projectId: currentProjectId,
     videoModel,
     textModel,
-    // duration 不传，让每个分镜根据自身 hasAction 决定时长（有动作3秒，无动作2秒）
+    aspectRatio: videoAspectRatio,
+    duration: videoDuration,
     onComplete: () => {
       console.log('[StoryBoard] 批量视频生成完成，重新加载分镜');
       if (currentScriptId) {
@@ -377,102 +450,180 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     <div className="h-full flex flex-col bg-[#0c0e1a]">
       {/* 顶部工具栏 */}
       <div className="px-4 py-3 genshin-navbar backdrop-blur-xl border-b flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-bold genshin-title">分镜设计</h2>
-          <EpisodeSelector
-            scripts={scripts}
-            currentEpisode={currentEpisode}
-            onSelect={handleEpisodeSelect}
-          />
-          {scenes.length > 0 && (
-            <span className="text-sm text-[#a8a29e]">共 {scenes.length} 个分镜</span>
-          )}
-        </div>
+        <div className="w-full space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-bold genshin-title">分镜设计</h2>
+              <EpisodeSelector
+                scripts={scripts}
+                currentEpisode={currentEpisode}
+                onSelect={handleEpisodeSelect}
+              />
+              {scenes.length > 0 && (
+                <span className="text-sm text-[#a8a29e]">共 {scenes.length} 个分镜</span>
+              )}
+            </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="flat"
-            className="bg-[rgba(230,200,122,0.1)] text-[#a8a29e] border border-[rgba(255,255,255,0.1)] hover:border-[rgba(230,200,122,0.3)] hover:text-[#e6c87a] font-medium transition-all"
-            startContent={<RefreshCw className="w-4 h-4" />}
-            onPress={() => currentScriptId && loadStoryboards(currentScriptId)}
-            isLoading={isLoading}
-            isDisabled={!currentScriptId}
-          >
-            刷新
-          </Button>
-          {scenes.length > 0 && (
-            <Button
-              size="sm"
-              variant="flat"
-              className="bg-gradient-to-r from-emerald-500/15 to-green-500/15 border border-emerald-500/30 text-emerald-400 font-medium hover:from-emerald-500/25 hover:to-green-500/25 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)] transition-all"
-              startContent={<Download className="w-4 h-4" />}
-              onPress={() => setShowBatchDownloadModal(true)}
-            >
-              批量下载
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="flat"
-            className="bg-[rgba(230,200,122,0.1)] text-[#a8a29e] border border-[rgba(255,255,255,0.1)] hover:border-[rgba(230,200,122,0.3)] hover:text-[#e6c87a] font-medium transition-all"
-            startContent={<Upload className="w-4 h-4" />}
-            onPress={() => setShowImportModal(true)}
-            isDisabled={!currentScriptId}
-          >
-            从 JSON 导入
-          </Button>
-          <Button
-            size="sm"
-            className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_25px_rgba(59,130,246,0.4)] transition-all"
-            startContent={<Wand2 className="w-4 h-4" />}
-            onPress={handleBatchCharacterGeneration}
-            isDisabled={!currentScriptId}
-          >
-            批量生成角色
-          </Button>
-          <Button
-            size="sm"
-            className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold shadow-lg shadow-green-500/30 hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all"
-            startContent={<Wand2 className="w-4 h-4" />}
-            onPress={handleBatchSceneGeneration}
-            isDisabled={!currentScriptId}
-          >
-            批量生成场景
-          </Button>
-          <Button
-            size="sm"
-            className="bg-gradient-to-r from-purple-500 to-violet-500 text-white font-bold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_25px_rgba(139,92,246,0.4)] transition-all"
-            startContent={<Wand2 className="w-4 h-4" />}
-            onPress={handleBatchFrameGeneration}
-            isDisabled={!currentScriptId || batchFrameGen.isGenerating}
-            isLoading={batchFrameGen.isGenerating}
-          >
-            批量生成首尾帧
-          </Button>
-          <Button
-            size="sm"
-            className="bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold shadow-lg shadow-rose-500/30 hover:shadow-[0_0_25px_rgba(244,63,94,0.4)] transition-all"
-            startContent={<Video className="w-4 h-4" />}
-            onPress={handleBatchVideoGeneration}
-            isDisabled={!currentScriptId}
-          >
-            批量生成视频
-          </Button>
-          <Button
-            size="sm"
-            className="bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-[#1a1d35] font-bold shadow-lg shadow-amber-500/30 hover:shadow-[0_0_25px_rgba(230,200,122,0.4)] transition-all"
-            startContent={<Wand2 className="w-4 h-4" />}
-            onPress={autoStoryboard.handleAutoGenerateClick}
-            isLoading={autoStoryboard.isGenerating}
-            isDisabled={!currentScriptId || autoStoryboard.isGenerating}
-          >
-            {autoStoryboard.isGenerating 
-              ? (autoStoryboard.progress 
-                  ? `${autoStoryboard.progress.currentStep}/${autoStoryboard.progress.totalSteps} ${autoStoryboard.progress.stepName}` 
-                  : '生成中...')
-              : '智能生成分镜'}
-          </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="flat"
+                className="bg-[rgba(230,200,122,0.1)] text-[#a8a29e] border border-[rgba(255,255,255,0.1)] hover:border-[rgba(230,200,122,0.3)] hover:text-[#e6c87a] font-medium transition-all"
+                startContent={<RefreshCw className="w-4 h-4" />}
+                onPress={() => currentScriptId && loadStoryboards(currentScriptId)}
+                isLoading={isLoading}
+                isDisabled={!currentScriptId}
+              >
+                刷新
+              </Button>
+              {scenes.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="flat"
+                  className="bg-gradient-to-r from-emerald-500/15 to-green-500/15 border border-emerald-500/30 text-emerald-400 font-medium hover:from-emerald-500/25 hover:to-green-500/25 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)] transition-all"
+                  startContent={<Download className="w-4 h-4" />}
+                  onPress={() => setShowBatchDownloadModal(true)}
+                >
+                  批量下载
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="flat"
+                className="bg-[rgba(230,200,122,0.1)] text-[#a8a29e] border border-[rgba(255,255,255,0.1)] hover:border-[rgba(230,200,122,0.3)] hover:text-[#e6c87a] font-medium transition-all"
+                startContent={<Upload className="w-4 h-4" />}
+                onPress={() => setShowImportModal(true)}
+                isDisabled={!currentScriptId}
+              >
+                从 JSON 导入
+              </Button>
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_25px_rgba(59,130,246,0.4)] transition-all"
+                startContent={<Wand2 className="w-4 h-4" />}
+                onPress={handleBatchCharacterGeneration}
+                isDisabled={!currentScriptId}
+              >
+                批量生成角色
+              </Button>
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold shadow-lg shadow-green-500/30 hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all"
+                startContent={<Wand2 className="w-4 h-4" />}
+                onPress={handleBatchSceneGeneration}
+                isDisabled={!currentScriptId}
+              >
+                批量生成场景
+              </Button>
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-purple-500 to-violet-500 text-white font-bold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_25px_rgba(139,92,246,0.4)] transition-all"
+                startContent={<Wand2 className="w-4 h-4" />}
+                onPress={handleBatchFrameGeneration}
+                isDisabled={!currentScriptId || batchFrameGen.isGenerating}
+                isLoading={batchFrameGen.isGenerating}
+              >
+                批量生成首尾帧
+              </Button>
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold shadow-lg shadow-rose-500/30 hover:shadow-[0_0_25px_rgba(244,63,94,0.4)] transition-all"
+                startContent={<Video className="w-4 h-4" />}
+                onPress={handleBatchVideoGeneration}
+                isDisabled={!currentScriptId}
+              >
+                批量生成视频
+              </Button>
+              <Button
+                size="sm"
+                className="bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-[#1a1d35] font-bold shadow-lg shadow-amber-500/30 hover:shadow-[0_0_25px_rgba(230,200,122,0.4)] transition-all"
+                startContent={<Wand2 className="w-4 h-4" />}
+                onPress={autoStoryboard.handleAutoGenerateClick}
+                isLoading={autoStoryboard.isGenerating}
+                isDisabled={!currentScriptId || autoStoryboard.isGenerating}
+              >
+                {autoStoryboard.isGenerating
+                  ? (autoStoryboard.progress
+                      ? `${autoStoryboard.progress.currentStep}/${autoStoryboard.progress.totalSteps} ${autoStoryboard.progress.stepName}`
+                      : '生成中...')
+                  : '智能生成分镜'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3">
+            {imageModel && (
+              <div className="flex items-center gap-2 rounded-xl border border-slate-700/50 bg-slate-900/50 px-3 py-2">
+                <ImageIcon className="w-4 h-4 text-cyan-400" />
+                <div className="text-xs text-slate-400">图片模型</div>
+                <div className="text-sm font-semibold text-slate-100 min-w-[120px]">{imageModel}</div>
+                <Select
+                  size="sm"
+                  label="图片比例"
+                  placeholder={imageAspectRatioOptions.length > 0 ? '选择图片比例' : '未配置支持比例'}
+                  selectedKeys={imageAspectRatio ? [imageAspectRatio] : []}
+                  onChange={(e) => setImageAspectRatio(e.target.value)}
+                  className="w-44"
+                  isDisabled={imageAspectRatioOptions.length === 0}
+                  classNames={{
+                    trigger: "bg-slate-800/60 border-slate-600/50 hover:border-cyan-500/50",
+                    label: "text-slate-400 text-xs",
+                    value: "text-slate-200 text-sm"
+                  }}
+                >
+                  {imageAspectRatioOptions.map((option) => (
+                    <SelectItem key={option.value}>{option.label}</SelectItem>
+                  ))}
+                </Select>
+              </div>
+            )}
+
+            {videoModel && (
+              <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-700/50 bg-slate-900/50 px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <Video className="w-4 h-4 text-rose-400" />
+                  <div className="text-xs text-slate-400">视频模型</div>
+                  <div className="text-sm font-semibold text-slate-100 min-w-[120px]">{videoModel}</div>
+                </div>
+                <Select
+                  size="sm"
+                  label="视频比例"
+                  placeholder={videoAspectRatioOptions.length > 0 ? '选择视频比例' : '未配置支持比例'}
+                  selectedKeys={videoAspectRatio ? [videoAspectRatio] : []}
+                  onChange={(e) => setVideoAspectRatio(e.target.value)}
+                  className="w-44"
+                  isDisabled={videoAspectRatioOptions.length === 0}
+                  classNames={{
+                    trigger: "bg-slate-800/60 border-slate-600/50 hover:border-rose-500/50",
+                    label: "text-slate-400 text-xs",
+                    value: "text-slate-200 text-sm"
+                  }}
+                >
+                  {videoAspectRatioOptions.map((option) => (
+                    <SelectItem key={option.value}>{option.label}</SelectItem>
+                  ))}
+                </Select>
+                <Select
+                  size="sm"
+                  label="视频时长"
+                  placeholder={videoDurationOptions.length > 0 ? '选择视频时长' : '未配置支持时长'}
+                  selectedKeys={videoDuration === null ? [] : [String(videoDuration)]}
+                  onChange={(e) => setVideoDuration(Number(e.target.value))}
+                  className="w-36"
+                  isDisabled={videoDurationOptions.length === 0}
+                  classNames={{
+                    trigger: "bg-slate-800/60 border-slate-600/50 hover:border-rose-500/50",
+                    label: "text-slate-400 text-xs",
+                    value: "text-slate-200 text-sm"
+                  }}
+                >
+                  {videoDurationOptions.map((option) => (
+                    <SelectItem key={option.value}>{option.label}</SelectItem>
+                  ))}
+                </Select>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -527,6 +678,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
             scriptId={currentScriptId}
             scenes={scenes}
             imageModel={imageModel}
+            imageAspectRatio={imageAspectRatio}
             textModel={textModel}
           />
         </div>

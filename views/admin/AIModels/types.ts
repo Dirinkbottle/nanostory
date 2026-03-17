@@ -18,6 +18,8 @@ export interface AIModel {
   body_template?: any;
   default_params?: any;
   response_mapping: any;
+  supported_aspect_ratios?: any;
+  supported_durations?: any;
   query_url_template?: string;
   query_method?: string;
   query_headers_template?: any;
@@ -55,6 +57,8 @@ export interface ModelFormData {
   body_template: string;
   default_params: string;
   response_mapping: string;
+  supported_aspect_ratios: string;
+  supported_durations: string;
   query_url_template: string;
   query_method: string;
   query_headers_template: string;
@@ -83,6 +87,8 @@ export const DEFAULT_FORM_DATA: ModelFormData = {
   body_template: '{}',
   default_params: '{}',
   response_mapping: '{}',
+  supported_aspect_ratios: '[]',
+  supported_durations: '[]',
   query_url_template: '',
   query_method: 'GET',
   query_headers_template: '{}',

@@ -19,6 +19,7 @@ module.exports = (router) => {
       const { scriptId } = req.params;
       const { 
         imageModel, 
+        aspectRatio,
         textModel, 
         overwriteFrames = false, 
         projectId,
@@ -45,6 +46,7 @@ module.exports = (router) => {
           scriptId: Number(scriptId),
           episodeNumber,
           imageModel,
+          aspectRatio: aspectRatio || null,
           textModel: textModel || null,
           overwriteFrames: !!overwriteFrames,
           maxConcurrency: Number(maxConcurrency) || 5

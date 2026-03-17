@@ -319,7 +319,7 @@ module.exports = {
   },
   duration: {
     from: 'duration',
-    defaultValue: 5,
+    defaultValue: null,
     description: '视频时长（秒）',
     category: 'generation'
   },

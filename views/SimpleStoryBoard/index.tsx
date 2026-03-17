@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSceneManager } from '../StoryBoard/useSceneManager';
 import { useAutoStoryboard } from '../StoryBoard/useAutoStoryboard';
 import { useSceneGeneration } from '../StoryBoard/useSceneGeneration';
@@ -12,6 +12,8 @@ import ResourceSidebar from './ResourceSidebar';
 import { Wand2, Users, Image, Film, Video } from 'lucide-react';
 import { Button } from '@heroui/react';
 import { getAuthToken } from '../../services/auth';
+import { AIModel } from '../../components/AIModelSelector';
+import { normalizeCapabilityOptions } from '../../utils/modelCapabilities';
 
 interface Script {
   id: number;
@@ -25,6 +27,7 @@ interface SimpleStoryBoardProps {
   projectId?: number | null;
   episodeNumber?: number;
   scripts?: Script[];
+  models?: AIModel[];
   textModel: string;
   imageModel: string;
   videoModel: string;
@@ -36,6 +39,7 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
   projectId,
   episodeNumber = 1,
   scripts = [],
+  models = [],
   textModel,
   imageModel,
   videoModel,
@@ -49,6 +53,22 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
   // 右侧面板联动状态
   const [selectedCharName, setSelectedCharName] = useState<string | null>(null);
   const [selectedSceneName, setSelectedSceneName] = useState<string | null>(null);
+
+  const imageAspectRatio = useMemo(() => {
+    const model = models.find((item) => item.name === imageModel && (item.type || item.category)?.toUpperCase() === 'IMAGE');
+    return normalizeCapabilityOptions(model?.supportedAspectRatios, 'aspectRatio')[0]?.value || '';
+  }, [models, imageModel]);
+
+  const videoAspectRatio = useMemo(() => {
+    const model = models.find((item) => item.name === videoModel && (item.type || item.category)?.toUpperCase() === 'VIDEO');
+    return normalizeCapabilityOptions(model?.supportedAspectRatios, 'aspectRatio')[0]?.value || '';
+  }, [models, videoModel]);
+
+  const videoDuration = useMemo(() => {
+    const model = models.find((item) => item.name === videoModel && (item.type || item.category)?.toUpperCase() === 'VIDEO');
+    const firstOption = normalizeCapabilityOptions(model?.supportedDurations, 'duration')[0];
+    return firstOption ? Number(firstOption.value) : null;
+  }, [models, videoModel]);
 
   useEffect(() => { if (scriptId !== currentScriptId) setCurrentScriptId(scriptId || null); }, [scriptId]);
   useEffect(() => { if (projectId !== currentProjectId) setCurrentProjectId(projectId || null); }, [projectId]);
@@ -74,7 +94,12 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
     scriptId: currentScriptId,
     episodeNumber: currentEpisode,
     scenes, setScenes,
-    imageModel, textModel, videoModel,
+    imageModel,
+    imageAspectRatio,
+    textModel,
+    videoModel,
+    videoAspectRatio,
+    videoDuration,
   });
 
   // 数据库角色/场景
@@ -134,6 +159,10 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
       showToast('缺少必要参数，请选择场景和模型', 'warning');
       return;
     }
+    if (!imageAspectRatio) {
+      showToast('当前图片模型未配置可用长宽比', 'warning');
+      return;
+    }
 
     try {
       showToast('正在生成场景图片...', 'info');
@@ -147,8 +176,7 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
         body: JSON.stringify({
           imageModel,
           textModel,
-          width: 1024,
-          height: 576,
+          aspectRatio: imageAspectRatio,
         }),
       });
 
@@ -174,6 +202,10 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
     }
     if (!imageModel) {
       showToast('请先选择图像模型', 'warning');
+      return;
+    }
+    if (!imageAspectRatio) {
+      showToast('当前图片模型未配置可用长宽比', 'warning');
       return;
     }
     try {
@@ -237,7 +269,7 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ imageModel, textModel, width: 1024, height: 576 })
+          body: JSON.stringify({ imageModel, textModel, aspectRatio: imageAspectRatio })
         });
       }
       showToast(`已启动 ${sceneList.length} 个场景的批量生成`, 'success');

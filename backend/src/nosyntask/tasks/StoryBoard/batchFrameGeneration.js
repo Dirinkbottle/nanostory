@@ -17,7 +17,7 @@
  *    - 静态镜头 → last_frame_url（已统一为与首帧相同）
  * 4. 容错机制：某个镜头失败时记录错误，继续尝试后续镜头（使用默认参考）
  * 
- * input:  { scriptId, imageModel, textModel, overwriteFrames, width, height, continueOnError }
+ * input:  { scriptId, imageModel, textModel, overwriteFrames, aspectRatio, continueOnError }
  * output: { total, completed, skipped, failed, results[] }
  */
 
@@ -42,7 +42,7 @@ function getFinalFrameUrl(sb, vars) {
 async function handleBatchFrameGeneration(inputParams, onProgress) {
   const {
     scriptId, imageModel, textModel, overwriteFrames = false,
-    width, height, continueOnError = true  // 新增：默认启用容错模式
+    aspectRatio, continueOnError = true  // 新增：默认启用容错模式
   } = inputParams;
 
   if (!scriptId) {
@@ -118,8 +118,7 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
           prompt: description,
           imageModel,
           textModel,
-          width: width || 1024,
-          height: height || 576,
+          aspectRatio,
           prevEndFrameUrl,
           prevDescription,
           prevEndState,
@@ -134,8 +133,7 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
           description,
           imageModel,
           textModel,
-          width: width || 1024,
-          height: height || 576,
+          aspectRatio,
           prevEndFrameUrl,
           prevDescription,
           prevEndState,

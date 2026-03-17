@@ -2,14 +2,14 @@
  * 图片生成处理器（角色/场景通用）
  * 使用公共轮询组件 submitAndPoll 处理同步/异步模型
  * 
- * input:  { prompt, imageModel, width, height, imageUrl?, imageUrls? }
+ * input:  { prompt, imageModel, aspectRatio?, width?, height?, imageUrl?, imageUrls? }
  * output: { image_url, taskId?, tokens?, provider }
  */
 
 const { submitAndPoll } = require('../pollUtils');
 
 async function handleImageGeneration(inputParams, onProgress) {
-  const { prompt, imageModel: modelName, width, height, imageUrl, imageUrls, startFrame, endFrame } = inputParams;
+  const { prompt, imageModel: modelName, width, height, aspectRatio, imageUrl, imageUrls, startFrame, endFrame } = inputParams;
 
   if (!modelName) {
     throw new Error('imageModel 参数是必需的');
@@ -19,10 +19,12 @@ async function handleImageGeneration(inputParams, onProgress) {
 
   // 构建提交参数（图片参数派生由 templateRenderer.renderWithFallback 统一处理）
   const submitParams = {
-    prompt,
-    width: width || 1024,
-    height: height || 1024
+    prompt
   };
+
+  if (width !== undefined && width !== null) submitParams.width = width;
+  if (height !== undefined && height !== null) submitParams.height = height;
+  if (aspectRatio) submitParams.aspectRatio = aspectRatio;
 
   if (imageUrl)    submitParams.imageUrl = imageUrl;
   if (imageUrls)   submitParams.imageUrls = imageUrls;

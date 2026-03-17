@@ -10,7 +10,7 @@
  * 6. 调用文本模型，根据镜头描述生成尾帧提示词
  * 7. 以 [首帧] + 尾帧提示词 调用图片模型生成尾帧，保存到数据库
  *
- * input:  { storyboardId, prompt, imageModel, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene }
+ * input:  { storyboardId, prompt, imageModel, textModel, aspectRatio, prevEndFrameUrl, prevDescription, isFirstScene }
  * output: { startFrame, endFrame, model, startPrompt, endPrompt }
  */
 
@@ -27,13 +27,10 @@ const { traced, trace } = require('../../engine/generationTrace');
 /**
  * 生成单张图片（通过 submitAndPoll 自动处理同步/异步）
  */
-const generateSingleImage = traced('图片生成', async function _generateSingleImage(modelName, prompt, width, height, logTag, imageUrls) {
+const generateSingleImage = traced('图片生成', async function _generateSingleImage(modelName, prompt, aspectRatio, logTag, imageUrls) {
   const submitParams = {
     prompt,
-    width: width || 1024,
-    height: height || 576,
-    imageSize: `${width || 1024}x${height || 576}`,
-    aspectRatio: '16:9'
+    aspectRatio
   };
 
   if (imageUrls && imageUrls.length > 0) {
@@ -306,7 +303,7 @@ ${frameHint}
 });
 
 async function handleFrameGeneration(inputParams, onProgress) {
-  const { storyboardId, prompt, imageModel: modelName, textModel, width, height, prevEndFrameUrl, prevDescription, prevEndState: inputPrevEndState, isFirstScene, sceneState: inputSceneState, environmentChange: inputEnvironmentChange, activeSceneUrl } = inputParams;
+  const { storyboardId, prompt, imageModel: modelName, textModel, aspectRatio, prevEndFrameUrl, prevDescription, prevEndState: inputPrevEndState, isFirstScene, sceneState: inputSceneState, environmentChange: inputEnvironmentChange, activeSceneUrl } = inputParams;
 
   if (!storyboardId) {
     throw new Error('缺少必要参数: storyboardId');
@@ -386,7 +383,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
   // 4. 生成首帧
   if (onProgress) onProgress(25);
   console.log('[FrameGen] 开始生成首帧...');
-  const startFrame = await generateSingleImage(modelName, startPrompt, width, height, 'FrameGen-Start', startRefResult.selectedUrls);
+  const startFrame = await generateSingleImage(modelName, startPrompt, aspectRatio, 'FrameGen-Start', startRefResult.selectedUrls);
 
   // 持久化首帧到 MinIO
   const persistedStartFrame = await downloadAndStore(
@@ -431,7 +428,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
   // 7. 生成尾帧
   if (onProgress) onProgress(60);
   console.log('[FrameGen] 开始生成尾帧...');
-  const endFrame = await generateSingleImage(modelName, endPrompt, width, height, 'FrameGen-End', endRefResult.selectedUrls);
+  const endFrame = await generateSingleImage(modelName, endPrompt, aspectRatio, 'FrameGen-End', endRefResult.selectedUrls);
 
   // 持久化尾帧到 MinIO
   const persistedEndFrame = await downloadAndStore(
@@ -459,7 +456,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
         environmentChange,
         imageModel: modelName,
         textModel,
-        width, height
+        aspectRatio
       });
     } catch (e) {
       console.warn('[FrameGen] 更新版场景图生成失败，不影响帧生成结果:', e.message);

@@ -11,8 +11,11 @@ interface UseSceneGenerationOptions {
   scenes: StoryboardScene[];
   setScenes: Dispatch<SetStateAction<StoryboardScene[]>>;
   imageModel: string;
+  imageAspectRatio: string;
   textModel: string;
   videoModel: string;
+  videoAspectRatio: string;
+  videoDuration: number | null;
 }
 
 // 从工作流 job 中提取 storyboardId，映射到 task key
@@ -29,7 +32,19 @@ function jobToTaskKey(job: WorkflowJob): string | null {
   return `img_${storyboardId}`;
 }
 
-export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes, setScenes, imageModel, textModel, videoModel }: UseSceneGenerationOptions) {
+export function useSceneGeneration({
+  projectId,
+  scriptId,
+  episodeNumber,
+  scenes,
+  setScenes,
+  imageModel,
+  imageAspectRatio,
+  textModel,
+  videoModel,
+  videoAspectRatio,
+  videoDuration
+}: UseSceneGenerationOptions) {
   const { tasks, runTask, recoverTasks, clearTask, isRunning } = useTaskRunner({ projectId: projectId || 0 });
 
   // 页面加载时恢复未完成的单帧/视频任务
@@ -126,8 +141,13 @@ export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes,
       const extraParams = {
         episodeNumber,
         storyboardIndex: sceneIdx + 1,
-        isRegenerate: !!(scene.startFrame || scene.imageUrl)
+        isRegenerate: !!(scene.startFrame || scene.imageUrl),
+        aspectRatio: imageAspectRatio
       };
+
+      if (!imageAspectRatio) {
+        return { success: false, error: '当前图片模型未配置可用长宽比' };
+      }
 
       // 根据是否有动作选择不同的工作流
       if (scene.hasAction) {
@@ -138,8 +158,6 @@ export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes,
           prompt,
           imageModel,
           textModel,
-          width: 640,
-          height: 360,
           ...extraParams
         });
       } else {
@@ -150,8 +168,6 @@ export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes,
           description: prompt,
           imageModel,
           textModel,
-          width: 640,
-          height: 360,
           ...extraParams
         });
       }
@@ -173,12 +189,19 @@ export function useSceneGeneration({ projectId, scriptId, episodeNumber, scenes,
     if (!videoModel) {
       return { success: false, error: '请先选择视频生成模型' };
     }
+    if (!videoAspectRatio) {
+      return { success: false, error: '当前视频模型未配置可用长宽比' };
+    }
+    if (videoDuration === null) {
+      return { success: false, error: '当前视频模型未配置可用时长' };
+    }
     try {
       await runTask(`vid_${id}`, 'scene_video', {
         storyboardId: id,
         videoModel,
         textModel,
-        duration: scene.duration || (scene.hasAction ? 3 : 2),
+        duration: videoDuration,
+        aspectRatio: videoAspectRatio,
         episodeNumber,
         storyboardIndex: sceneIdx + 1,
         isRegenerate: !!scene.videoUrl

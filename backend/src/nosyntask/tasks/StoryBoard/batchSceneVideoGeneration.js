@@ -9,7 +9,7 @@
  * 4. 每个分镜调用 sceneVideoGeneration 生成视频（自带保存到数据库）
  * 5. 某个失败 → 记录错误，不影响其他并发任务
  *
- * input:  { scriptId, videoModel, textModel, duration, overwriteVideos, maxConcurrency }
+ * input:  { scriptId, videoModel, textModel, duration, aspectRatio, overwriteVideos, maxConcurrency }
  * output: { total, completed, skipped, failed, results[] }
  */
 
@@ -47,7 +47,7 @@ async function runPool(tasks, limit, onTaskDone) {
 
 async function handleBatchSceneVideoGeneration(inputParams, onProgress) {
   const {
-    scriptId, videoModel, textModel, duration,
+    scriptId, videoModel, textModel, duration, aspectRatio,
     overwriteVideos = false, maxConcurrency = 20, think
   } = inputParams;
 
@@ -107,6 +107,7 @@ async function handleBatchSceneVideoGeneration(inputParams, onProgress) {
         videoModel,
         textModel,
         duration,
+        aspectRatio,
         think
       }, null);
     });

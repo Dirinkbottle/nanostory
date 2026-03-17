@@ -33,6 +33,7 @@ export interface ResourcePanelProps {
   scriptId?: number | null;
   scenes?: any[];
   imageModel: string;
+  imageAspectRatio: string;
   textModel: string;
 }
 

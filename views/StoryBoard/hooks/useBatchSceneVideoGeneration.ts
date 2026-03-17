@@ -13,6 +13,7 @@ interface UseBatchSceneVideoGenerationProps {
   projectId: number | null;
   videoModel: string;
   textModel: string;
+  aspectRatio: string;
   duration?: number | null;
   onComplete?: () => void;
   onError?: (message: string) => void;
@@ -23,6 +24,7 @@ export function useBatchSceneVideoGeneration({
   projectId,
   videoModel,
   textModel,
+  aspectRatio,
   duration,
   onComplete,
   onError
@@ -51,6 +53,14 @@ export function useBatchSceneVideoGeneration({
       onError?.('请先选择视频模型');
       return;
     }
+    if (!aspectRatio) {
+      onError?.('当前视频模型未配置可用长宽比');
+      return;
+    }
+    if (duration === null || duration === undefined) {
+      onError?.('当前视频模型未配置可用时长');
+      return;
+    }
 
     try {
       const token = getAuthToken();
@@ -63,6 +73,7 @@ export function useBatchSceneVideoGeneration({
         body: JSON.stringify({
           videoModel,
           textModel,
+          aspectRatio,
           duration,
           overwriteVideos,
           projectId
@@ -81,7 +92,7 @@ export function useBatchSceneVideoGeneration({
       console.error('[useBatchSceneVideoGen] 启动失败:', error);
       onError?.('启动批量视频生成失败，请检查网络连接');
     }
-  }, [scriptId, videoModel, textModel, duration, projectId, recovery.startJob]);
+  }, [scriptId, videoModel, textModel, aspectRatio, duration, projectId, recovery.startJob]);
 
   return {
     startBatchVideoGeneration,

@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { authMiddleware } = require('./middleware');
 const { queryAll } = require('./dbHelper');
+const { parseJsonField } = require('./utils/parseJsonField');
 
 /**
  * GET /api/ai-models
@@ -17,7 +18,8 @@ router.get('/', authMiddleware, async (req, res) => {
     const { type } = req.query;
 
     let query = `
-      SELECT id, name, category, provider, description, is_active, price_config
+      SELECT id, name, category, provider, description, is_active, price_config,
+             supported_aspect_ratios, supported_durations
       FROM ai_model_configs
       WHERE is_active = 1
     `;
@@ -38,9 +40,7 @@ router.get('/', authMiddleware, async (req, res) => {
         let priceConfig = null;
         if (m.price_config) {
           try {
-            const parsed = typeof m.price_config === 'string'
-              ? JSON.parse(m.price_config)
-              : m.price_config;
+            const parsed = parseJsonField(m.price_config);
             priceConfig = {
               unit: parsed.unit || 'token',
               price: parsed.price || 0
@@ -57,7 +57,9 @@ router.get('/', authMiddleware, async (req, res) => {
           type: m.category,
           description: m.description,
           isActive: m.is_active === 1,
-          priceConfig
+          priceConfig,
+          supportedAspectRatios: parseJsonField(m.supported_aspect_ratios, []),
+          supportedDurations: parseJsonField(m.supported_durations, [])
         };
       })
     });

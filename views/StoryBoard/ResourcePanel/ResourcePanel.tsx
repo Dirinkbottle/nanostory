@@ -26,6 +26,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   scriptId,
   scenes,
   imageModel,
+  imageAspectRatio,
   textModel,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('characters');
@@ -121,6 +122,10 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
 
   const handleGenerateSceneImage = async (sceneId: number, imageModelName: string) => {
     try {
+      if (!imageAspectRatio) {
+        throw new Error('当前图片模型未配置可用长宽比');
+      }
+
       const token = getAuthToken();
       const res = await fetch(`/api/scenes/${sceneId}/generate-image`, {
         method: 'POST',
@@ -131,8 +136,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         body: JSON.stringify({ 
           imageModel: imageModelName, 
           textModel,
-          width: 1024, 
-          height: 576 
+          aspectRatio: imageAspectRatio
         })
       });
       

@@ -11,6 +11,7 @@
  *   mood: string,
  *   style: string,
  *   imageModel: string,
+ *   aspectRatio: string,
  *   width: number,
  *   height: number
  * }
@@ -202,8 +203,9 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
     style: inputStyle, 
     imageModel: resolvedImageModel,
     textModel: resolvedTextModel,
-    width = 1024,
-    height = 576,
+    aspectRatio,
+    width,
+    height,
     referenceImageUrl,
     styleDescription
   } = inputParams;
@@ -222,7 +224,7 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
     sceneName,
     style: style.substring(0, 60) + (style.length > 60 ? '...' : ''),
     imageModel: resolvedImageModel,
-    dimensions: `${width}x${height}`,
+    aspectRatio: aspectRatio || `${width}x${height}`,
     hasReferenceImage: !!referenceImageUrl,
     hasStyleDescription: !!styleDescription
   });
@@ -273,7 +275,7 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
 
   // 步骤3：并行生成 A/B 两面场景图片
   console.log('[SceneImageGen] 并行生成 A/B 两面场景图片...');
-  const imageParamsA = { prompt: scenePrompt, imageModel: resolvedImageModel, width, height };
+  const imageParamsA = { prompt: scenePrompt, imageModel: resolvedImageModel, aspectRatio, width, height };
   if (referenceImageUrl) {
     imageParamsA.imageUrl = referenceImageUrl;
     console.log('[SceneImageGen] A 面使用参考图:', referenceImageUrl);
@@ -286,7 +288,7 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
 
   let generateB = null;
   if (reversePrompt) {
-    const imageParamsB = { prompt: reversePrompt, imageModel: resolvedImageModel, width, height };
+    const imageParamsB = { prompt: reversePrompt, imageModel: resolvedImageModel, aspectRatio, width, height };
     if (referenceImageUrl) {
       imageParamsB.imageUrl = referenceImageUrl;
     }

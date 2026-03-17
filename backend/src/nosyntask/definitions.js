@@ -232,8 +232,7 @@ const WORKFLOW_DEFINITIONS = {
         handler: handleFrameGeneration,
         buildInput: createBuildInput([
           'storyboardId', 'prompt', 'imageModel', 'textModel',
-          { key: 'width', defaultValue: 1024 },
-          { key: 'height', defaultValue: 576 }
+          'aspectRatio'
         ])
       }
     ]
@@ -251,8 +250,7 @@ const WORKFLOW_DEFINITIONS = {
         handler: handleSingleFrameGeneration,
         buildInput: createBuildInput([
           'storyboardId', 'description', 'imageModel', 'textModel',
-          { key: 'width', defaultValue: 1024 },
-          { key: 'height', defaultValue: 576 }
+          'aspectRatio'
         ])
       }
     ]
@@ -269,7 +267,7 @@ const WORKFLOW_DEFINITIONS = {
         targetType: 'storyboard',
         handler: handleSceneVideoGeneration,
         buildInput: createBuildInput([
-          'storyboardId', 'videoModel', 'textModel', 'duration'
+          'storyboardId', 'videoModel', 'textModel', 'duration', 'aspectRatio'
         ])
       }
     ]
@@ -297,9 +295,9 @@ const WORKFLOW_DEFINITIONS = {
         buildInput: createBuildInput([
           'sceneId', 'sceneName', 'description', 'environment',
           'lighting', 'mood', 'style',
-          'imageModel', 'textModel',
-          { key: 'width', defaultValue: 1024 },
-          { key: 'height', defaultValue: 576 },
+          'imageModel', 'textModel', 'aspectRatio',
+          { key: 'width', defaultValue: null },
+          { key: 'height', defaultValue: null },
           { key: 'referenceImageUrl', from: ctx => ctx.previousResults[0]?.referenceImageUrl || null },
           { key: 'styleDescription', from: ctx => ctx.previousResults[0]?.styleDescription || null }
         ])
@@ -318,10 +316,8 @@ const WORKFLOW_DEFINITIONS = {
         targetType: 'storyboard',
         handler: handleBatchFrameGeneration,
         buildInput: createBuildInput([
-          'scriptId', 'imageModel', 'textModel', 'overwriteFrames',
-          { key: 'maxConcurrency', defaultValue: 20 },
-          { key: 'width', defaultValue: 1024 },
-          { key: 'height', defaultValue: 576 }
+          'scriptId', 'imageModel', 'textModel', 'overwriteFrames', 'aspectRatio',
+          { key: 'maxConcurrency', defaultValue: 20 }
         ])
       }
     ]
@@ -342,10 +338,8 @@ const WORKFLOW_DEFINITIONS = {
         targetType: 'storyboard',
         handler: handleParallelFrameGeneration,
         buildInput: createBuildInput([
-          'scriptId', 'imageModel', 'textModel', 'overwriteFrames',
-          { key: 'maxConcurrency', defaultValue: 5 },  // 默认5个并发，避免API限流
-          { key: 'width', defaultValue: 1024 },
-          { key: 'height', defaultValue: 576 }
+          'scriptId', 'imageModel', 'textModel', 'overwriteFrames', 'aspectRatio',
+          { key: 'maxConcurrency', defaultValue: 5 }  // 默认5个并发，避免API限流
         ])
       }
     ]
@@ -362,7 +356,7 @@ const WORKFLOW_DEFINITIONS = {
         targetType: 'storyboard',
         handler: handleBatchSceneVideoGeneration,
         buildInput: createBuildInput([
-          'scriptId', 'videoModel', 'textModel', 'duration',
+          'scriptId', 'videoModel', 'textModel', 'duration', 'aspectRatio',
           'overwriteVideos',
           { key: 'think', defaultValue: true },
           { key: 'maxConcurrency', defaultValue: 3 }

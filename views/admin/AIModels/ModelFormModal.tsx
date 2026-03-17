@@ -144,6 +144,28 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
             minRows={2}
           />
 
+          {(formData.category === 'IMAGE' || formData.category === 'VIDEO') && (
+            <Textarea
+              label="支持的长宽比 (JSON)"
+              placeholder='["16:9", "9:16"]'
+              value={formData.supported_aspect_ratios}
+              onChange={(e) => setFormData({ ...formData, supported_aspect_ratios: e.target.value })}
+              minRows={2}
+              description='支持字符串数组或对象数组，例如 [{"label":"横屏 16:9","value":"16:9"}]'
+            />
+          )}
+
+          {formData.category === 'VIDEO' && (
+            <Textarea
+              label="支持的视频时长 (JSON)"
+              placeholder='[5, 10]'
+              value={formData.supported_durations}
+              onChange={(e) => setFormData({ ...formData, supported_durations: e.target.value })}
+              minRows={2}
+              description='支持数字数组或对象数组，例如 [{"label":"5秒","value":5}]'
+            />
+          )}
+
           <Textarea
             label="响应映射 (JSON)"
             placeholder='{"taskId": "data.id"}'

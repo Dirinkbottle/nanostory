@@ -249,6 +249,11 @@ CREATE TABLE IF NOT EXISTS ai_model_configs (
   -- 默认参数 (JSON 格式)
   -- 示例: {"aspect_ratio": "16:9", "duration": 5}
   default_params JSON COMMENT '默认参数，前端未传时使用',
+
+  -- 模型能力配置 (JSON 格式)
+  -- 示例: ["16:9", "9:16"] 或 [{"label":"横屏 16:9","value":"16:9"}]
+  supported_aspect_ratios JSON COMMENT '模型支持的输出比例列表（图片/视频模型使用）',
+  supported_durations JSON COMMENT '模型支持的视频时长列表（仅视频模型使用）',
   
   -- 响应映射 (JSON 格式)
   -- 示例: {"taskId": "data.id", "status": "data.status", "videoUrl": "data.result.video_url"}

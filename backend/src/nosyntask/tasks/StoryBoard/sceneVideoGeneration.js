@@ -11,7 +11,7 @@
  * 5. 构建 imageUrls = [首帧, 尾帧(如果有)]，以 imageUrls + 视频提示词调用视频模型生成视频
  * 6. 保存视频 URL 到数据库
  * 
- * input:  { storyboardId, videoModel, textModel, duration }
+ * input:  { storyboardId, videoModel, textModel, duration, aspectRatio }
  * output: { videoUrl, model, promptUsed }
  */
 
@@ -25,7 +25,7 @@ const { generateMotionBreakdown } = require('./motionBreakdown');
 const { trace } = require('../../engine/generationTrace');
 
 async function handleSceneVideoGeneration(inputParams, onProgress) {
-  const { storyboardId, videoModel: modelName, textModel, duration, think } = inputParams;
+  const { storyboardId, videoModel: modelName, textModel, duration, aspectRatio, think } = inputParams;
 
   if (!storyboardId) {
     throw new Error('缺少必要参数: storyboardId');
@@ -342,16 +342,22 @@ ${extraInfo}
   if (hasAction && lastFrameUrl) {
     imageUrls.push(lastFrameUrl);
   }
-  trace('构建视频参考图', { imageUrls, duration: duration || (hasAction ? 3 : 2) });
+  trace('构建视频参考图', { imageUrls, duration, aspectRatio });
   console.log('[SceneVideoGen] imageUrls:', imageUrls);
 
   const submitParams = {
     prompt: promptUsed,
-    duration: duration || (hasAction ? 3 : 2),
     imageUrls,
     startFrame: firstFrameUrl,
     endFrame: lastFrameUrl || '_REMOVE_'
   };
+
+  if (duration !== undefined && duration !== null) {
+    submitParams.duration = duration;
+  }
+  if (aspectRatio) {
+    submitParams.aspectRatio = aspectRatio;
+  }
 
   const result = await submitAndPoll(modelName, submitParams, {
     intervalMs: 5000,

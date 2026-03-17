@@ -8,7 +8,7 @@
  * 4. 调用文本模型，根据镜头描述 + 上一镜头上下文生成帧提示词
  * 5. 以 imageUrls + 提示词 调用图片模型生成单帧，保存到数据库
  *
- * input:  { storyboardId, description, imageModel, textModel, width, height, prevEndFrameUrl, prevDescription, isFirstScene }
+ * input:  { storyboardId, description, imageModel, textModel, aspectRatio, prevEndFrameUrl, prevDescription, isFirstScene }
  * output: { firstFrameUrl, promptUsed, model }
  */
 
@@ -25,7 +25,7 @@ const { traced, trace } = require('../../engine/generationTrace');
 // collectReferenceImages 已提取到 collectCandidateImages.js 共享模块
 
 async function handleSingleFrameGeneration(inputParams, onProgress) {
-  const { storyboardId, description, imageModel: modelName, textModel, width, height, prevEndFrameUrl, prevDescription, prevEndState: inputPrevEndState, isFirstScene, sceneState: inputSceneState, environmentChange: inputEnvironmentChange, activeSceneUrl } = inputParams;
+  const { storyboardId, description, imageModel: modelName, textModel, aspectRatio, prevEndFrameUrl, prevDescription, prevEndState: inputPrevEndState, isFirstScene, sceneState: inputSceneState, environmentChange: inputEnvironmentChange, activeSceneUrl } = inputParams;
 
   if (!storyboardId) {
     throw new Error('缺少必要参数: storyboardId');
@@ -275,8 +275,7 @@ ${extraInfo}
   const imageResult = await imageGeneration({
     prompt: promptUsed,
     imageModel: modelName,
-    width: width || 1024,
-    height: height || 576,
+    aspectRatio,
     imageUrls: refResult.selectedUrls.length > 0 ? refResult.selectedUrls : undefined
   });
 
@@ -313,7 +312,7 @@ ${extraInfo}
         environmentChange,
         imageModel: modelName,
         textModel,
-        width, height
+        aspectRatio
       });
     } catch (e) {
       console.warn('[SingleFrameGen] 更新版场景图生成失败，不影响帧生成结果:', e.message);

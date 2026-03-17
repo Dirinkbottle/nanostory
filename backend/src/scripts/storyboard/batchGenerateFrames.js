@@ -12,7 +12,7 @@ module.exports = (router) => {
     try {
       const userId = req.user.id;
       const { scriptId } = req.params;
-      const { imageModel, textModel, overwriteFrames = false, projectId } = req.body;
+      const { imageModel, textModel, overwriteFrames = false, projectId, aspectRatio } = req.body;
 
       if (!scriptId) {
         return res.status(400).json({ message: '缺少 scriptId' });
@@ -34,6 +34,7 @@ module.exports = (router) => {
           scriptId: Number(scriptId),
           episodeNumber,
           imageModel,
+          aspectRatio: aspectRatio || null,
           textModel: textModel || null,
           overwriteFrames: !!overwriteFrames
         }

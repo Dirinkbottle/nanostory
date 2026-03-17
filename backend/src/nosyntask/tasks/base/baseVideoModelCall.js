@@ -5,7 +5,7 @@
  * 输入参数:
  * @param {string} params.prompt - 视频描述提示词
  * @param {string} params.videoModel - 视频生成模型名称（统一字段名）
- * @param {number} params.duration - 视频时长（秒，默认 5）
+ * @param {number} params.duration - 视频时长（秒）
  * @param {string} params.imageUrl - 单张参考图片 URL（图生视频，可选）。模板占位符: {{imageUrl}}
  * @param {string[]} params.imageUrls - 参考图片 URL 数组（可选）。模板占位符: {{imageUrls}}
  * @param {string} params.aspectRatio - 画面比例（如 "16:9"、"9:16"、"1:1"，可选）。模板占位符: {{aspectRatio}}
@@ -20,7 +20,7 @@ async function handleBaseVideoModelCall(inputParams, onProgress) {
   const {
     prompt,
     videoModel: modelName,
-    duration = 5,
+    duration,
     imageUrl,
     imageUrls,
     startFrame,
@@ -35,7 +35,6 @@ async function handleBaseVideoModelCall(inputParams, onProgress) {
   console.log('[BaseVideoModelCall] 开始调用视频模型:', {
     modelName,
     promptLength: prompt?.length || 0,
-    duration,
     hasImage: !!imageUrl,
     hasStartFrame: !!startFrame,
     hasEndFrame: !!endFrame,
@@ -46,9 +45,10 @@ async function handleBaseVideoModelCall(inputParams, onProgress) {
 
   // 构建提交参数（图片参数派生由 templateRenderer.renderWithFallback 统一处理）
   const submitParams = {
-    prompt: prompt || '',
-    duration,
+    prompt: prompt || ''
   };
+
+  if (duration !== undefined && duration !== null) submitParams.duration = duration;
 
   if (imageUrl)    submitParams.imageUrl = imageUrl;
   if (imageUrls)   submitParams.imageUrls = imageUrls;
