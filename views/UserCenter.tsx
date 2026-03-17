@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardBody, Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from '@heroui/react';
 import { User, Wallet, TrendingUp, FolderOpen, Trophy, DollarSign } from 'lucide-react';
-import { getAuthToken } from '../services/auth';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { getAuthToken, logout } from '../services/auth';
 
 interface UserProfile {
   id: number;
@@ -27,25 +28,38 @@ interface BillingRecord {
 }
 
 const UserCenter: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [records, setRecords] = useState<BillingRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchUserData();
+    void fetchUserData();
   }, []);
 
   const fetchUserData = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      navigate('/auth', { replace: true, state: { from: location } });
+      return;
+    }
+
     try {
-      const token = getAuthToken();
-      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
       
       const [profileRes, statsRes, recordsRes] = await Promise.all([
         fetch('/api/users/profile', { headers }),
         fetch('/api/users/stats', { headers }),
         fetch('/api/users/billing?limit=10', { headers })
       ]);
+
+      if ([profileRes, statsRes, recordsRes].some((response) => response.status === 401)) {
+        logout();
+        navigate('/auth', { replace: true, state: { from: location } });
+        return;
+      }
 
       if (profileRes.ok) {
         const profileData = await profileRes.json();
