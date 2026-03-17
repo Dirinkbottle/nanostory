@@ -70,7 +70,7 @@ async function findWorkflowConflict({ userId, workflowType, params = {} }) {
      WHERE user_id = ?
        AND workflow_type IN (${placeholders})
        AND status IN ('pending', 'running')
-       AND CAST(JSON_EXTRACT(input_params, ?) AS TEXT) = ?
+       AND JSON_UNQUOTE(JSON_EXTRACT(input_params, ?)) = ?
      ORDER BY created_at DESC
      LIMIT 1`,
     [userId, ...rule.workflowTypes, path, String(conflictValue)]

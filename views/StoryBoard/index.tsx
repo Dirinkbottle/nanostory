@@ -206,6 +206,14 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       showToast('请先选择项目和剧本', 'warning');
       return;
     }
+    if (!imageModel) {
+      showToast('请先选择图像模型', 'warning');
+      return;
+    }
+    if (!imageAspectRatio) {
+      showToast('当前图片模型未配置可用长宽比', 'warning');
+      return;
+    }
 
     try {
       setIsSubmittingCharacterBatch(true);
@@ -243,7 +251,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
             body: JSON.stringify({
               imageModel,
               textModel,
-              style: ''
+              style: '',
+              aspectRatio: imageAspectRatio
             })
           });
 

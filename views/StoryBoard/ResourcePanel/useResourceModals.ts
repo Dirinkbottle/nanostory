@@ -17,7 +17,13 @@ export const useResourceModals = (options: UseResourceModalsOptions = {}) => {
   const { isOpen: isViewsModalOpen, onOpen: openViewsModal, onOpenChange: onViewsModalChange } = useDisclosure();
   const { isOpen: isPreviewModalOpen, onOpen: openPreviewModal, onOpenChange: onPreviewModalChange } = useDisclosure();
 
-  const handleGenerateViews = async (charName: string, imageModel: string, textModel: string, characterId?: number) => {
+  const handleGenerateViews = async (
+    charName: string,
+    imageModel: string,
+    textModel: string,
+    aspectRatio: string,
+    characterId?: number
+  ) => {
     // 如果是从角色卡片点击进来（没有 imageModel），先从数据库获取三视图数据
     if (!imageModel && !textModel && characterId) {
       try {
@@ -62,6 +68,10 @@ export const useResourceModals = (options: UseResourceModalsOptions = {}) => {
       onError?.('请选择图片生成模型');
       return;
     }
+    if (!aspectRatio) {
+      onError?.('当前图片模型未配置可用长宽比');
+      return;
+    }
 
     if (!characterId) {
       onError?.('缺少角色 ID');
@@ -83,7 +93,8 @@ export const useResourceModals = (options: UseResourceModalsOptions = {}) => {
         body: JSON.stringify({
           style: '动漫风格',
           imageModel,
-          textModel
+          textModel,
+          aspectRatio
         })
       });
 

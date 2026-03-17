@@ -10,10 +10,11 @@ interface CharacterViewsModalProps {
   selectedResource: ResourceItem | null;
   isGenerating: boolean;
   generatedPrompts: any;
-  onGenerate: (charName: string, imageModel: string, textModel: string, characterId?: number) => void;
+  onGenerate: (charName: string, imageModel: string, textModel: string, aspectRatio: string, characterId?: number) => void;
   characterId?: number;
   imageModel: string;
   textModel: string;
+  imageAspectRatio: string;
 }
 
 const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
@@ -25,7 +26,8 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
   onGenerate,
   characterId,
   imageModel,
-  textModel
+  textModel,
+  imageAspectRatio
 }) => {
 
   const { openPreview } = usePreview();
@@ -126,6 +128,11 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
                 ) : (
                   <p className="text-sm text-amber-600">请先点击右上角「AI 模型」按钮选择图片模型</p>
                 )}
+                {imageAspectRatio ? (
+                  <p className="text-sm text-slate-500 mt-1">图片比例：<span className="font-medium text-slate-300">{imageAspectRatio}</span></p>
+                ) : (
+                  <p className="text-sm text-amber-600 mt-1">当前图片模型未配置可用长宽比</p>
+                )}
               </div>
 
               {isGenerating ? (
@@ -175,9 +182,9 @@ const CharacterViewsModal: React.FC<CharacterViewsModalProps> = ({
               <Button 
                 className="bg-gradient-to-r from-purple-500 to-violet-600 text-white font-semibold shadow-lg shadow-purple-500/20"
                 startContent={<Wand2 className="w-4 h-4" />}
-                onPress={() => onGenerate(selectedResource?.name || '', imageModel, textModel, characterId)}
+                onPress={() => onGenerate(selectedResource?.name || '', imageModel, textModel, imageAspectRatio, characterId)}
                 isLoading={isGenerating}
-                isDisabled={!imageModel || isGenerating}
+                isDisabled={!imageModel || !imageAspectRatio || isGenerating}
               >
                 {generatedPrompts ? '重新生成' : '开始生成'}
               </Button>

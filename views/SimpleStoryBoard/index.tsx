@@ -185,6 +185,7 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
           imageModel,
           textModel,
           style: '', // 可以从项目设置中获取
+          aspectRatio: imageAspectRatio,
         }),
       });
 
@@ -285,7 +286,7 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ imageModel, textModel, style: '' })
+          body: JSON.stringify({ imageModel, textModel, style: '', aspectRatio: imageAspectRatio })
         });
         const data = await response.json().catch(() => ({}));
         if (response.ok) {

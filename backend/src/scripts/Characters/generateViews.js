@@ -8,7 +8,7 @@ module.exports = (router) => {
   router.post('/:id/generate-views', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
-    const { style, imageModel, textModel } = req.body;
+    const { style, imageModel, textModel, aspectRatio } = req.body;
 
     try {
       const character = await queryOne(
@@ -43,7 +43,8 @@ module.exports = (router) => {
           style: style,
           projectId: character.project_id,
           imageModel,  // 从请求体中获取用户选择的图片模型
-          textModel    // 文本模型（用于生成提示词）
+          textModel,   // 文本模型（用于生成提示词）
+          aspectRatio: aspectRatio || null
         }
       });
 

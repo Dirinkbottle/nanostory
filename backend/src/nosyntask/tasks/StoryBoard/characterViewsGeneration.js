@@ -9,7 +9,8 @@
  *   personality: string,
  *   description: string,
  *   style: string,
- *   imageModel: string
+ *   imageModel: string,
+ *   aspectRatio: string
  * }
  * 
  * output: {
@@ -144,6 +145,7 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     projectId,
     imageModel,
     textModel,
+    aspectRatio,
     width = 512,
     height = 768
   } = inputParams;
@@ -156,7 +158,23 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     characterId,
     characterName,
     imageModel,
+    textModel,
+    aspectRatio: aspectRatio || null,
+    width,
+    height,
     style: style.substring(0, 60) + (style.length > 60 ? '...' : '')
+  });
+
+  console.log('[CharacterViews] 工作流输入参数:', {
+    characterId,
+    projectId,
+    imageModel,
+    textModel,
+    aspectRatio: aspectRatio || null,
+    width,
+    height,
+    hasAppearance: !!appearance,
+    hasDescription: !!description
   });
 
   if (!imageModel) {
@@ -176,6 +194,7 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
   const frontResult = await handleImageGeneration({
     prompt: frontPrompt,
     imageModel: imageModel,
+    aspectRatio,
     width,
     height
   }, (progress) => {
@@ -188,6 +207,7 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     imageUrl: frontViewUrl,
     imageModel,
     textModel,
+    aspectRatio: aspectRatio || null,
     dimensions: `${width}x${height}`
   });
 
@@ -223,9 +243,17 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
   const sideGenParams = {
     prompt: sidePrompt,
     imageModel: imageModel,
+    aspectRatio,
     width,
     height
   };
+  console.log('[CharacterViews] 侧面视图图片模型参数:', {
+    imageModel,
+    aspectRatio: aspectRatio || null,
+    width,
+    height,
+    referenceCount: referenceUrls.length
+  });
   if (referenceUrls.length > 0) {
     sideGenParams.imageUrls = referenceUrls;
     console.log('[CharacterViews] 侧面视图参考图:', referenceUrls);
@@ -239,6 +267,7 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     prompt: sidePrompt.substring(0, 150) + '...',
     imageUrl: sideViewUrl,
     imageModel,
+    aspectRatio: aspectRatio || null,
     dimensions: `${width}x${height}`
   });
 
@@ -272,9 +301,17 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
   const backGenParams = {
     prompt: backPrompt,
     imageModel: imageModel,
+    aspectRatio,
     width,
     height
   };
+  console.log('[CharacterViews] 背面视图图片模型参数:', {
+    imageModel,
+    aspectRatio: aspectRatio || null,
+    width,
+    height,
+    referenceCount: referenceUrls.length
+  });
   if (referenceUrls.length > 0) {
     backGenParams.imageUrls = referenceUrls;
     console.log('[CharacterViews] 背面视图参考图:', referenceUrls);
@@ -288,6 +325,7 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     prompt: backPrompt.substring(0, 150) + '...',
     imageUrl: backViewUrl,
     imageModel,
+    aspectRatio: aspectRatio || null,
     dimensions: `${width}x${height}`
   });
 
@@ -332,7 +370,8 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
     backViewUrl: persistedBackUrl,
     imageUrl: persistedFrontUrl, // 主图片使用正面视图
     imageModel,
-    textModel
+    textModel,
+    aspectRatio: aspectRatio || null
   };
 
   console.log('[CharacterViews] ✅ 三视图生成完成');

@@ -96,7 +96,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   const handleGenerateViewsWrapper = (charName: string, characterId: number) => {
     setViewsCharacterId(characterId);
     // 传空字符串表示仅打开弹窗查看，不立即生成
-    handleGenerateViews(charName, '', '', characterId);
+    handleGenerateViews(charName, '', '', '', characterId);
   };
 
   const handleRefreshResources = async () => {
@@ -258,6 +258,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         characterId={viewsCharacterId}
         imageModel={imageModel}
         textModel={textModel}
+        imageAspectRatio={imageAspectRatio}
       />
 
       <CharacterDetailModal
