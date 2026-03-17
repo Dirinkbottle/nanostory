@@ -16,9 +16,26 @@ const { linkStoryboardScenes } = require('./linkScenes');
 const { getStoryboardLinks } = require('./queryLinks');
 const { linkAllForScript } = require('./linkAllForScript');
 
+// 新增：单分镜独立关联模块（场景和人物分开处理，支持并发）
+const {
+  linkCharactersForStoryboard,
+  linkScenesForStoryboard,
+  linkSingleStoryboard,
+  linkStoryboardsParallel,
+  linkAllForScriptParallel
+} = require('./linkSingleStoryboard');
+
 module.exports = {
+  // 原有接口（保持兼容）
   linkStoryboardCharacters,
   linkStoryboardScenes,
   getStoryboardLinks,
-  linkAllForScript
+  linkAllForScript,
+  
+  // 新增：单分镜独立关联接口
+  linkCharactersForStoryboard,   // 单独关联角色
+  linkScenesForStoryboard,       // 单独关联场景
+  linkSingleStoryboard,          // 单分镜完整关联
+  linkStoryboardsParallel,       // 并发关联多个分镜
+  linkAllForScriptParallel       // 并发关联剧本所有分镜
 };

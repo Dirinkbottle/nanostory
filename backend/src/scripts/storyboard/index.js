@@ -11,6 +11,10 @@ const saveManual = require('./saveManual');
 const batchGenerateFrames = require('./batchGenerateFrames');
 const batchGenerateVideos = require('./batchGenerateVideos');
 
+// 新增：独立模式处理器
+const parallelGenerateFrames = require('./parallelGenerateFrames');
+const linkStoryboard = require('./linkStoryboard');
+
 // 单个分镜操作处理器
 const addStoryboard = require('./addStoryboard');
 const deleteStoryboard = require('./deleteStoryboard');
@@ -19,6 +23,7 @@ const validateReadiness = require('./validateReadiness');
 const updateMedia = require('./updateMedia');
 const cleanBeforeRegenerate = require('./cleanBeforeRegenerate');
 const fixLinks = require('./fixLinks');
+const updateDirectorParams = require('./updateDirectorParams');
 
 // 注册路由（顺序很重要！具体路由在前，通用路由在后）
 
@@ -30,12 +35,15 @@ router.delete('/scene/:storyboardId', authMiddleware, deleteStoryboard);
 router.patch('/reorder', authMiddleware, reorderStoryboards);
 router.get('/:storyboardId/validate', authMiddleware, validateReadiness);
 router.patch('/:storyboardId/media', authMiddleware, updateMedia);
+updateDirectorParams(router);  // 导演参数更新
 
 getTemplates(router);
 autoGenerate(router);
 autoGenerateByScene(router);  // 按场景分割的分镜生成
 batchGenerateFrames(router);
 batchGenerateVideos(router);
+parallelGenerateFrames(router);  // 并发帧生成（独立模式）
+linkStoryboard(router);          // 单分镜独立关联
 saveManual(router);
 getByScriptId(router);  // 必须放在最后，因为 /:scriptId 会匹配所有路径
 

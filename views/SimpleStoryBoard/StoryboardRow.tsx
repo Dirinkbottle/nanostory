@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Textarea, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from '@heroui/react';
-import { Check, Edit2, Trash2, Mic, Play, Lock, Unlock, Image } from 'lucide-react';
+import { Textarea, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Tooltip } from '@heroui/react';
+import { Check, Edit2, Trash2, Mic, Play, Lock, Unlock, Image, Clapperboard } from 'lucide-react';
 import { StoryboardScene } from '../StoryBoard/useSceneManager';
 import { Character } from '../StoryBoard/ResourcePanel/types';
 import { Scene } from '../StoryBoard/ResourcePanel/useSceneData';
 import AvatarSlot, { AddSlot } from './AvatarSlot';
+import { DirectorAssistantModal, DirectorParams, DEFAULT_DIRECTOR_PARAMS } from './DirectorAssistant';
 
 interface StoryboardRowProps {
   scene: StoryboardScene;
@@ -20,6 +21,7 @@ interface StoryboardRowProps {
   onAddScene: (sceneId: number) => void;
   onGenerateVideo: (id: number) => void;
   onGenerateImage: (id: number) => void;
+  onUpdateDirectorParams?: (id: number, params: DirectorParams) => void;
   isGeneratingImage?: boolean;
   isGeneratingVideo?: boolean;
   isDragOver?: boolean;
@@ -45,6 +47,7 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
   onAddScene,
   onGenerateVideo,
   onGenerateImage,
+  onUpdateDirectorParams,
   isGeneratingImage,
   isGeneratingVideo,
   isDragOver,
@@ -60,6 +63,11 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
   const [locked, setLocked] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showVideoPreview, setShowVideoPreview] = useState(false);
+  const [showDirectorAssistant, setShowDirectorAssistant] = useState(false);
+
+  // 获取当前分镜的导演参数
+  const currentDirectorParams: DirectorParams = scene.directorParams || DEFAULT_DIRECTOR_PARAMS;
+  const hasDirectorParams = !!scene.directorParams;
 
   const save = () => {
     onUpdateDescription(scene.id, draft);
@@ -213,9 +221,24 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
 
       {/* 配音 */}
       <td className="px-3 py-3 w-16 text-center">
-        <button className="p-2 rounded-lg bg-slate-700/60 text-slate-400 hover:text-purple-400 hover:bg-slate-700 transition-all" title="配音">
-          <Mic className="w-4 h-4" />
-        </button>
+        <div className="flex flex-col gap-1 items-center">
+          <button className="p-2 rounded-lg bg-slate-700/60 text-slate-400 hover:text-purple-400 hover:bg-slate-700 transition-all" title="配音">
+            <Mic className="w-4 h-4" />
+          </button>
+          <Tooltip content={hasDirectorParams ? '编辑导演参数' : '添加导演参数'}>
+            <button
+              onClick={() => setShowDirectorAssistant(true)}
+              className={`p-2 rounded-lg transition-all ${
+                hasDirectorParams 
+                  ? 'bg-amber-900/40 text-amber-400 hover:bg-amber-800/50' 
+                  : 'bg-slate-700/60 text-slate-400 hover:text-amber-400 hover:bg-slate-700'
+              }`}
+              title="导演助手"
+            >
+              <Clapperboard className="w-4 h-4" />
+            </button>
+          </Tooltip>
+        </div>
       </td>
 
       {/* 视频 */}
@@ -295,6 +318,19 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
         )}
       </ModalContent>
     </Modal>
+
+    {/* 导演助手 */}
+    <DirectorAssistantModal
+      isOpen={showDirectorAssistant}
+      onClose={() => setShowDirectorAssistant(false)}
+      initialParams={currentDirectorParams}
+      sceneDescription={scene.description}
+      onSave={(params) => {
+        if (onUpdateDirectorParams) {
+          onUpdateDirectorParams(scene.id, params);
+        }
+      }}
+    />
     </>
   );
 };

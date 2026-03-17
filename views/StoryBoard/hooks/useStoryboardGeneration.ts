@@ -13,9 +13,12 @@ const STEP_NAMES: Record<string, string> = {
   storyboard_generation: '生成分镜结构',
   scene_storyboard_generation: '生成场景分镜',
   batch_storyboard_generation: '批量分镜生成',
+  batch_frame_generation: '批量帧图片生成',
   save_storyboards: '保存分镜数据',
   character_extraction: '提取角色信息',
-  scene_state_analysis: '分析场景状态'
+  scene_state_analysis: '分析场景状态',
+  frame_generation: '生成首尾帧',
+  single_frame_generation: '生成单帧'
 };
 
 export interface GenerationProgress {

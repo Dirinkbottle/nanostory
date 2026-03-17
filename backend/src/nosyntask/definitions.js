@@ -35,6 +35,9 @@ const {
   handleBatchStoryboardGeneration
 } = require('./tasks');
 
+// 独立帧生成模块（支持并发）
+const { handleParallelFrameGeneration } = require('./tasks/StoryBoard/independentFrameGeneration');
+
 const { createBuildInput } = require('./buildInputFactory');
 
 // ============================================================
@@ -317,6 +320,30 @@ const WORKFLOW_DEFINITIONS = {
         buildInput: createBuildInput([
           'scriptId', 'imageModel', 'textModel', 'overwriteFrames',
           { key: 'maxConcurrency', defaultValue: 20 },
+          { key: 'width', defaultValue: 1024 },
+          { key: 'height', defaultValue: 576 }
+        ])
+      }
+    ]
+  },
+
+  /**
+   * 并发分镜帧生成（独立模式 - 每个分镜独立生成，支持并发）
+   * 与 batch_frame_generation 的区别：
+   *   1. 不使用链式传递（prevEndFrameUrl），每个分镜独立
+   *   2. 支持真正的并发处理，效率更高
+   *   3. 适合对连贯性要求不高、需要快速生成的场景
+   */
+  parallel_frame_generation: {
+    name: '并发分镜帧生成',
+    steps: [
+      {
+        type: 'parallel_frame',
+        targetType: 'storyboard',
+        handler: handleParallelFrameGeneration,
+        buildInput: createBuildInput([
+          'scriptId', 'imageModel', 'textModel', 'overwriteFrames',
+          { key: 'maxConcurrency', defaultValue: 5 },  // 默认5个并发，避免API限流
           { key: 'width', defaultValue: 1024 },
           { key: 'height', defaultValue: 576 }
         ])

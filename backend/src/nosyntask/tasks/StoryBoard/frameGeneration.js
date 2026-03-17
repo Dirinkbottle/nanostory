@@ -75,9 +75,10 @@ const generateSingleImage = traced('图片生成', async function _generateSingl
  * @param {string} [opts.dialogue] - 角色对白（用于表情/嘴型参考）
  * @param {string} [opts.prevEndState] - 上一镜头的 endState（用于首帧起始状态约束）
  * @param {string} [opts.endState] - 当前镜头的 endState（用于尾帧目标状态）
+ * @param {object} [opts.directorParams] - 导演参数（光线、镜头、氛围）
  */
 const generateFramePrompt = traced('生成帧提示词', async function _generateFramePrompt(opts) {
-  const { textModel, description, frameType, characterInfo, sceneInfo, shotType, emotion, prevDescription, visualStyle, startFrameDesc, endFrameDesc, dialogue, prevEndState, endState, sceneState, environmentChange } = opts;
+  const { textModel, description, frameType, characterInfo, sceneInfo, shotType, emotion, prevDescription, visualStyle, startFrameDesc, endFrameDesc, dialogue, prevEndState, endState, sceneState, environmentChange, directorParams } = opts;
 
   // 角色信息：有角色时提供详细外貌，无角色时明确排除
   let charBlock;
@@ -210,7 +211,47 @@ ${sceneConstraint}`
 ⑤ 光线方向：如果上一镜头光线从画面左侧打来，180°反打后光线应从画面右侧打来（因为摄像机转了180°，光源相对位置镜像翻转）`;
   }
 
-  const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, frameDescBlock, dialogueBlock, prevEndStateBlock, cameraPositionBlock, endStateBlock, charConstraint, prevContext].filter(Boolean).join('\n');
+  // 导演参数块（如果有）
+  let directorBlock = '';
+  if (directorParams) {
+    const lighting = directorParams.lighting || {};
+    const camera = directorParams.camera || {};
+    const atmosphere = directorParams.atmosphere || {};
+    
+    const lightingParts = [];
+    if (lighting.direction) lightingParts.push(`光线方向: ${lighting.direction}`);
+    if (lighting.quality) lightingParts.push(`光线质量: ${lighting.quality}`);
+    if (lighting.color) lightingParts.push(`光线色彩: ${lighting.color}`);
+    if (lighting.intensity) lightingParts.push(`光线强度: ${lighting.intensity}`);
+    
+    const cameraParts = [];
+    if (camera.focalLength) cameraParts.push(`焦距: ${camera.focalLength}`);
+    if (camera.movement && camera.movement !== 'static') cameraParts.push(`镜头运动: ${camera.movement}`);
+    if (camera.depthOfField) cameraParts.push(`景深: ${camera.depthOfField}`);
+    if (camera.composition) cameraParts.push(`构图: ${camera.composition}`);
+    if (camera.angle) cameraParts.push(`拍摄角度: ${camera.angle}`);
+    
+    const atmosphereParts = [];
+    if (atmosphere.mood) atmosphereParts.push(`氛围: ${atmosphere.mood}`);
+    if (atmosphere.texture) atmosphereParts.push(`质感: ${atmosphere.texture}`);
+    if (atmosphere.colorGrade) atmosphereParts.push(`调色: ${atmosphere.colorGrade}`);
+    if (atmosphere.visualStyle) atmosphereParts.push(`视觉风格: ${atmosphere.visualStyle}`);
+    
+    const allParts = [];
+    if (lightingParts.length > 0) allParts.push(`光线: ${lightingParts.join('、')}`);
+    if (cameraParts.length > 0) allParts.push(`镜头: ${cameraParts.join('、')}`);
+    if (atmosphereParts.length > 0) allParts.push(`氛围: ${atmosphereParts.join('、')}`);
+    
+    if (allParts.length > 0) {
+      directorBlock = `【导演参数 - 必须严格遵循】\n${allParts.join('\n')}\n（这些是导演明确指定的画面效果，必须在提示词中体现）`;
+    }
+    
+    if (directorParams.customNotes) {
+      directorBlock += `\n【导演备注】${directorParams.customNotes}`;
+    }
+  }
+
+  const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, frameDescBlock, dialogueBlock, prevEndStateBlock, cameraPositionBlock, endStateBlock, directorBlock, charConstraint, prevContext].filter(Boolean).join('\n');
 
   const promptRequest = `你是一个专业的图片生成提示词专家。你的任务是描述一个完全静止的画面瞬间。
 
@@ -333,7 +374,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
   let startPrompt = description;
   if (textModel) {
     console.log('[FrameGen] 使用文本模型生成首帧提示词...');
-    startPrompt = await generateFramePrompt({ textModel, description, frameType: 'start', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: resolvedPrevDescription || null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: resolvedPrevEndState, endState: variables.endState, sceneState, environmentChange });
+    startPrompt = await generateFramePrompt({ textModel, description, frameType: 'start', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: resolvedPrevDescription || null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: resolvedPrevEndState, endState: variables.endState, sceneState, environmentChange, directorParams: variables.directorParams });
     trace('首帧提示词', { prompt: startPrompt });
     console.log(`\x1b[32m[FrameGen] 首帧提示词: ${startPrompt}\x1b[0m`);
   } else {
@@ -367,7 +408,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
   let endPrompt = description;
   if (textModel) {
     console.log('[FrameGen] 使用文本模型生成尾帧提示词...');
-    endPrompt = await generateFramePrompt({ textModel, description, frameType: 'end', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: null, endState: variables.endState, sceneState, environmentChange });
+    endPrompt = await generateFramePrompt({ textModel, description, frameType: 'end', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: null, endState: variables.endState, sceneState, environmentChange, directorParams: variables.directorParams });
     trace('尾帧提示词', { prompt: endPrompt });
     console.log(`\x1b[32m[FrameGen] 尾帧提示词: ${endPrompt}\x1b[0m`);
   } else {

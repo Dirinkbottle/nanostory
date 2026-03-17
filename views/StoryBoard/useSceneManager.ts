@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getAuthToken } from '../../services/auth';
+import { DirectorParams } from '../SimpleStoryBoard/DirectorAssistant';
 
 export interface LinkedCharacter {
   character_id: number;
@@ -38,6 +39,7 @@ export interface StoryboardScene {
   endState?: string;
   linkedCharacters?: LinkedCharacter[];
   linkedScenes?: LinkedScene[];
+  directorParams?: DirectorParams;  // 导演参数
 }
 
 export const useSceneManager = (scriptId: number | null, projectId?: number | null) => {
@@ -132,7 +134,8 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
               cameraMovement: vars.cameraMovement || undefined,
               endState: vars.endState || undefined,
               linkedCharacters: item.linkedCharacters || [],
-              linkedScenes: item.linkedScenes || []
+              linkedScenes: item.linkedScenes || [],
+              directorParams: vars.directorParams || undefined  // 导演参数
             };
           });
 
@@ -270,6 +273,32 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
     setScenes(prevScenes => prevScenes.map(s => s.id === id ? { ...s, description } : s));
   };
 
+  // 更新导演参数并保存到后端
+  const updateDirectorParams = async (id: number, directorParams: DirectorParams) => {
+    // 先更新本地状态
+    setScenes(prevScenes => prevScenes.map(s => s.id === id ? { ...s, directorParams } : s));
+
+    // 保存到后端（通过更新 variables_json）
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/storyboards/${id}/director-params`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ directorParams })
+      });
+      if (res.ok) {
+        console.log('[useSceneManager] 导演参数已保存');
+      } else {
+        console.error('[useSceneManager] 保存导演参数失败:', res.statusText);
+      }
+    } catch (err) {
+      console.error('[useSceneManager] 保存导演参数网络错误:', err);
+    }
+  };
+
   const reorderScenes = (newScenes: StoryboardScene[]) => {
     setScenes(newScenes);
     persistReorder(newScenes);
@@ -310,6 +339,7 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
     deleteScene,
     moveScene,
     updateDescription,
+    updateDirectorParams,
     reorderScenes
   };
 }

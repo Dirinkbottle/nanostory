@@ -34,10 +34,29 @@ async function linkStoryboardCharacters(storyboardId, characterNames, projectId,
   for (const name of characterNames) {
     if (!name || typeof name !== 'string') continue;
 
-    const character = await queryOne(
+    const trimmedName = name.trim();
+    
+    // 1. 先尝试精确匹配
+    let character = await queryOne(
       'SELECT id FROM characters WHERE project_id = ? AND name = ?',
-      [projectId, name.trim()]
+      [projectId, trimmedName]
     );
+
+    // 2. 精确匹配失败，尝试前缀匹配（如"男生"匹配"男生（感染者）"）
+    if (!character) {
+      character = await queryOne(
+        'SELECT id FROM characters WHERE project_id = ? AND name LIKE ?',
+        [projectId, trimmedName + '%']
+      );
+    }
+
+    // 3. 前缀匹配失败，尝试包含匹配
+    if (!character) {
+      character = await queryOne(
+        'SELECT id FROM characters WHERE project_id = ? AND name LIKE ?',
+        [projectId, '%' + trimmedName + '%']
+      );
+    }
 
     if (character) {
       try {

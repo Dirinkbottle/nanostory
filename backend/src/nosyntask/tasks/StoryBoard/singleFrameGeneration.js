@@ -181,7 +181,48 @@ ${sceneConstraint}`
 ⑤ 光线方向：如果上一镜头光线从画面左侧打来，180°反打后光线应从画面右侧打来（因为摄像机转了180°，光源相对位置镜像翻转）`;
     }
 
-    const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, prevEndStateBlock, cameraPositionBlock, dialogueBlock, charConstraint, prevContext].filter(Boolean).join('\n');
+    // 导演参数块（如果有）
+    let directorBlock = '';
+    if (variables.directorParams) {
+      const dp = variables.directorParams;
+      const lighting = dp.lighting || {};
+      const camera = dp.camera || {};
+      const atmosphere = dp.atmosphere || {};
+      
+      const lightingParts = [];
+      if (lighting.direction) lightingParts.push(`光线方向: ${lighting.direction}`);
+      if (lighting.quality) lightingParts.push(`光线质量: ${lighting.quality}`);
+      if (lighting.color) lightingParts.push(`光线色彩: ${lighting.color}`);
+      if (lighting.intensity) lightingParts.push(`光线强度: ${lighting.intensity}`);
+      
+      const cameraParts = [];
+      if (camera.focalLength) cameraParts.push(`焦距: ${camera.focalLength}`);
+      if (camera.movement && camera.movement !== 'static') cameraParts.push(`镜头运动: ${camera.movement}`);
+      if (camera.depthOfField) cameraParts.push(`景深: ${camera.depthOfField}`);
+      if (camera.composition) cameraParts.push(`构图: ${camera.composition}`);
+      if (camera.angle) cameraParts.push(`拍摄角度: ${camera.angle}`);
+      
+      const atmosphereParts = [];
+      if (atmosphere.mood) atmosphereParts.push(`氛围: ${atmosphere.mood}`);
+      if (atmosphere.texture) atmosphereParts.push(`质感: ${atmosphere.texture}`);
+      if (atmosphere.colorGrade) atmosphereParts.push(`调色: ${atmosphere.colorGrade}`);
+      if (atmosphere.visualStyle) atmosphereParts.push(`视觉风格: ${atmosphere.visualStyle}`);
+      
+      const allParts = [];
+      if (lightingParts.length > 0) allParts.push(`光线: ${lightingParts.join('、')}`);
+      if (cameraParts.length > 0) allParts.push(`镜头: ${cameraParts.join('、')}`);
+      if (atmosphereParts.length > 0) allParts.push(`氛围: ${atmosphereParts.join('、')}`);
+      
+      if (allParts.length > 0) {
+        directorBlock = `【导演参数 - 必须严格遵循】\n${allParts.join('\n')}\n（这些是导演明确指定的画面效果，必须在提示词中体现）`;
+      }
+      
+      if (dp.customNotes) {
+        directorBlock += `\n【导演备注】${dp.customNotes}`;
+      }
+    }
+
+    const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, prevEndStateBlock, cameraPositionBlock, dialogueBlock, directorBlock, charConstraint, prevContext].filter(Boolean).join('\n');
 
     const promptGenerationResult = await baseTextModelCall({
       prompt: `你是一个专业的图片生成提示词专家。
@@ -251,14 +292,15 @@ ${extraInfo}
   );
 
   // 保存到数据库
+  // 【首尾帧统一】静态镜头首帧=尾帧，同时设置 last_frame_url 以保证后续镜头参考一致性
   if (onProgress) onProgress(90);
-  console.log('[SingleFrameGen] 保存首帧到数据库...');
+  console.log('[SingleFrameGen] 保存首帧到数据库（静态镜头首尾帧统一）...');
 
   await execute(
-    'UPDATE storyboards SET first_frame_url = ? WHERE id = ?',
-    [persistedUrl, storyboardId]
+    'UPDATE storyboards SET first_frame_url = ?, last_frame_url = ? WHERE id = ?',
+    [persistedUrl, persistedUrl, storyboardId]
   );
-  trace('首帧持久化完成', { url: persistedUrl });
+  trace('首尾帧持久化完成（静态镜头）', { firstFrameUrl: persistedUrl, lastFrameUrl: persistedUrl });
 
   // modified 镜头：自动生成更新版空镜场景图并存入 DB（供后续 inherit 镜头使用）
   if (sceneState === 'modified' && (variables.location || location)) {
@@ -283,6 +325,7 @@ ${extraInfo}
 
   return {
     firstFrameUrl: persistedUrl,
+    lastFrameUrl: persistedUrl, // 静态镜头首尾帧统一
     promptUsed,
     model: imageResult.model || modelName
   };
