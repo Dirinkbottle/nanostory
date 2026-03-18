@@ -18,6 +18,8 @@ import VideoComposition from '../VideoComposition';
 import AIModelConfigModal from '../../components/AIModelConfigModal';
 import { useAIModels } from '../../hooks/useAIModels';
 import { useToast } from '../../contexts/ToastContext';
+import { getAuthToken } from '../../services/auth';
+import { RecapData } from './PreviousEpisodesRecap';
 
 const LAST_TAB_KEY = 'nanostory_last_tab';
 
@@ -94,6 +96,10 @@ const ScriptStudio: React.FC = () => {
     if (savedTab === 'storyboard' || savedTab === 'composition') return savedTab;
     return 'script';
   });
+
+  // 前情回顾状态
+  const [recapData, setRecapData] = useState<RecapData | null>(null);
+  const [recapLoading, setRecapLoading] = useState(false);
   
   const loading = scriptLoading || generationLoading;
 
@@ -142,6 +148,46 @@ const ScriptStudio: React.FC = () => {
       loadProjectScript(selectedProject.id);
     }
   }, [selectedProject]);
+
+  // 获取前情回顾数据
+  const fetchRecapData = async (projectId: number, targetEpisode: number) => {
+    if (targetEpisode <= 1) {
+      setRecapData(null);
+      return;
+    }
+    
+    setRecapLoading(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/scripts/project/${projectId}/recap?targetEpisode=${targetEpisode}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setRecapData(data);
+      } else {
+        setRecapData(null);
+      }
+    } catch (error) {
+      console.error('获取前情回顾失败:', error);
+      setRecapData(null);
+    } finally {
+      setRecapLoading(false);
+    }
+  };
+
+  // 当需要创建新剧集时，加载前情回顾
+  useEffect(() => {
+    if (selectedProject && !scriptId && nextEpisode > 1) {
+      const targetEp = selectedEpisodeForGeneration || nextEpisode;
+      fetchRecapData(selectedProject.id, targetEp);
+    } else {
+      setRecapData(null);
+    }
+  }, [selectedProject, scriptId, nextEpisode, selectedEpisodeForGeneration]);
 
   const handleBackToProjects = () => {
     navigate('/projects');
@@ -285,8 +331,20 @@ const ScriptStudio: React.FC = () => {
                   currentEpisode={currentEpisode}
                   nextEpisode={nextEpisode}
                   loading={loading}
-                  onEpisodeChange={handleEpisodeChange}
+                  onEpisodeChange={(episode) => {
+                    // 如果点击的是草稿集数，切换到草稿编辑界面
+                    if (episode === selectedEpisodeForGeneration) {
+                      setCurrentEpisode(episode);
+                      setScriptId(null);
+                      setContent('');
+                      setIsEditing(false);
+                    } else {
+                      // 切换到已有集数时，保留草稿状态（不清除 selectedEpisodeForGeneration）
+                      handleEpisodeChange(episode);
+                    }
+                  }}
                   onNewEpisode={() => setShowEpisodeModal(true)}
+                  draftEpisode={selectedEpisodeForGeneration}
                 />
 
                 <ScriptActions
@@ -311,6 +369,8 @@ const ScriptStudio: React.FC = () => {
                     onDescriptionChange={setDescription}
                     onLengthChange={setLength}
                     generationProgress={generationProgress}
+                    recapData={recapData}
+                    recapLoading={recapLoading}
                     onGenerate={() => {
                       if (!aiModels.selected.text) {
                         showToast('请先点击右上角「AI 模型」按钮选择文本模型', 'warning');

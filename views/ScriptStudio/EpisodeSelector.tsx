@@ -13,6 +13,8 @@ interface EpisodeSelectorProps {
   loading: boolean;
   onEpisodeChange: (episode: number) => void;
   onNewEpisode: () => void;
+  /** 当前选中的草稿集数（用户已选择但尚未开始生成） */
+  draftEpisode?: number | null;
 }
 
 const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
@@ -21,14 +23,21 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
   nextEpisode,
   loading,
   onEpisodeChange,
-  onNewEpisode
+  onNewEpisode,
+  draftEpisode
 }) => {
-  if (scripts.length === 0) return null;
+  // 检查草稿集数是否已存在于 scripts 中（已开始生成）
+  const isDraftInScripts = draftEpisode ? scripts.some(s => s.episode_number === draftEpisode) : false;
+  // 只有当草稿集数存在且不在 scripts 中时才显示草稿标签
+  const showDraftTab = draftEpisode && !isDraftInScripts;
+
+  if (scripts.length === 0 && !showDraftTab) return null;
 
   return (
     <div className="flex items-center gap-3 pb-4 border-b border-slate-700/30">
       <span className="text-sm text-slate-500 font-medium">集数:</span>
       <div className="flex gap-2 flex-wrap flex-1">
+        {/* 已有集数 */}
         {scripts.map((s) => (
           <button
             key={s.id}
@@ -43,10 +52,24 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
             {s.status === 'generating' && ' (生成中)'}
           </button>
         ))}
+        
+        {/* 草稿集数（用户已选择但尚未开始生成） */}
+        {showDraftTab && (
+          <button
+            onClick={() => onEpisodeChange(draftEpisode)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              currentEpisode === draftEpisode
+                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/20'
+                : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30'
+            }`}
+          >
+            第{draftEpisode}集 (草稿)
+          </button>
+        )}
       </div>
       <button
         onClick={onNewEpisode}
-        disabled={loading}
+        disabled={loading || !!showDraftTab}
         className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center gap-1 disabled:opacity-50 shadow-md shadow-emerald-500/20"
       >
         <span className="text-lg leading-none">+</span> 生成第{nextEpisode}集

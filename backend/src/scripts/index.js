@@ -11,6 +11,7 @@ const getModels = require('./Noraml/getModels');
 const generateScript = require('./ScriptStudio/generateScript');
 const saveFromWorkflow = require('./ScriptStudio/saveFromWorkflow');
 const getProjectScripts = require('./ScriptStudio/getProjectScripts');
+const getEpisodesRecap = require('./ScriptStudio/getEpisodesRecap');
 const getEpisode = require('./ScriptStudio/getEpisode');
 const getAllScripts = require('./ScriptStudio/getAllScripts');
 const updateScript = require('./ScriptStudio/updateScript');
@@ -39,6 +40,9 @@ router.post('/save-from-workflow', authMiddleware, saveFromWorkflow);
 
 // 获取项目的所有剧本
 router.get('/project/:projectId', authMiddleware, getProjectScripts);
+
+// 获取前情回顾数据
+router.get('/project/:projectId/recap', authMiddleware, getEpisodesRecap);
 
 // 获取指定集的剧本
 router.get('/project/:projectId/episode/:episodeNumber', authMiddleware, getEpisode);

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardBody, Button, Input, Textarea, Select, SelectItem } from '@heroui/react';
 import { FileText, PenLine, Sparkles } from 'lucide-react';
 import ManualScriptForm from './ManualScriptForm';
+import PreviousEpisodesRecap, { RecapData } from './PreviousEpisodesRecap';
 
 interface ScriptGeneratorFormProps {
   title: string;
@@ -21,6 +22,9 @@ interface ScriptGeneratorFormProps {
     stepName: string;
     progress: number;
   } | null;
+  // 新增：前情回顾数据
+  recapData?: RecapData | null;
+  recapLoading?: boolean;
 }
 
 const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
@@ -34,7 +38,9 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
   onLengthChange,
   onGenerate,
   onManualSave,
-  generationProgress
+  generationProgress,
+  recapData,
+  recapLoading
 }) => {
   const isFirstEpisode = nextEpisode === 1;
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
@@ -88,6 +94,14 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
 
         {mode === 'ai' ? (
           <>
+            {/* 前情回顾组件 - 仅在非第一集时显示 */}
+            {!isFirstEpisode && (
+              <PreviousEpisodesRecap 
+                recapData={recapData || null} 
+                loading={recapLoading} 
+              />
+            )}
+
             <Input
               label={isFirstEpisode ? "剧本标题" : "本集标题"}
               placeholder={isFirstEpisode ? "输入你的创意标题" : `第${nextEpisode}集的标题（可选）`}
