@@ -21,6 +21,57 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function isHttpUrl(value) {
+  return typeof value === 'string' && /^https?:\/\//i.test(value);
+}
+
+function shouldIgnoreUrlPath(path) {
+  if (!path) return false;
+  return path.includes('.request.') || path.startsWith('request.') || path.includes('.headers.') || path.startsWith('headers.');
+}
+
+function collectUrlCandidates(value, path = '', acc = []) {
+  if (acc.length >= 12 || value === null || value === undefined) {
+    return acc;
+  }
+
+  if (isHttpUrl(value)) {
+    if (!shouldIgnoreUrlPath(path)) {
+      acc.push({
+        path: path || '(root)',
+        url: value
+      });
+    }
+    return acc;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectUrlCandidates(item, path ? `${path}[${index}]` : `[${index}]`, acc));
+    return acc;
+  }
+
+  if (typeof value === 'object') {
+    Object.entries(value).forEach(([key, item]) => {
+      const nextPath = path ? `${path}.${key}` : key;
+      collectUrlCandidates(item, nextPath, acc);
+    });
+  }
+
+  return acc;
+}
+
+function getObjectKeys(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? Object.keys(value) : [];
+}
+
+function stringifyForLog(value) {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch (error) {
+    return `[Unserializable: ${error.message}]`;
+  }
+}
+
 
 /**
  * 解析 JSON 字段（兼容字符串和对象）
@@ -219,6 +270,7 @@ async function submitAndPoll(modelName, submitParams, options = {}) {
 
   // === 1. 提交请求 ===
   const submitResult = await callAIModel(modelName, submitParams);
+  console.log(`[${logTag}] 提交接口原始响应体:`, stringifyForLog(submitResult?._raw || submitResult));
 
   // === 2. 加载模型的查询配置 ===
   const modelConfig = await queryOne(
@@ -241,6 +293,14 @@ async function submitAndPoll(modelName, submitParams, options = {}) {
     if (successMapping && submitResult._raw) {
       mapped = mapResponse(submitResult._raw, successMapping);
     }
+    const rawForLog = submitResult._raw || submitResult;
+    console.log(`[${logTag}] 同步结果字段:`, {
+      model: modelName,
+      mappedKeys: getObjectKeys(mapped),
+      submitKeys: getObjectKeys(submitResult),
+      rawKeys: getObjectKeys(rawForLog),
+      urlCandidates: collectUrlCandidates(rawForLog)
+    });
     return { status: true, ...mapped, _submitResult: submitResult };
   }
 
@@ -280,6 +340,7 @@ async function submitAndPoll(modelName, submitParams, options = {}) {
     let queryResult;
     try {
       queryResult = await queryAIModel(modelName, queryFields);
+      console.log(`[${logTag}] 第 ${pollCount} 次查询原始响应体:`, stringifyForLog(queryResult?._raw || queryResult));
       networkErrors = 0;
     } catch (err) {
       networkErrors++;
@@ -314,9 +375,23 @@ async function submitAndPoll(modelName, submitParams, options = {}) {
         mapped = mappedBase;
       }
       const totalMs = Date.now() - startTime;
+      console.log(`[${logTag}] 成功结果字段:`, {
+        model: modelName,
+        taskId,
+        mappedKeys: getObjectKeys(mapped),
+        queryKeys: getObjectKeys(queryResult),
+        rawKeys: getObjectKeys(rawData),
+        urlCandidates: collectUrlCandidates(rawData)
+      });
       console.log(`[${logTag}] ✅ 任务完成: model=${modelName}, taskId=${taskId}, 耗时=${Math.round(totalMs / 1000)}s, 轮询${pollCount}次`);
       // 统一返回 status: true + 映射结果
-      return { status: true, ...mapped, _submitResult: submitResult };
+      return {
+        status: true,
+        ...mapped,
+        _submitResult: submitResult,
+        _queryResult: queryResult,
+        _rawQueryResult: rawData
+      };
     }
 
     if (resolvedStatus === 'failed') {

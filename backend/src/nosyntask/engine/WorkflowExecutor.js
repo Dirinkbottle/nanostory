@@ -13,12 +13,15 @@ const { withAIBillingContext } = require('../../aiBillingContext');
 
 const MAX_STEPS = 50; // 单个工作流最大步骤数，防止无限递归
 
-function extractResourceRefs(inputParams) {
+function extractResourceRefs(inputParams, executionContext = {}) {
   const refs = {};
   for (const key of ['scriptId', 'storyboardId', 'sceneId', 'characterId', 'projectId']) {
     if (inputParams?.[key] !== undefined && inputParams?.[key] !== null && inputParams?.[key] !== '') {
       refs[key] = inputParams[key];
     }
+  }
+  if (refs.projectId === undefined && executionContext?.projectId !== undefined && executionContext?.projectId !== null) {
+    refs.projectId = executionContext.projectId;
   }
   return refs;
 }
@@ -151,7 +154,7 @@ class WorkflowExecutor {
       }
 
       // 执行任务
-      await this.executeTask(task.id, stepDef, inputParams, jobId);
+      await this.executeTask(task.id, stepDef, inputParams, jobId, context);
     });
 
     // 等待所有并行任务完成
@@ -161,7 +164,7 @@ class WorkflowExecutor {
   /**
    * 执行单个任务
    */
-  async executeTask(taskId, stepDef, inputParams, jobId) {
+  async executeTask(taskId, stepDef, inputParams, jobId, executionContext = {}) {
     try {
       // 更新任务状态为 processing
       await execute(
@@ -180,14 +183,34 @@ class WorkflowExecutor {
 
       // 用统一 billing context 包裹 handler，保证工作流内所有真实模型调用都能自动计费
       const billingContext = {
-        userId: inputParams?.userId || null,
-        projectId: inputParams?.projectId || null,
+        userId: executionContext?.userId ?? inputParams?.userId ?? null,
+        projectId: executionContext?.projectId ?? inputParams?.projectId ?? null,
         sourceType: 'workflow',
         operationKey: stepDef.type,
         workflowJobId: jobId,
         generationTaskId: taskId,
-        resourceRefs: extractResourceRefs(inputParams)
+        resourceRefs: extractResourceRefs(inputParams, executionContext)
       };
+
+      console.log('[WorkflowExecutor] AI 计费上下文字段:', {
+        taskId,
+        workflowJobId: jobId,
+        stepType: stepDef.type,
+        userId: billingContext.userId,
+        projectId: billingContext.projectId,
+        modelName: inputParams.textModel || inputParams.imageModel || inputParams.videoModel || inputParams.audioModel || null,
+        resourceRefs: billingContext.resourceRefs
+      });
+
+      if (!billingContext.userId) {
+        console.warn('[WorkflowExecutor] AI 计费上下文缺少 userId:', {
+          taskId,
+          workflowJobId: jobId,
+          stepType: stepDef.type,
+          executionContext,
+          inputParams
+        });
+      }
 
       // 用追踪系统包裹 handler 调用，自动记录开始/结束/耗时
       const { result: resultData, trace: traceData } = await withAIBillingContext(

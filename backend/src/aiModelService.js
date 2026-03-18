@@ -11,6 +11,7 @@ const {
 const { getHandler } = require('./customHandlers');
 const { sanitizeHeaders } = require('./utils/logSanitizer');
 const { parseJsonField } = require('./utils/parseJsonField');
+const { getAIBillingContext } = require('./aiBillingContext');
 const {
   buildModelPricingPayload,
   prepareModelBilling,
@@ -246,6 +247,24 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
     const runtimeParams = { ...params, apiKey };
     // 兼容旧逻辑：合并参数供 custom_handler 使用
     mergedParams = { ...defaultParams, ...runtimeParams };
+
+    const billingContext = getAIBillingContext();
+    console.log('[AI Model] 计费预检字段:', {
+      modelName: model.name,
+      modelCategory: model.category,
+      provider: model.provider,
+      userId: billingContext?.userId ?? null,
+      projectId: billingContext?.projectId ?? null,
+      sourceType: billingContext?.sourceType ?? null,
+      operationKey: billingContext?.operationKey ?? null,
+      workflowJobId: billingContext?.workflowJobId ?? null,
+      generationTaskId: billingContext?.generationTaskId ?? null,
+      resourceRefs: billingContext?.resourceRefs || {},
+      maxTokens: mergedParams.maxTokens ?? mergedParams.max_tokens ?? null,
+      duration: mergedParams.duration ?? mergedParams.durationSeconds ?? null,
+      itemCount: mergedParams.itemCount ?? mergedParams.n ?? mergedParams.count ?? null,
+      aspectRatio: mergedParams.aspectRatio ?? null
+    });
 
     billingState = await prepareModelBilling(model, mergedParams);
     

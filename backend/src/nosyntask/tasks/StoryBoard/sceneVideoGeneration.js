@@ -24,6 +24,7 @@ const handleCameraRunGeneration = require('./cameraRunGeneration');
 const { generateMotionBreakdown } = require('./motionBreakdown');
 const { trace } = require('../../engine/generationTrace');
 const { assertUpdated, assertPersistedFields } = require('./persistenceGuard');
+const { resolveMediaUrl } = require('../base/mediaResultResolver');
 
 async function handleSceneVideoGeneration(inputParams, onProgress) {
   const { storyboardId, videoModel: modelName, textModel, duration, aspectRatio, think } = inputParams;
@@ -366,16 +367,30 @@ ${extraInfo}
     logTag: 'SceneVideoGen'
   });
 
-  if (onProgress) onProgress(90);
+  const resolution = resolveMediaUrl(result, 'video');
+  console.log('[SceneVideoGen] 返回字段诊断:', {
+    modelName,
+    storyboardId,
+    mappedKeys: result && typeof result === 'object' ? Object.keys(result) : [],
+    queryKeys: result?._queryResult && typeof result._queryResult === 'object' ? Object.keys(result._queryResult) : [],
+    rawQueryKeys: result?._rawQueryResult && typeof result._rawQueryResult === 'object' ? Object.keys(result._rawQueryResult) : [],
+    submitKeys: result?._submitResult && typeof result._submitResult === 'object' ? Object.keys(result._submitResult) : [],
+    selectedUrl: resolution.mediaUrl,
+    resolvedFrom: resolution.resolvedFrom,
+    urlCandidates: resolution.candidates,
+    duration: duration ?? null,
+    aspectRatio: aspectRatio || null
+  });
 
-  const videoUrl = result.video_url || result.videoUrl || result.url || null;
-  if (!videoUrl) {
-    throw new Error('视频生成成功但未找到视频 URL');
+  if (!resolution.mediaUrl) {
+    throw new Error(`视频模型 "${modelName}" 返回成功但未找到视频 URL，请检查 response_mapping / query_success_mapping 配置`);
   }
+
+  if (onProgress) onProgress(90);
 
   // 5. 持久化视频到 MinIO
   const persistedVideoUrl = await downloadAndStore(
-    videoUrl,
+    resolution.mediaUrl,
     `videos/${storyboardId}/video`,
     { fallbackExt: '.mp4' }
   );
