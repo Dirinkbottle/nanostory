@@ -21,6 +21,7 @@ const { generateUpdatedSceneImage } = require('./sceneRefUtils');
 const { selectReferenceImages } = require('./referenceImageSelector');
 const { collectCandidateImages, appendContextCandidates } = require('./collectCandidateImages');
 const { traced, trace } = require('../../engine/generationTrace');
+const { assertUpdated, assertPersistedFields } = require('./persistenceGuard');
 
 // collectReferenceImages 已提取到 collectCandidateImages.js 共享模块
 
@@ -295,10 +296,17 @@ ${extraInfo}
   if (onProgress) onProgress(90);
   console.log('[SingleFrameGen] 保存首帧到数据库（静态镜头首尾帧统一）...');
 
-  await execute(
+  const updateResult = await execute(
     'UPDATE storyboards SET first_frame_url = ?, last_frame_url = ? WHERE id = ?',
     [persistedUrl, persistedUrl, storyboardId]
   );
+  assertUpdated(updateResult, '[SingleFrameGen] 静态镜头首尾帧');
+  await assertPersistedFields({
+    table: 'storyboards',
+    id: storyboardId,
+    fields: ['first_frame_url', 'last_frame_url'],
+    label: '[SingleFrameGen] 静态镜头首尾帧'
+  });
   trace('首尾帧持久化完成（静态镜头）', { firstFrameUrl: persistedUrl, lastFrameUrl: persistedUrl });
 
   // modified 镜头：自动生成更新版空镜场景图并存入 DB（供后续 inherit 镜头使用）
@@ -325,6 +333,9 @@ ${extraInfo}
   return {
     firstFrameUrl: persistedUrl,
     lastFrameUrl: persistedUrl, // 静态镜头首尾帧统一
+    startFrame: persistedUrl,
+    endFrame: persistedUrl,
+    imageUrl: persistedUrl,
     promptUsed,
     model: imageResult.model || modelName
   };

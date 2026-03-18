@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@heroui/react';
 import { Save } from 'lucide-react';
 import { ResourcePanelProps, TabType } from './types';
@@ -41,6 +41,26 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
   const [selectedScene, setSelectedScene] = useState<Scene | null>(null);
   const [isSceneDetailModalOpen, setIsSceneDetailModalOpen] = useState(false);
   const [isSceneImageModalOpen, setIsSceneImageModalOpen] = useState(false);
+
+  useEffect(() => {
+    setSelectedCharacter((prev) => {
+      if (!prev?.id) {
+        return prev;
+      }
+
+      return dbCharacters.find((character) => character.id === prev.id) || prev;
+    });
+  }, [dbCharacters]);
+
+  useEffect(() => {
+    setSelectedScene((prev) => {
+      if (!prev?.id) {
+        return prev;
+      }
+
+      return dbScenes.find((scene) => scene.id === prev.id) || prev;
+    });
+  }, [dbScenes]);
 
   const characterViewMonitor = useWorkflowTargetMonitor({
     projectId: projectId ?? null,

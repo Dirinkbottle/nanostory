@@ -23,6 +23,7 @@ const { requireVisualStyle } = require('../../../utils/getProjectStyle');
 const handleCameraRunGeneration = require('./cameraRunGeneration');
 const { generateMotionBreakdown } = require('./motionBreakdown');
 const { trace } = require('../../engine/generationTrace');
+const { assertUpdated, assertPersistedFields } = require('./persistenceGuard');
 
 async function handleSceneVideoGeneration(inputParams, onProgress) {
   const { storyboardId, videoModel: modelName, textModel, duration, aspectRatio, think } = inputParams;
@@ -380,10 +381,17 @@ ${extraInfo}
   );
 
   // 保存视频 URL 到数据库
-  await execute(
+  const updateResult = await execute(
     'UPDATE storyboards SET video_url = ? WHERE id = ?',
     [persistedVideoUrl, storyboardId]
   );
+  assertUpdated(updateResult, '[SceneVideoGen] 视频');
+  await assertPersistedFields({
+    table: 'storyboards',
+    id: storyboardId,
+    fields: ['video_url'],
+    label: '[SceneVideoGen] 视频'
+  });
   trace('视频持久化完成', { url: persistedVideoUrl, model: modelName, promptUsed, refImages: imageUrls });
   console.log('[SceneVideoGen] 视频已保存:', persistedVideoUrl);
 
@@ -391,6 +399,7 @@ ${extraInfo}
   console.log('[SceneVideoGen] 视频生成完成');
 
   return {
+    video_url: persistedVideoUrl,
     videoUrl: persistedVideoUrl,
     model: modelName,
     promptUsed

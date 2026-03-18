@@ -24,9 +24,11 @@
 
 const handleImageGeneration = require('../base/imageGeneration');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
-const { queryOne } = require('../../../dbHelper');
+const { execute, queryOne } = require('../../../dbHelper');
 const { requireVisualStyle } = require('../../../utils/getProjectStyle');
+const { downloadAndStore } = require('../../../utils/fileStorage');
 const { traced, trace } = require('../../engine/generationTrace');
+const { assertUpdated, assertPersistedFields } = require('./persistenceGuard');
 
 /**
  * 使用 AI 生成场景图片提示词
@@ -314,7 +316,6 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
   if (onProgress) onProgress(85);
 
   // 步骤4：持久化到 MinIO
-  const { downloadAndStore } = require('../../../utils/fileStorage');
   const persistedImageUrl = await downloadAndStore(
     imageUrlA,
     `images/scenes/${sceneId}/scene_a`,
@@ -334,8 +335,7 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
 
   // 步骤5：保存图片 URL 到数据库
   if (sceneId && persistedImageUrl) {
-    const { execute } = require('../../../dbHelper');
-    await execute(
+    const updateResult = await execute(
       `UPDATE scenes 
        SET image_url = ?, 
            reverse_image_url = ?,
@@ -346,6 +346,13 @@ async function handleSceneImageGeneration(inputParams, onProgress) {
        WHERE id = ?`,
       [persistedImageUrl, persistedReverseUrl, scenePrompt, reversePrompt || null, sceneId]
     );
+    assertUpdated(updateResult, '[SceneImageGen] 场景图片');
+    await assertPersistedFields({
+      table: 'scenes',
+      id: sceneId,
+      fields: persistedReverseUrl ? ['image_url', 'reverse_image_url'] : ['image_url'],
+      label: '[SceneImageGen] 场景图片'
+    });
     console.log('[SceneImageGen] ✅ A/B 面场景图片已保存到数据库');
     trace('A/B面持久化完成', { imageUrl: persistedImageUrl, reverseImageUrl: persistedReverseUrl });
   }

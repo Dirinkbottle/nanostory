@@ -23,8 +23,10 @@
 
 const handleImageGeneration = require('../base/imageGeneration');
 const handleBaseTextModelCall = require('../base/baseTextModelCall');
+const { execute } = require('../../../dbHelper');
 const { requireVisualStyle } = require('../../../utils/getProjectStyle');
 const { downloadAndStore } = require('../../../utils/fileStorage');
+const { assertUpdated, assertPersistedFields } = require('./persistenceGuard');
 
 /**
  * 使用 AI 生成视图提示词
@@ -220,11 +222,17 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
 
   // 立即保存正面视图到数据库
   if (characterId && persistedFrontUrl) {
-    const { execute } = require('../../../dbHelper');
-    await execute(
+    const updateResult = await execute(
       'UPDATE characters SET front_view_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [persistedFrontUrl, characterId]
     );
+    assertUpdated(updateResult, '[CharacterViews] 正面视图');
+    await assertPersistedFields({
+      table: 'characters',
+      id: characterId,
+      fields: ['front_view_url'],
+      label: '[CharacterViews] 正面视图'
+    });
     console.log('[CharacterViews] ✅ 正面视图已保存到数据库');
   }
 
@@ -280,11 +288,17 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
 
   // 立即保存侧面视图到数据库
   if (characterId && persistedSideUrl) {
-    const { execute } = require('../../../dbHelper');
-    await execute(
+    const updateResult = await execute(
       'UPDATE characters SET side_view_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [persistedSideUrl, characterId]
     );
+    assertUpdated(updateResult, '[CharacterViews] 侧面视图');
+    await assertPersistedFields({
+      table: 'characters',
+      id: characterId,
+      fields: ['side_view_url'],
+      label: '[CharacterViews] 侧面视图'
+    });
     console.log('[CharacterViews] ✅ 侧面视图已保存到数据库');
   }
 
@@ -338,11 +352,17 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
 
   // 立即保存背面视图到数据库
   if (characterId && persistedBackUrl) {
-    const { execute } = require('../../../dbHelper');
-    await execute(
+    const updateResult = await execute(
       'UPDATE characters SET back_view_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [persistedBackUrl, characterId]
     );
+    assertUpdated(updateResult, '[CharacterViews] 背面视图');
+    await assertPersistedFields({
+      table: 'characters',
+      id: characterId,
+      fields: ['back_view_url'],
+      label: '[CharacterViews] 背面视图'
+    });
     console.log('[CharacterViews] ✅ 背面视图已保存到数据库');
   }
 
@@ -350,13 +370,19 @@ async function handleCharacterViewsGeneration(inputParams, onProgress) {
 
   // 将正面视图同时保存为主图片 (image_url)，并标记生成完成
   if (characterId && persistedFrontUrl) {
-    const { execute } = require('../../../dbHelper');
-    await execute(
+    const updateResult = await execute(
       `UPDATE characters 
        SET image_url = ?, generation_status = 'completed', updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
       [persistedFrontUrl, characterId]
     );
+    assertUpdated(updateResult, '[CharacterViews] 主图');
+    await assertPersistedFields({
+      table: 'characters',
+      id: characterId,
+      fields: ['image_url'],
+      label: '[CharacterViews] 主图'
+    });
     console.log('[CharacterViews] ✅ 正面视图已保存为主图片 (image_url)');
   }
 

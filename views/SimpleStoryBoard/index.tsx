@@ -5,6 +5,7 @@ import { useSceneGeneration } from '../StoryBoard/useSceneGeneration';
 import { useBatchFrameGeneration } from '../StoryBoard/hooks/useBatchFrameGeneration';
 import { useBatchSceneVideoGeneration } from '../StoryBoard/hooks/useBatchSceneVideoGeneration';
 import { useWorkflowRecovery } from '../StoryBoard/hooks/useWorkflowRecovery';
+import { useWorkflowTargetMonitor } from '../StoryBoard/hooks/useWorkflowTargetMonitor';
 import { useCharacterData } from '../StoryBoard/ResourcePanel/useCharacterData';
 import { useSceneData } from '../StoryBoard/ResourcePanel/useSceneData';
 import { useToast } from '../../contexts/ToastContext';
@@ -155,6 +156,34 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
   const { dbCharacters, isLoadingCharacters, loadCharacters } = useCharacterData(currentProjectId, currentScriptId);
   const { dbScenes, isLoadingScenes, loadScenes } = useSceneData(currentProjectId, currentScriptId);
 
+  useWorkflowTargetMonitor({
+    projectId: currentProjectId ?? null,
+    workflowTypes: ['character_views_generation'],
+    targetParamKey: 'characterId',
+    isActive: true,
+    onCompleted: async (job) => {
+      await loadCharacters();
+      showToast(`角色三视图生成完成：${job.input_params?.characterName || '角色'}`, 'success');
+    },
+    onFailed: async (job) => {
+      showToast(`角色三视图生成失败：${job.input_params?.characterName || '角色'}`, 'error');
+    }
+  });
+
+  useWorkflowTargetMonitor({
+    projectId: currentProjectId ?? null,
+    workflowTypes: ['scene_image_generation'],
+    targetParamKey: 'sceneId',
+    isActive: true,
+    onCompleted: async (job) => {
+      await loadScenes();
+      showToast(`场景图片生成完成：${job.input_params?.sceneName || '场景'}`, 'success');
+    },
+    onFailed: async (job) => {
+      showToast(`场景图片生成失败：${job.input_params?.sceneName || '场景'}`, 'error');
+    }
+  });
+
   // 收集道具
   const allProps = [...new Set(scenes.flatMap(s => s.props || []))];
 
@@ -194,6 +223,8 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
         showToast('角色三视图生成任务已启动！', 'success');
         // 刷新角色数据
         loadCharacters();
+      } else if (response.status === 409 && data.jobId) {
+        showToast('该角色已有三视图生成任务正在执行', 'info');
       } else {
         showToast(data.message || '生成失败', 'error');
       }
@@ -235,6 +266,8 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
         showToast('场景图片生成任务已启动！', 'success');
         // 刷新场景数据
         loadScenes();
+      } else if (response.status === 409 && data.jobId) {
+        showToast('该场景已有图片生成任务正在执行', 'info');
       } else {
         showToast(data.message || '生成失败', 'error');
       }

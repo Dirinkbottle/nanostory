@@ -18,11 +18,25 @@ interface UseSceneGenerationOptions {
   videoDuration: number | null;
 }
 
+function parseJobInputParams(inputParams: WorkflowJob['input_params']) {
+  if (!inputParams) {
+    return null;
+  }
+
+  if (typeof inputParams === 'string') {
+    try {
+      return JSON.parse(inputParams);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  return inputParams;
+}
+
 // 从工作流 job 中提取 storyboardId，映射到 task key
 function jobToTaskKey(job: WorkflowJob): string | null {
-  const params = typeof job.input_params === 'string'
-    ? JSON.parse(job.input_params)
-    : job.input_params;
+  const params = parseJobInputParams(job.input_params);
   const storyboardId = params?.storyboardId;
   if (!storyboardId) return null;
 
@@ -30,6 +44,40 @@ function jobToTaskKey(job: WorkflowJob): string | null {
     return `vid_${storyboardId}`;
   }
   return `img_${storyboardId}`;
+}
+
+function normalizeFrameResult(result: any) {
+  const startFrame =
+    result?.startFrame ||
+    result?.firstFrameUrl ||
+    result?.first_frame_url ||
+    result?.imageUrl ||
+    result?.image_url ||
+    null;
+
+  const endFrame =
+    result?.endFrame ||
+    result?.lastFrameUrl ||
+    result?.last_frame_url ||
+    startFrame ||
+    null;
+
+  return { startFrame, endFrame };
+}
+
+function persistStoryboardMedia(storyboardId: number, payload: Record<string, unknown>) {
+  const token = getAuthToken();
+
+  return fetch(`/api/storyboards/${storyboardId}/media`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(payload)
+  }).catch((error) => {
+    console.error('保存分镜媒体失败:', error);
+  });
 }
 
 export function useSceneGeneration({
@@ -69,42 +117,32 @@ export function useSceneGeneration({
         continue;
       }
 
-      if (task.status !== 'completed' || !task.result) continue;
+      if (task.status !== 'completed') continue;
 
       const sceneId = Number(key.split('_')[1]);
-      const token = getAuthToken();
+      if (!task.result) {
+        console.warn(`[useSceneGeneration] 完成任务缺少结果数据: key=${key}`);
+        clearTask(key);
+        continue;
+      }
 
       if (key.startsWith('img_')) {
-        const { startFrame, endFrame } = task.result;
+        const { startFrame, endFrame } = normalizeFrameResult(task.result);
         if (startFrame) {
           setScenes(prev => prev.map(s =>
             s.id === sceneId
               ? { ...s, startFrame, endFrame, imageUrl: startFrame }
               : s
           ));
-          fetch(`/api/storyboards/${sceneId}/media`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {})
-            },
-            body: JSON.stringify({ imageUrl: startFrame, startFrame, endFrame })
-          }).catch(err => console.error('保存图片失败:', err));
+          void persistStoryboardMedia(sceneId, { imageUrl: startFrame, startFrame, endFrame });
         }
       } else if (key.startsWith('vid_')) {
-        const videoUrl = task.result.video_url || task.result.videoUrl;
+        const videoUrl = task.result.video_url || task.result.videoUrl || task.result.url;
         if (videoUrl) {
           setScenes(prev => prev.map(s =>
             s.id === sceneId ? { ...s, videoUrl } : s
           ));
-          fetch(`/api/storyboards/${sceneId}/media`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {})
-            },
-            body: JSON.stringify({ videoUrl })
-          }).catch(err => console.error('保存视频失败:', err));
+          void persistStoryboardMedia(sceneId, { videoUrl });
         }
       }
 

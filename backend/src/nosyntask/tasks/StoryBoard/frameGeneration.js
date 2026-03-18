@@ -23,6 +23,7 @@ const { generateUpdatedSceneImage } = require('./sceneRefUtils');
 const { selectReferenceImages } = require('./referenceImageSelector');
 const { collectCandidateImages, appendContextCandidates } = require('./collectCandidateImages');
 const { traced, trace } = require('../../engine/generationTrace');
+const { assertUpdated, assertPersistedFields } = require('./persistenceGuard');
 
 /**
  * 生成单张图片（通过 submitAndPoll 自动处理同步/异步）
@@ -393,10 +394,17 @@ async function handleFrameGeneration(inputParams, onProgress) {
   );
 
   // 保存首帧到数据库
-  await execute(
+  const startUpdateResult = await execute(
     'UPDATE storyboards SET first_frame_url = ? WHERE id = ?',
     [persistedStartFrame, storyboardId]
   );
+  assertUpdated(startUpdateResult, '[FrameGen] 首帧');
+  await assertPersistedFields({
+    table: 'storyboards',
+    id: storyboardId,
+    fields: ['first_frame_url'],
+    label: '[FrameGen] 首帧'
+  });
   console.log('[FrameGen] 首帧已保存:', persistedStartFrame);
   trace('首帧持久化完成', { url: persistedStartFrame, promptUsed: startPrompt, refImages: startRefResult.selectedUrls });
 
@@ -438,10 +446,17 @@ async function handleFrameGeneration(inputParams, onProgress) {
   );
 
   // 保存尾帧到数据库
-  await execute(
+  const endUpdateResult = await execute(
     'UPDATE storyboards SET last_frame_url = ? WHERE id = ?',
     [persistedEndFrame, storyboardId]
   );
+  assertUpdated(endUpdateResult, '[FrameGen] 尾帧');
+  await assertPersistedFields({
+    table: 'storyboards',
+    id: storyboardId,
+    fields: ['last_frame_url'],
+    label: '[FrameGen] 尾帧'
+  });
   console.log('[FrameGen] 尾帧已保存:', persistedEndFrame);
   trace('尾帧持久化完成', { url: persistedEndFrame, promptUsed: endPrompt, refImages: endRefResult.selectedUrls });
 

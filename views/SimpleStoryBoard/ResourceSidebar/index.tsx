@@ -76,6 +76,36 @@ const ResourceSidebar: React.FC<ResourceSidebarProps> = ({
     }
   }, [selectedSceneName, dbScenes]);
 
+  React.useEffect(() => {
+    setView((prev) => {
+      if (prev.mode !== 'character-detail' || !prev.character.id) {
+        return prev;
+      }
+
+      const nextCharacter = dbCharacters.find((character) => character.id === prev.character.id);
+      if (!nextCharacter) {
+        return prev;
+      }
+
+      return { mode: 'character-detail', character: nextCharacter };
+    });
+  }, [dbCharacters]);
+
+  React.useEffect(() => {
+    setView((prev) => {
+      if (prev.mode !== 'scene-detail' || !prev.scene.id) {
+        return prev;
+      }
+
+      const nextScene = dbScenes.find((scene) => scene.id === prev.scene.id);
+      if (!nextScene) {
+        return prev;
+      }
+
+      return { mode: 'scene-detail', scene: nextScene };
+    });
+  }, [dbScenes]);
+
   const goBack = () => setView({ mode: 'list' });
 
   return (
