@@ -12,9 +12,14 @@
 
 const express = require('express');
 const { authMiddleware } = require('../middleware');
-const engine = require('./engine/index');
 const { getAvailableWorkflows } = require('./definitions');
-const { findWorkflowConflict, sendWorkflowConflict } = require('./workflowConflict');
+const {
+  generationStartService,
+  generationQueryService,
+  getOperationContractByWorkflowType,
+  sendGenerationError
+} = require('../modules/generation');
+const engine = require('./engine/index');
 
 const router = express.Router();
 
@@ -39,7 +44,7 @@ router.get('/', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const { projectId, workflowType, status, limit } = req.query;
 
-    const jobs = await engine.getUserJobs(userId, {
+    const jobs = await generationQueryService.getUserJobs(userId, {
       projectId: projectId ? parseInt(projectId) : undefined,
       workflowType,
       status,
@@ -70,23 +75,23 @@ router.post('/', authMiddleware, async (req, res) => {
     if (!workflowType) {
       return res.status(400).json({ message: '缺少 workflowType' });
     }
-    if (!projectId || !Number.isInteger(Number(projectId)) || Number(projectId) <= 0) {
+    if (
+      projectId !== undefined &&
+      projectId !== null &&
+      (!Number.isInteger(Number(projectId)) || Number(projectId) <= 0)
+    ) {
       return res.status(400).json({ message: 'projectId 必须为正整数' });
     }
-
-    const conflict = await findWorkflowConflict({
-      userId,
+    const contract = getOperationContractByWorkflowType(workflowType);
+    const rawInput = {
+      ...(params || {}),
+      ...(projectId ? { projectId: Number(projectId) } : {})
+    };
+    const result = await generationStartService.start({
+      operationKey: contract?.operationKey || null,
       workflowType,
-      params: params || {}
-    });
-    if (conflict) {
-      return sendWorkflowConflict(res, workflowType, conflict);
-    }
-
-    const result = await engine.startWorkflow(workflowType, {
-      userId,
-      projectId,
-      jobParams: params || {}
+      rawInput,
+      actor: { userId }
     });
 
     res.json({
@@ -95,8 +100,7 @@ router.post('/', authMiddleware, async (req, res) => {
       message: '工作流已启动'
     });
   } catch (error) {
-    console.error('[Start Workflow]', error);
-    res.status(500).json({ message: error.message || '启动工作流失败' });
+    sendGenerationError(res, error, '启动工作流失败', '[Start Workflow]');
   }
 });
 
@@ -110,21 +114,11 @@ router.get('/active', authMiddleware, async (req, res) => {
     if (!projectId) {
       return res.status(400).json({ message: '缺少 projectId' });
     }
-    const { queryAll } = require('../dbHelper');
-    const jobs = await queryAll(
-      `SELECT * FROM workflow_jobs 
-       WHERE user_id = ? AND project_id = ? 
-         AND ((status IN ('pending', 'running')) OR (status IN ('completed', 'failed') AND is_consumed = 0))
-       ORDER BY created_at DESC LIMIT 5`,
-      [userId, parseInt(projectId)]
-    );
-    const parsed = jobs.map(job => {
-      if (job.input_params && typeof job.input_params === 'string') {
-        try { job.input_params = JSON.parse(job.input_params); } catch(e) {}
-      }
-      return job;
+    const jobs = await generationQueryService.listActive({
+      userId,
+      projectId: parseInt(projectId)
     });
-    res.json({ jobs: parsed });
+    res.json({ jobs });
   } catch (error) {
     console.error('[Active Workflows]', error);
     res.status(500).json({ message: error.message || '查询活跃工作流失败' });
@@ -158,7 +152,7 @@ router.get('/:jobId', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const { jobId } = req.params;
 
-    const job = await engine.getJobStatus(parseInt(jobId));
+    const job = await generationQueryService.getJob(parseInt(jobId));
 
     // 验证所有权
     if (job.user_id !== userId) {

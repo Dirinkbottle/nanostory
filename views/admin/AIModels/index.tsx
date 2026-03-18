@@ -11,6 +11,96 @@ import SmartImportModal from './SmartImportModal';
 import ModelFormModal from './ModelFormModal';
 import ModelTestModal from './ModelTest';
 
+const stringifyJson = (value: any, fallback: string) => {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  if (typeof value === 'string') {
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2);
+    } catch {
+      return value;
+    }
+  }
+
+  return JSON.stringify(value, null, 2);
+};
+
+const buildLegacyPriceConfig = (unit: string, price: number) => {
+  const normalizedUnit = String(unit || 'token').toLowerCase();
+  const type = normalizedUnit === 'second'
+    ? 'duration_seconds'
+    : normalizedUnit === 'request'
+      ? 'request_count'
+      : normalizedUnit === 'image' || normalizedUnit === 'item'
+        ? 'item_count'
+        : 'total_tokens';
+
+  const componentUnit = type === 'duration_seconds'
+    ? 'per_second'
+    : type === 'request_count'
+      ? 'per_request'
+      : type === 'item_count'
+        ? 'per_item'
+        : 'per_token';
+
+  return {
+    currency: 'CNY',
+    charge_on_failure: false,
+    components: [
+      {
+        type,
+        unit: componentUnit,
+        price: Number(price) || 0
+      }
+    ]
+  };
+};
+
+const resolvePriceConfig = (config: any) => {
+  if (config?.price_config !== undefined) {
+    return config.price_config;
+  }
+
+  if (config?.price_unit || config?.price_value !== undefined) {
+    return buildLegacyPriceConfig(config.price_unit, config.price_value);
+  }
+
+  return null;
+};
+
+const buildFormDataFromConfig = (config: any): ModelFormData => ({
+  name: config?.name || '',
+  category: config?.category || 'TEXT',
+  provider: config?.provider || '',
+  description: config?.description || '',
+  is_active: config?.is_active ?? 1,
+  api_key: config?.api_key || '',
+  price_config: stringifyJson(resolvePriceConfig(config), 'null'),
+  request_method: config?.request_method || 'POST',
+  url_template: config?.url_template || '',
+  headers_template: stringifyJson(config?.headers_template, '{}'),
+  body_template: stringifyJson(config?.body_template, '{}'),
+  default_params: stringifyJson(config?.default_params, '{}'),
+  supported_aspect_ratios: stringifyJson(config?.supported_aspect_ratios ?? config?.supportedAspectRatios, '[]'),
+  supported_durations: stringifyJson(config?.supported_durations ?? config?.supportedDurations, '[]'),
+  response_mapping: stringifyJson(config?.response_mapping, '{}'),
+  query_url_template: config?.query_url_template || '',
+  query_method: config?.query_method || 'GET',
+  query_headers_template: stringifyJson(config?.query_headers_template, '{}'),
+  query_body_template: stringifyJson(config?.query_body_template, '{}'),
+  query_response_mapping: stringifyJson(config?.query_response_mapping, '{}'),
+  query_success_condition: config?.query_success_condition || '',
+  query_fail_condition: config?.query_fail_condition || '',
+  query_success_mapping: stringifyJson(config?.query_success_mapping, '{}'),
+  query_fail_mapping: stringifyJson(config?.query_fail_mapping, '{}'),
+  custom_handler: config?.custom_handler || config?.customHandler || '',
+  custom_query_handler: config?.custom_query_handler || config?.customQueryHandler || '',
+  billing_handler: config?.billing_handler || config?.billingHandler || '',
+  billing_query_handler: config?.billing_query_handler || config?.billingQueryHandler || ''
+});
+
 const AIModels: React.FC = () => {
   const [models, setModels] = useState<AIModel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,36 +130,7 @@ const AIModels: React.FC = () => {
       const task = completedJob.tasks?.[0];
       const config = task?.result_data?.config || task?.result_data;
       if (config && typeof config === 'object' && config.name) {
-        const toJson = (v: any) => v ? (typeof v === 'string' ? v : JSON.stringify(v, null, 2)) : '{}';
-        setFormData({
-          name: config.name || '',
-          category: config.category || 'TEXT',
-          provider: config.provider || '',
-          description: config.description || '',
-          is_active: 1,
-          api_key: '',
-          priceUnit: config.price_unit || 'token',
-          priceValue: config.price_value || 0.0001,
-          request_method: config.request_method || 'POST',
-          url_template: config.url_template || '',
-          headers_template: toJson(config.headers_template),
-          body_template: toJson(config.body_template),
-          default_params: toJson(config.default_params),
-          supported_aspect_ratios: toJson(config.supported_aspect_ratios ?? config.supportedAspectRatios ?? []),
-          supported_durations: toJson(config.supported_durations ?? config.supportedDurations ?? []),
-          response_mapping: toJson(config.response_mapping),
-          query_url_template: config.query_url_template || '',
-          query_method: config.query_method || 'GET',
-          query_headers_template: toJson(config.query_headers_template),
-          query_body_template: toJson(config.query_body_template),
-          query_response_mapping: toJson(config.query_response_mapping),
-          query_success_condition: config.query_success_condition || '',
-          query_fail_condition: config.query_fail_condition || '',
-          query_success_mapping: toJson(config.query_success_mapping),
-          query_fail_mapping: toJson(config.query_fail_mapping),
-          custom_handler: config.custom_handler || '',
-          custom_query_handler: config.custom_query_handler || ''
-        });
+        setFormData(buildFormDataFromConfig(config));
         onSmartClose();
         setSmartMode(false);
         // 延迟打开表单，确保 smart modal 先关闭
@@ -132,39 +193,7 @@ const AIModels: React.FC = () => {
 
   const handleEdit = (model: AIModel) => {
     setEditingModel(model);
-    const priceConfig = typeof model.price_config === 'string' 
-      ? JSON.parse(model.price_config) 
-      : model.price_config;
-    
-    setFormData({
-      name: model.name,
-      category: model.category,
-      provider: model.provider,
-      description: model.description || '',
-      is_active: model.is_active,
-      api_key: model.api_key || '',
-      priceUnit: priceConfig.unit,
-      priceValue: priceConfig.price,
-      request_method: model.request_method,
-      url_template: model.url_template,
-      headers_template: typeof model.headers_template === 'string' ? model.headers_template : JSON.stringify(model.headers_template, null, 2),
-      body_template: model.body_template ? (typeof model.body_template === 'string' ? model.body_template : JSON.stringify(model.body_template, null, 2)) : '{}',
-      default_params: model.default_params ? (typeof model.default_params === 'string' ? model.default_params : JSON.stringify(model.default_params, null, 2)) : '{}',
-      supported_aspect_ratios: model.supported_aspect_ratios ? (typeof model.supported_aspect_ratios === 'string' ? model.supported_aspect_ratios : JSON.stringify(model.supported_aspect_ratios, null, 2)) : '[]',
-      supported_durations: model.supported_durations ? (typeof model.supported_durations === 'string' ? model.supported_durations : JSON.stringify(model.supported_durations, null, 2)) : '[]',
-      response_mapping: typeof model.response_mapping === 'string' ? model.response_mapping : JSON.stringify(model.response_mapping, null, 2),
-      query_url_template: model.query_url_template || '',
-      query_method: model.query_method || 'GET',
-      query_headers_template: model.query_headers_template ? (typeof model.query_headers_template === 'string' ? model.query_headers_template : JSON.stringify(model.query_headers_template, null, 2)) : '{}',
-      query_body_template: model.query_body_template ? (typeof model.query_body_template === 'string' ? model.query_body_template : JSON.stringify(model.query_body_template, null, 2)) : '{}',
-      query_response_mapping: model.query_response_mapping ? (typeof model.query_response_mapping === 'string' ? model.query_response_mapping : JSON.stringify(model.query_response_mapping, null, 2)) : '{}',
-      query_success_condition: model.query_success_condition || '',
-      query_fail_condition: model.query_fail_condition || '',
-      query_success_mapping: model.query_success_mapping ? (typeof model.query_success_mapping === 'string' ? model.query_success_mapping : JSON.stringify(model.query_success_mapping, null, 2)) : '{}',
-      query_fail_mapping: model.query_fail_mapping ? (typeof model.query_fail_mapping === 'string' ? model.query_fail_mapping : JSON.stringify(model.query_fail_mapping, null, 2)) : '{}',
-      custom_handler: model.custom_handler || '',
-      custom_query_handler: model.custom_query_handler || ''
-    });
+    setFormData(buildFormDataFromConfig(model));
     onOpen();
   };
 
@@ -178,7 +207,7 @@ const AIModels: React.FC = () => {
         description: formData.description,
         is_active: formData.is_active,
         api_key: formData.api_key || null,
-        price_config: { unit: formData.priceUnit, price: formData.priceValue },
+        price_config: formData.price_config.trim() ? JSON.parse(formData.price_config) : null,
         request_method: formData.request_method,
         url_template: formData.url_template,
         headers_template: JSON.parse(formData.headers_template),
@@ -197,7 +226,9 @@ const AIModels: React.FC = () => {
         query_success_mapping: formData.query_success_mapping ? JSON.parse(formData.query_success_mapping) : null,
         query_fail_mapping: formData.query_fail_mapping ? JSON.parse(formData.query_fail_mapping) : null,
         custom_handler: formData.custom_handler || null,
-        custom_query_handler: formData.custom_query_handler || null
+        custom_query_handler: formData.custom_query_handler || null,
+        billing_handler: formData.billing_handler || null,
+        billing_query_handler: formData.billing_query_handler || null
       };
 
       const url = editingModel 
@@ -213,14 +244,18 @@ const AIModels: React.FC = () => {
         body: JSON.stringify(payload)
       });
 
+      const data = await response.json().catch(() => ({}));
       if (response.ok) {
         fetchModels();
         onClose();
         resetForm();
+        showToast('模型已保存', 'success');
+      } else {
+        throw new Error(data.message || '保存失败');
       }
     } catch (error) {
       console.error('保存模型失败:', error);
-      showToast('保存失败，请检查 JSON 格式是否正确', 'error');
+      showToast(error instanceof Error ? error.message : '保存失败，请检查 JSON 格式是否正确', 'error');
     }
   };
 
@@ -282,35 +317,7 @@ const AIModels: React.FC = () => {
       }
       
       // 填充表单
-      setFormData({
-        name: config.name || '',
-        category: config.category || 'TEXT',
-        provider: config.provider || '',
-        description: config.description || '',
-        is_active: 1,
-        api_key: '',
-        priceUnit: config.price_unit || 'token',
-        priceValue: config.price_value || 0.0001,
-        request_method: config.request_method || 'POST',
-        url_template: config.url_template || '',
-        headers_template: config.headers_template ? JSON.stringify(config.headers_template, null, 2) : '{}',
-        body_template: config.body_template ? JSON.stringify(config.body_template, null, 2) : '{}',
-        default_params: config.default_params ? JSON.stringify(config.default_params, null, 2) : '{}',
-        supported_aspect_ratios: config.supported_aspect_ratios ? JSON.stringify(config.supported_aspect_ratios, null, 2) : config.supportedAspectRatios ? JSON.stringify(config.supportedAspectRatios, null, 2) : '[]',
-        supported_durations: config.supported_durations ? JSON.stringify(config.supported_durations, null, 2) : config.supportedDurations ? JSON.stringify(config.supportedDurations, null, 2) : '[]',
-        response_mapping: config.response_mapping ? JSON.stringify(config.response_mapping, null, 2) : '{}',
-        query_url_template: config.query_url_template || '',
-        query_method: config.query_method || 'GET',
-        query_headers_template: config.query_headers_template ? JSON.stringify(config.query_headers_template, null, 2) : '{}',
-        query_body_template: config.query_body_template ? JSON.stringify(config.query_body_template, null, 2) : '{}',
-        query_response_mapping: config.query_response_mapping ? JSON.stringify(config.query_response_mapping, null, 2) : '{}',
-        query_success_condition: config.query_success_condition || '',
-        query_fail_condition: config.query_fail_condition || '',
-        query_success_mapping: config.query_success_mapping ? JSON.stringify(config.query_success_mapping, null, 2) : '{}',
-        query_fail_mapping: config.query_fail_mapping ? JSON.stringify(config.query_fail_mapping, null, 2) : '{}',
-        custom_handler: config.custom_handler || '',
-        custom_query_handler: config.custom_query_handler || ''
-      });
+      setFormData(buildFormDataFromConfig(config));
       
       setSmartMode(false);
       onSmartClose();

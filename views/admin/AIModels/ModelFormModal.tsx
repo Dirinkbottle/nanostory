@@ -94,22 +94,21 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
             description="优先使用此处配置的 API Key，留空则使用环境变量"
           />
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="价格单位"
-              placeholder="如: token, second, image"
-              value={formData.priceUnit}
-              onChange={(e) => setFormData({ ...formData, priceUnit: e.target.value })}
-            />
-            <Input
-              type="number"
-              label="单价"
-              placeholder="0.0001"
-              value={String(formData.priceValue)}
-              onChange={(e) => setFormData({ ...formData, priceValue: parseFloat(e.target.value) || 0 })}
-              step="0.0001"
-            />
-          </div>
+          <Textarea
+            label="计费配置 price_config (JSON)"
+            placeholder={`{
+  "currency": "CNY",
+  "charge_on_failure": false,
+  "components": [
+    { "type": "input_tokens", "unit": "per_million_tokens", "price": 2 },
+    { "type": "output_tokens", "unit": "per_million_tokens", "price": 8 }
+  ]
+}`}
+            value={formData.price_config}
+            onChange={(e) => setFormData({ ...formData, price_config: e.target.value })}
+            minRows={5}
+            description='可填 null；支持 input_tokens/output_tokens/total_tokens/duration_seconds/request_count/item_count'
+          />
 
           <Input
             label="URL 模板"
@@ -280,6 +279,27 @@ const ModelFormModal: React.FC<ModelFormModalProps> = ({
                   value={formData.custom_query_handler}
                   onChange={(e) => setFormData({ ...formData, custom_query_handler: e.target.value })}
                   description="留空则查询走模板流程"
+                />
+              </div>
+            </div>
+
+            <div className="border-t pt-4 mt-4">
+              <h4 className="font-semibold text-slate-300 mb-1">计费 Handler（可选）</h4>
+              <p className="text-xs text-slate-400 mb-3">仅复杂计费模型需要。用于覆盖预估或从提交/查询结果解析真实 usage，不复用 transport handler。</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="提交计费 Handler"
+                  placeholder='如: minimax_video_usage'
+                  value={formData.billing_handler}
+                  onChange={(e) => setFormData({ ...formData, billing_handler: e.target.value })}
+                  description="对应 billingHandlers/ 目录下的文件名（不含 .js）"
+                />
+                <Input
+                  label="查询计费 Handler"
+                  placeholder='如: minimax_video_usage'
+                  value={formData.billing_query_handler}
+                  onChange={(e) => setFormData({ ...formData, billing_query_handler: e.target.value })}
+                  description="异步模型完成结算时使用"
                 />
               </div>
             </div>

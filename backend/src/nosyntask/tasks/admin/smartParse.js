@@ -34,11 +34,25 @@ async function handleSmartParse(inputParams, onProgress) {
 | provider | 是 | string | 厂商标识（英文小写），如 openai、kling、minimax |
 | description | 否 | string | 模型简短描述 |
 
-### 价格
+### 计费配置
 | 字段 | 必填 | 类型 | 说明 |
 |------|------|------|------|
-| price_unit | 是 | string | 计费单位：token / second / image / request |
-| price_value | 是 | number | 单价数值 |
+| price_config | 是 | object/null | 统一计费 JSON。格式：{"currency":"CNY","charge_on_failure":false,"components":[{"type":"input_tokens","unit":"per_million_tokens","price":2},{"type":"output_tokens","unit":"per_million_tokens","price":8}]} |
+
+price_config 允许的 components.type：
+- input_tokens
+- output_tokens
+- total_tokens
+- duration_seconds
+- request_count
+- item_count
+
+price_config 允许的 unit：
+- per_million_tokens
+- per_token
+- per_second
+- per_request
+- per_item
 
 ### 提交请求配置（调用 API 创建任务）
 | 字段 | 必填 | 类型 | 说明 |
@@ -67,6 +81,12 @@ async function handleSmartParse(inputParams, onProgress) {
 
 （是* = 异步模型必填，同步模型不需要）
 
+### 计费 Handler（可选）
+| 字段 | 必填 | 类型 | 说明 |
+|------|------|------|------|
+| billing_handler | 否 | string | 复杂计费解析 handler 名称，和 custom handler 分离 |
+| billing_query_handler | 否 | string | 异步模型查询完成后用于解析最终 usage 的 handler 名称 |
+
 ### 占位符字典
 {{apiKey}} API密钥 | {{prompt}} 提示词 | {{messages}} 消息数组 | {{model}} 模型名 | {{maxTokens}} 最大Token | {{temperature}} 温度 | {{imageUrl}} 单张图片URL(string) | {{imageUrls}} 图片URL数组(string[]) | {{startFrame}} 首帧图片URL | {{endFrame}} 尾帧图片URL | {{width}} 宽(像素) | {{height}} 高(像素) | {{aspectRatio}} 宽高比 | {{duration}} 时长(秒) | {{taskId}} 任务ID | {{style}} 风格
 
@@ -79,8 +99,17 @@ async function handleSmartParse(inputParams, onProgress) {
   "category": "TEXT",
   "provider": "deepseek",
   "description": "高性价比文本生成",
-  "price_unit": "token",
-  "price_value": 0.0000014,
+  "price_config": {
+    "currency": "CNY",
+    "charge_on_failure": false,
+    "components": [
+      {
+        "type": "total_tokens",
+        "unit": "per_token",
+        "price": 0.0000014
+      }
+    ]
+  },
   "request_method": "POST",
   "url_template": "https://api.deepseek.com/v1/chat/completions",
   "headers_template": {
@@ -111,8 +140,17 @@ async function handleSmartParse(inputParams, onProgress) {
   "category": "IMAGE",
   "provider": "kling",
   "description": "高质量AI图片生成",
-  "price_unit": "image",
-  "price_value": 0.1,
+  "price_config": {
+    "currency": "CNY",
+    "charge_on_failure": false,
+    "components": [
+      {
+        "type": "item_count",
+        "unit": "per_item",
+        "price": 0.1
+      }
+    ]
+  },
   "request_method": "POST",
   "url_template": "https://api.klingai.com/v1/images/generations",
   "headers_template": {
@@ -156,8 +194,17 @@ async function handleSmartParse(inputParams, onProgress) {
   "category": "VIDEO",
   "provider": "sora",
   "description": "文生视频/图生视频",
-  "price_unit": "second",
-  "price_value": 0.05,
+  "price_config": {
+    "currency": "CNY",
+    "charge_on_failure": false,
+    "components": [
+      {
+        "type": "duration_seconds",
+        "unit": "per_second",
+        "price": 0.05
+      }
+    ]
+  },
   "request_method": "POST",
   "url_template": "https://api.sora.com/v1/videos/create",
   "headers_template": {

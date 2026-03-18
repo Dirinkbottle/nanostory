@@ -1,6 +1,13 @@
-export interface PriceConfig {
+export interface PriceComponent {
+  type: string;
   unit: string;
   price: number;
+}
+
+export interface PriceConfig {
+  currency?: string;
+  charge_on_failure?: boolean;
+  components: PriceComponent[];
 }
 
 export interface AIModel {
@@ -11,7 +18,8 @@ export interface AIModel {
   description?: string;
   is_active: number;
   api_key?: string;
-  price_config: PriceConfig | string;
+  price_config: PriceConfig | string | null;
+  priceSummary?: string;
   request_method: string;
   url_template: string;
   headers_template: any;
@@ -31,6 +39,8 @@ export interface AIModel {
   query_fail_mapping?: any;
   custom_handler?: string;
   custom_query_handler?: string;
+  billing_handler?: string;
+  billing_query_handler?: string;
   created_at: string;
   updated_at: string;
 }
@@ -49,8 +59,7 @@ export interface ModelFormData {
   description: string;
   is_active: number;
   api_key: string;
-  priceUnit: string;
-  priceValue: number;
+  price_config: string;
   request_method: string;
   url_template: string;
   headers_template: string;
@@ -70,6 +79,8 @@ export interface ModelFormData {
   query_fail_mapping: string;
   custom_handler: string;
   custom_query_handler: string;
+  billing_handler: string;
+  billing_query_handler: string;
 }
 
 export const DEFAULT_FORM_DATA: ModelFormData = {
@@ -79,8 +90,17 @@ export const DEFAULT_FORM_DATA: ModelFormData = {
   description: '',
   is_active: 1,
   api_key: '',
-  priceUnit: 'token',
-  priceValue: 0.0001,
+  price_config: JSON.stringify({
+    currency: 'CNY',
+    charge_on_failure: false,
+    components: [
+      {
+        type: 'total_tokens',
+        unit: 'per_million_tokens',
+        price: 2
+      }
+    ]
+  }, null, 2),
   request_method: 'POST',
   url_template: '',
   headers_template: '{}',
@@ -99,5 +119,7 @@ export const DEFAULT_FORM_DATA: ModelFormData = {
   query_success_mapping: '{}',
   query_fail_mapping: '{}',
   custom_handler: '',
-  custom_query_handler: ''
+  custom_query_handler: '',
+  billing_handler: '',
+  billing_query_handler: ''
 };

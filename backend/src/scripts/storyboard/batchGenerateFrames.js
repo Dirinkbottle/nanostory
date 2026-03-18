@@ -4,16 +4,14 @@
  */
 
 const { authMiddleware } = require('../../middleware');
-const workflowEngine = require('../../nosyntask/engine');
-const { queryOne } = require('../../dbHelper');
-const { findWorkflowConflict, sendWorkflowConflict } = require('../../nosyntask/workflowConflict');
+const { generationStartService, sendGenerationError } = require('../../modules/generation');
 
 module.exports = (router) => {
   router.post('/batch-generate-frames/:scriptId', authMiddleware, async (req, res) => {
     try {
       const userId = req.user.id;
-      const { scriptId } = req.params;
-      const { imageModel, textModel, overwriteFrames = false, projectId, aspectRatio } = req.body;
+      const scriptId = Number(req.params.scriptId);
+      const { imageModel, textModel, overwriteFrames = false, aspectRatio } = req.body;
 
       if (!scriptId) {
         return res.status(400).json({ message: '缺少 scriptId' });
@@ -24,41 +22,27 @@ module.exports = (router) => {
 
       console.log(`[BatchGenerateFrames] 用户 ${userId} 请求批量生成，scriptId=${scriptId}, 覆盖=${overwriteFrames}`);
 
-      const conflict = await findWorkflowConflict({
-        userId,
-        workflowType: 'batch_frame_generation',
-        params: { scriptId: Number(scriptId) }
-      });
-      if (conflict) {
-        return sendWorkflowConflict(res, 'batch_frame_generation', conflict);
-      }
-
-      // 获取剧本信息（集数）
-      const script = await queryOne('SELECT episode_number FROM scripts WHERE id = ?', [scriptId]);
-      const episodeNumber = script?.episode_number || null;
-
-      const { jobId, tasks } = await workflowEngine.startWorkflow('batch_frame_generation', {
-        userId,
-        projectId: projectId || null,
-        jobParams: {
-          scriptId: Number(scriptId),
-          episodeNumber,
+      const result = await generationStartService.start({
+        operationKey: 'batch_frame_generate',
+        rawInput: {
+          scriptId,
           imageModel,
-          aspectRatio: aspectRatio || null,
-          textModel: textModel || null,
-          overwriteFrames: !!overwriteFrames
-        }
+          textModel,
+          overwriteFrames: !!overwriteFrames,
+          aspectRatio: aspectRatio || null
+        },
+        actor: { userId }
       });
+      const { jobId, tasks } = result;
 
-      res.json({
+      res.json(result.response || {
         success: true,
         jobId,
         tasks,
         message: '批量帧生成任务已启动'
       });
     } catch (error) {
-      console.error('[BatchGenerateFrames] 启动失败:', error);
-      res.status(500).json({ message: error.message || '启动批量生成失败' });
+      sendGenerationError(res, error, '启动批量生成失败', '[BatchGenerateFrames]');
     }
   });
 };

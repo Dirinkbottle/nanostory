@@ -1,6 +1,11 @@
 const express = require('express');
 const { queryOne, queryAll, execute } = require('./dbHelper');
 const { authMiddleware } = require('./middleware');
+const { parseJsonField } = require('./utils/parseJsonField');
+const { withAIBillingContext } = require('./aiBillingContext');
+const { getPriceSummary } = require('./aiBillingService');
+const { callAIModel, queryAIModel, getTextModels } = require('./aiModelService');
+const { generationStartService, sendGenerationError } = require('./modules/generation');
 
 const router = express.Router();
 
@@ -10,6 +15,44 @@ const adminMiddleware = async (req, res, next) => {
   }
   next();
 };
+
+function stringifyJsonValue(value, { preserveNull = false } = {}) {
+  if (value === undefined) return null;
+  if (value === null) return preserveNull ? 'null' : null;
+  return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+function serializeModel(model) {
+  return {
+    ...model,
+    price_config: parseJsonField(model.price_config, null),
+    headers_template: parseJsonField(model.headers_template, {}),
+    body_template: parseJsonField(model.body_template, null),
+    default_params: parseJsonField(model.default_params, null),
+    response_mapping: parseJsonField(model.response_mapping, {}),
+    supported_aspect_ratios: parseJsonField(model.supported_aspect_ratios, []),
+    supported_durations: parseJsonField(model.supported_durations, []),
+    query_headers_template: parseJsonField(model.query_headers_template, null),
+    query_body_template: parseJsonField(model.query_body_template, null),
+    query_response_mapping: parseJsonField(model.query_response_mapping, null),
+    query_success_mapping: parseJsonField(model.query_success_mapping, null),
+    query_fail_mapping: parseJsonField(model.query_fail_mapping, null),
+    priceSummary: getPriceSummary(model.price_config, { modelName: model.name })
+  };
+}
+
+function runAsAdminTool(req, operationKey, resourceRefs, fn) {
+  return withAIBillingContext(
+    {
+      userId: req.user.id,
+      projectId: resourceRefs?.projectId || null,
+      sourceType: 'admin_tool',
+      operationKey,
+      resourceRefs: resourceRefs || {}
+    },
+    fn
+  );
+}
 
 router.get('/stats', authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -174,10 +217,11 @@ router.get('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
               query_success_condition, query_fail_condition,
               query_success_mapping, query_fail_mapping,
               custom_handler, custom_query_handler,
+              billing_handler, billing_query_handler,
               created_at, updated_at 
        FROM ai_model_configs ORDER BY id DESC`
     );
-    res.json({ models });
+    res.json({ models: models.map(serializeModel) });
   } catch (error) {
     console.error('[Admin] Get AI models error:', error);
     res.status(500).json({ message: '获取模型列表失败' });
@@ -197,7 +241,7 @@ router.get('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) =
       return res.status(404).json({ message: '模型不存在' });
     }
     
-    res.json({ model });
+    res.json({ model: serializeModel(model) });
   } catch (error) {
     console.error('[Admin] Get AI model error:', error);
     res.status(500).json({ message: '获取模型信息失败' });
@@ -214,10 +258,11 @@ router.post('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
     query_body_template, query_response_mapping,
     query_success_condition, query_fail_condition,
     query_success_mapping, query_fail_mapping,
-    custom_handler, custom_query_handler
+    custom_handler, custom_query_handler,
+    billing_handler, billing_query_handler
   } = req.body;
   
-  if (!name || !category || !provider || !price_config || !url_template || !headers_template || !response_mapping) {
+  if (!name || !category || !provider || !url_template || !headers_template || !response_mapping) {
     return res.status(400).json({ message: '必填字段不能为空' });
   }
   
@@ -232,23 +277,25 @@ router.post('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
         query_body_template, query_response_mapping,
         query_success_condition, query_fail_condition,
         query_success_mapping, query_fail_mapping,
-        custom_handler, custom_query_handler
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        custom_handler, custom_query_handler,
+        billing_handler, billing_query_handler
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name, category, provider, description, is_active ?? 1, api_key,
-        JSON.stringify(price_config), request_method || 'POST', url_template,
-        JSON.stringify(headers_template), body_template ? JSON.stringify(body_template) : null,
-        default_params ? JSON.stringify(default_params) : null, JSON.stringify(response_mapping),
-        supported_aspect_ratios ? JSON.stringify(supported_aspect_ratios) : JSON.stringify([]),
-        supported_durations ? JSON.stringify(supported_durations) : JSON.stringify([]),
+        stringifyJsonValue(price_config, { preserveNull: true }), request_method || 'POST', url_template,
+        stringifyJsonValue(headers_template), stringifyJsonValue(body_template),
+        stringifyJsonValue(default_params), stringifyJsonValue(response_mapping),
+        stringifyJsonValue(supported_aspect_ratios || []),
+        stringifyJsonValue(supported_durations || []),
         query_url_template || null, query_method || 'GET',
-        query_headers_template ? JSON.stringify(query_headers_template) : null,
-        query_body_template ? JSON.stringify(query_body_template) : null,
-        query_response_mapping ? JSON.stringify(query_response_mapping) : null,
+        stringifyJsonValue(query_headers_template),
+        stringifyJsonValue(query_body_template),
+        stringifyJsonValue(query_response_mapping),
         query_success_condition || null, query_fail_condition || null,
-        query_success_mapping ? JSON.stringify(query_success_mapping) : null,
-        query_fail_mapping ? JSON.stringify(query_fail_mapping) : null,
-        custom_handler || null, custom_query_handler || null
+        stringifyJsonValue(query_success_mapping),
+        stringifyJsonValue(query_fail_mapping),
+        custom_handler || null, custom_query_handler || null,
+        billing_handler || null, billing_query_handler || null
       ]
     );
     
@@ -270,7 +317,8 @@ router.put('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) =
     query_body_template, query_response_mapping,
     query_success_condition, query_fail_condition,
     query_success_mapping, query_fail_mapping,
-    custom_handler, custom_query_handler
+    custom_handler, custom_query_handler,
+    billing_handler, billing_query_handler
   } = req.body;
   
   try {
@@ -289,23 +337,25 @@ router.put('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) =
         query_body_template = ?, query_response_mapping = ?,
         query_success_condition = ?, query_fail_condition = ?,
         query_success_mapping = ?, query_fail_mapping = ?,
-        custom_handler = ?, custom_query_handler = ?
+        custom_handler = ?, custom_query_handler = ?,
+        billing_handler = ?, billing_query_handler = ?
       WHERE id = ?`,
       [
         name, category, provider, description, is_active, api_key,
-        JSON.stringify(price_config), request_method, url_template,
-        JSON.stringify(headers_template), body_template ? JSON.stringify(body_template) : null,
-        default_params ? JSON.stringify(default_params) : null, JSON.stringify(response_mapping),
-        supported_aspect_ratios ? JSON.stringify(supported_aspect_ratios) : JSON.stringify([]),
-        supported_durations ? JSON.stringify(supported_durations) : JSON.stringify([]),
+        stringifyJsonValue(price_config, { preserveNull: true }), request_method, url_template,
+        stringifyJsonValue(headers_template), stringifyJsonValue(body_template),
+        stringifyJsonValue(default_params), stringifyJsonValue(response_mapping),
+        stringifyJsonValue(supported_aspect_ratios || []),
+        stringifyJsonValue(supported_durations || []),
         query_url_template, query_method,
-        query_headers_template ? JSON.stringify(query_headers_template) : null,
-        query_body_template ? JSON.stringify(query_body_template) : null,
-        query_response_mapping ? JSON.stringify(query_response_mapping) : null,
+        stringifyJsonValue(query_headers_template),
+        stringifyJsonValue(query_body_template),
+        stringifyJsonValue(query_response_mapping),
         query_success_condition || null, query_fail_condition || null,
-        query_success_mapping ? JSON.stringify(query_success_mapping) : null,
-        query_fail_mapping ? JSON.stringify(query_fail_mapping) : null,
+        stringifyJsonValue(query_success_mapping),
+        stringifyJsonValue(query_fail_mapping),
         custom_handler || null, custom_query_handler || null,
+        billing_handler || null, billing_query_handler || null,
         id
       ]
     );
@@ -342,30 +392,26 @@ router.post('/ai-models/smart-parse', authMiddleware, adminMiddleware, async (re
   }
   
   try {
-    const engine = require('./nosyntask/engine/index');
     const userId = req.user.id;
 
-    // 启动 smart_parse 工作流（异步执行）
-    const result = await engine.startWorkflow('smart_parse', {
-      userId,
-      projectId: null, // 管理后台操作，无项目关联
-      jobParams: { apiDoc, textModel, customPrompt }
+    const result = await generationStartService.start({
+      operationKey: 'smart_parse_generate',
+      rawInput: { apiDoc, textModel, customPrompt },
+      actor: { userId }
     });
 
-    res.json({ 
+    res.json(result.response || {
       jobId: result.jobId,
       tasks: result.tasks,
       message: '解析任务已启动'
     });
   } catch (error) {
-    console.error('[Admin] Smart parse error:', error);
-    res.status(500).json({ message: error.message || '智能解析失败' });
+    sendGenerationError(res, error, '智能解析失败', '[Admin] Smart parse error:');
   }
 });
 
 router.get('/text-models', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { getTextModels } = require('./aiModelService');
     const models = await getTextModels();
     res.json({ models });
   } catch (error) {
@@ -389,9 +435,13 @@ router.post('/ai-models/:id/test', authMiddleware, adminMiddleware, async (req, 
       return res.status(404).json({ message: '模型不存在' });
     }
 
-    const { callAIModel } = require('./aiModelService');
     const startTime = Date.now();
-    const result = await callAIModel(model.name, params || {});
+    const result = await runAsAdminTool(
+      req,
+      'admin_model_test',
+      {},
+      () => callAIModel(model.name, params || {})
+    );
     const elapsed = Date.now() - startTime;
 
     res.json({
@@ -403,7 +453,7 @@ router.post('/ai-models/:id/test', authMiddleware, adminMiddleware, async (req, 
     });
   } catch (error) {
     console.error('[Admin] Test model error:', error);
-    res.status(500).json({ 
+    res.status(error.status || 500).json({ 
       success: false, 
       message: error.message || '调用失败',
       error: error.message
@@ -430,10 +480,14 @@ router.post('/ai-models/:id/query', authMiddleware, adminMiddleware, async (req,
       return res.status(404).json({ message: '模型不存在' });
     }
 
-    const { queryAIModel } = require('./aiModelService');
     // 剥离 _raw/_model，剩余映射字段作为查询参数
     const { _raw, _model, ...mappedFields } = submitResult;
-    const result = await queryAIModel(model.name, mappedFields);
+    const result = await runAsAdminTool(
+      req,
+      'admin_model_query',
+      {},
+      () => queryAIModel(model.name, mappedFields)
+    );
 
     res.json({
       success: true,
@@ -442,7 +496,7 @@ router.post('/ai-models/:id/query', authMiddleware, adminMiddleware, async (req,
     });
   } catch (error) {
     console.error('[Admin] Query model error:', error);
-    res.status(500).json({ 
+    res.status(error.status || 500).json({ 
       success: false, 
       message: error.message || '查询失败' 
     });
@@ -468,46 +522,43 @@ router.post('/ai-models/:id/test-handler', authMiddleware, adminMiddleware, asyn
     }
 
     const startTime = Date.now();
-    let result;
-
-    switch (model.category) {
-      case 'TEXT': {
-        const handleBaseTextModelCall = require('./nosyntask/tasks/base/baseTextModelCall');
-        result = await handleBaseTextModelCall({
-          prompt: params?.prompt || '你好，请简单介绍一下自己。',
-          textModel: model.name,
-          maxTokens: params?.maxTokens || 8192,
-          temperature: params?.temperature || 0.7
-        });
-        break;
+    const result = await runAsAdminTool(req, 'admin_model_test_handler', {}, async () => {
+      switch (model.category) {
+        case 'TEXT': {
+          const handleBaseTextModelCall = require('./nosyntask/tasks/base/baseTextModelCall');
+          return handleBaseTextModelCall({
+            prompt: params?.prompt || '你好，请简单介绍一下自己。',
+            textModel: model.name,
+            maxTokens: params?.maxTokens || 8192,
+            temperature: params?.temperature || 0.7
+          });
+        }
+        case 'IMAGE': {
+          const handleImageGeneration = require('./nosyntask/tasks/base/imageGeneration');
+          return handleImageGeneration({
+            prompt: params?.prompt || 'A cute cat sitting on a windowsill, watercolor style',
+            imageModel: model.name,
+            width: params?.width || 1024,
+            height: params?.height || 1024,
+            imageUrl: params?.imageUrl || undefined,
+            imageUrls: params?.imageUrls || undefined
+          });
+        }
+        case 'VIDEO': {
+          const handleBaseVideoModelCall = require('./nosyntask/tasks/base/baseVideoModelCall');
+          return handleBaseVideoModelCall({
+            prompt: params?.prompt || 'A cat walking slowly',
+            videoModel: model.name,
+            duration: params?.duration || 5,
+            imageUrl: params?.imageUrl || undefined,
+            imageUrls: params?.imageUrls || undefined,
+            aspectRatio: params?.aspectRatio || undefined
+          });
+        }
+        default:
+          throw new Error(`不支持的模型类别: ${model.category}`);
       }
-      case 'IMAGE': {
-        const handleImageGeneration = require('./nosyntask/tasks/base/imageGeneration');
-        result = await handleImageGeneration({
-          prompt: params?.prompt || 'A cute cat sitting on a windowsill, watercolor style',
-          imageModel: model.name,
-          width: params?.width || 1024,
-          height: params?.height || 1024,
-          imageUrl: params?.imageUrl || undefined,
-          imageUrls: params?.imageUrls || undefined
-        });
-        break;
-      }
-      case 'VIDEO': {
-        const handleBaseVideoModelCall = require('./nosyntask/tasks/base/baseVideoModelCall');
-        result = await handleBaseVideoModelCall({
-          prompt: params?.prompt || 'A cat walking slowly',
-          videoModel: model.name,
-          duration: params?.duration || 5,
-          imageUrl: params?.imageUrl || undefined,
-          imageUrls: params?.imageUrls || undefined,
-          aspectRatio: params?.aspectRatio || undefined
-        });
-        break;
-      }
-      default:
-        return res.status(400).json({ success: false, message: `不支持的模型类别: ${model.category}` });
-    }
+    });
 
     const elapsed = Date.now() - startTime;
     res.json({
@@ -518,7 +569,7 @@ router.post('/ai-models/:id/test-handler', authMiddleware, adminMiddleware, asyn
     });
   } catch (error) {
     console.error('[Admin] Test handler error:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
       message: error.message || '测试失败',
       error: error.message

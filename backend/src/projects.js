@@ -3,6 +3,7 @@ const { queryOne, queryAll, execute } = require('./dbHelper');
 const { authMiddleware } = require('./middleware');
 const { VISUAL_STYLE_PRESETS } = require('./utils/getProjectStyle');
 const { callAIModel } = require('./aiModelService');
+const { withAIBillingContext } = require('./aiBillingContext');
 
 const router = express.Router();
 
@@ -14,6 +15,7 @@ router.get('/style-presets', authMiddleware, (req, res) => {
 
 // AI 智能推荐项目设置
 router.post('/suggest-settings', authMiddleware, async (req, res) => {
+  const userId = req.user.id;
   const { name, description } = req.body;
 
   if (!name && !description) {
@@ -51,9 +53,18 @@ router.post('/suggest-settings', authMiddleware, async (req, res) => {
       return res.status(500).json({ message: '没有可用的文本模型' });
     }
 
-    const result = await callAIModel(textModel.name, {
-      messages: [{ role: 'user', content: prompt }]
-    });
+    const result = await withAIBillingContext(
+      {
+        userId,
+        projectId: null,
+        sourceType: 'route',
+        operationKey: 'project_suggest_settings',
+        resourceRefs: {}
+      },
+      () => callAIModel(textModel.name, {
+        messages: [{ role: 'user', content: prompt }]
+      })
+    );
 
     // 解析AI返回的JSON
     let suggestions;
@@ -89,7 +100,7 @@ router.post('/suggest-settings', authMiddleware, async (req, res) => {
     res.json({ suggestions });
   } catch (error) {
     console.error('[Suggest Settings]', error);
-    res.status(500).json({ message: 'AI推荐失败，请稍后重试' });
+    res.status(error.status || 500).json({ message: error.message || 'AI推荐失败，请稍后重试' });
   }
 });
 

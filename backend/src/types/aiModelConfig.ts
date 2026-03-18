@@ -23,9 +23,16 @@ export enum TaskStatus {
   FAILED = 'failed'
 }
 
-export interface PriceConfig {
-  unit: 'second' | 'token' | 'image' | 'request';
+export interface BillingPriceComponent {
+  type: 'input_tokens' | 'output_tokens' | 'total_tokens' | 'duration_seconds' | 'request_count' | 'item_count';
+  unit: 'per_million_tokens' | 'per_token' | 'per_second' | 'per_request' | 'per_item';
   price: number;
+}
+
+export interface PriceConfig {
+  currency?: 'CNY';
+  charge_on_failure?: boolean;
+  components: BillingPriceComponent[];
 }
 
 export interface AiModelConfig {
@@ -47,6 +54,8 @@ export interface AiModelConfig {
   queryHeadersTemplate?: Record<string, string>;
   queryBodyTemplate?: Record<string, any>;
   queryResponseMapping?: Record<string, string>;
+  billingHandler?: string;
+  billingQueryHandler?: string;
   createdAt: Date;
   updatedAt: Date;
 }

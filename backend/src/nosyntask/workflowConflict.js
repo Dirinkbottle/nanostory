@@ -63,17 +63,21 @@ async function findWorkflowConflict({ userId, workflowType, params = {} }) {
   }
 
   const placeholders = rule.workflowTypes.map(() => '?').join(', ');
-  const path = `$.${rule.paramKey}`;
+  const legacyPath = `$.${rule.paramKey}`;
+  const normalizedPath = `$.scope.${rule.paramKey}`;
   const job = await queryOne(
     `SELECT id, workflow_type
      FROM workflow_jobs
      WHERE user_id = ?
        AND workflow_type IN (${placeholders})
        AND status IN ('pending', 'running')
-       AND JSON_UNQUOTE(JSON_EXTRACT(input_params, ?)) = ?
+       AND (
+         JSON_UNQUOTE(JSON_EXTRACT(input_params, ?)) = ?
+         OR JSON_UNQUOTE(JSON_EXTRACT(input_params, ?)) = ?
+       )
      ORDER BY created_at DESC
      LIMIT 1`,
-    [userId, ...rule.workflowTypes, path, String(conflictValue)]
+    [userId, ...rule.workflowTypes, legacyPath, String(conflictValue), normalizedPath, String(conflictValue)]
   );
 
   if (!job) {

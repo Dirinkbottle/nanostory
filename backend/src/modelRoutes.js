@@ -7,6 +7,7 @@ const router = express.Router();
 const { authMiddleware } = require('./middleware');
 const { queryAll } = require('./dbHelper');
 const { parseJsonField } = require('./utils/parseJsonField');
+const { getPriceSummary, normalizePriceConfig } = require('./aiBillingService');
 
 /**
  * GET /api/ai-models
@@ -36,18 +37,11 @@ router.get('/', authMiddleware, async (req, res) => {
 
     res.json({
       models: models.map(m => {
-        // 解析 price_config JSON
         let priceConfig = null;
-        if (m.price_config) {
-          try {
-            const parsed = parseJsonField(m.price_config);
-            priceConfig = {
-              unit: parsed.unit || 'token',
-              price: parsed.price || 0
-            };
-          } catch (err) {
-            console.warn(`[Get AI Models] 解析 price_config 失败 (${m.name}):`, err.message);
-          }
+        try {
+          priceConfig = normalizePriceConfig(m.price_config, { modelName: m.name });
+        } catch (err) {
+          console.warn(`[Get AI Models] 规范化 price_config 失败 (${m.name}):`, err.message);
         }
 
         return {
@@ -55,9 +49,11 @@ router.get('/', authMiddleware, async (req, res) => {
           name: m.name,
           provider: m.provider,
           type: m.category,
+          category: m.category,
           description: m.description,
           isActive: m.is_active === 1,
           priceConfig,
+          priceSummary: getPriceSummary(m.price_config, { modelName: m.name }),
           supportedAspectRatios: parseJsonField(m.supported_aspect_ratios, []),
           supportedDurations: parseJsonField(m.supported_durations, [])
         };

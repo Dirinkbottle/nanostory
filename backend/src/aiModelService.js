@@ -11,9 +11,192 @@ const {
 const { getHandler } = require('./customHandlers');
 const { sanitizeHeaders } = require('./utils/logSanitizer');
 const { parseJsonField } = require('./utils/parseJsonField');
+const {
+  buildModelPricingPayload,
+  prepareModelBilling,
+  finalizeImmediateBilling,
+  createPendingAsyncBilling,
+  finalizeAsyncBillingFromQuery
+} = require('./aiBillingService');
 
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 const isDebug = LOG_LEVEL === 'debug';
+
+function evaluateCondition(mappedResult, conditionExpr) {
+  if (!conditionExpr) return false;
+  try {
+    return !!safeEval(mappedResult, conditionExpr);
+  } catch (err) {
+    console.warn('[AI Model] 条件表达式执行失败:', conditionExpr, err.message);
+    return false;
+  }
+}
+
+function safeEval(vars, expr) {
+  let pos = 0;
+
+  function skipSpaces() {
+    while (pos < expr.length && expr[pos] === ' ') pos++;
+  }
+
+  function readToken() {
+    skipSpaces();
+    if (pos >= expr.length) return null;
+    const ch = expr[pos];
+
+    if (ch === '"' || ch === "'") {
+      const quote = ch;
+      pos++;
+      let str = '';
+      while (pos < expr.length && expr[pos] !== quote) {
+        if (expr[pos] === '\\' && pos + 1 < expr.length) {
+          pos++;
+          str += expr[pos];
+        } else {
+          str += expr[pos];
+        }
+        pos++;
+      }
+      if (pos < expr.length) pos++;
+      return { type: 'string', value: str };
+    }
+
+    if (ch >= '0' && ch <= '9') {
+      let num = '';
+      while (pos < expr.length && ((expr[pos] >= '0' && expr[pos] <= '9') || expr[pos] === '.')) {
+        num += expr[pos];
+        pos++;
+      }
+      return { type: 'number', value: Number(num) };
+    }
+
+    if (ch === '=' && expr[pos + 1] === '=') {
+      pos += 2;
+      return { type: 'op', value: '==' };
+    }
+    if (ch === '!' && expr[pos + 1] === '=') {
+      pos += 2;
+      return { type: 'op', value: '!=' };
+    }
+    if (ch === '|' && expr[pos + 1] === '|') {
+      pos += 2;
+      return { type: 'op', value: '||' };
+    }
+    if (ch === '&' && expr[pos + 1] === '&') {
+      pos += 2;
+      return { type: 'op', value: '&&' };
+    }
+    if (ch === '(') {
+      pos++;
+      return { type: 'paren', value: '(' };
+    }
+    if (ch === ')') {
+      pos++;
+      return { type: 'paren', value: ')' };
+    }
+    if (/[a-zA-Z_$]/.test(ch)) {
+      let id = '';
+      while (pos < expr.length && /[a-zA-Z0-9_$]/.test(expr[pos])) {
+        id += expr[pos];
+        pos++;
+      }
+      return { type: 'ident', value: id };
+    }
+
+    throw new Error(`不支持的字符: '${ch}' (位置 ${pos})`);
+  }
+
+  const tokenCache = [];
+  function nextToken() {
+    if (tokenCache.length > 0) return tokenCache.shift();
+    return readToken();
+  }
+  function pushBack(tok) {
+    if (tok) tokenCache.unshift(tok);
+  }
+
+  function parsePrimary() {
+    const tok = nextToken();
+    if (!tok) throw new Error('表达式意外结束');
+    if (tok.type === 'string' || tok.type === 'number') return tok.value;
+    if (tok.type === 'ident') {
+      const value = vars[tok.value];
+      return value === undefined || value === null ? '' : value;
+    }
+    if (tok.type === 'paren' && tok.value === '(') {
+      const value = parseOr();
+      const close = nextToken();
+      if (!close || close.value !== ')') throw new Error('缺少闭合括号');
+      return value;
+    }
+    throw new Error(`不支持的 token: ${JSON.stringify(tok)}`);
+  }
+
+  function parseComparison() {
+    let left = parsePrimary();
+    while (true) {
+      const tok = nextToken();
+      if (!tok || tok.type !== 'op') {
+        pushBack(tok);
+        return left;
+      }
+      if (tok.value === '==') {
+        left = String(left) === String(parsePrimary());
+        continue;
+      }
+      if (tok.value === '!=') {
+        left = String(left) !== String(parsePrimary());
+        continue;
+      }
+      pushBack(tok);
+      return left;
+    }
+  }
+
+  function parseAnd() {
+    let left = parseComparison();
+    while (true) {
+      const tok = nextToken();
+      if (tok && tok.type === 'op' && tok.value === '&&') {
+        left = parseComparison() && left;
+        continue;
+      }
+      pushBack(tok);
+      return left;
+    }
+  }
+
+  function parseOr() {
+    let left = parseAnd();
+    while (true) {
+      const tok = nextToken();
+      if (tok && tok.type === 'op' && tok.value === '||') {
+        left = parseAnd() || left;
+        continue;
+      }
+      pushBack(tok);
+      return left;
+    }
+  }
+
+  const result = parseOr();
+  const remaining = nextToken();
+  if (remaining) {
+    throw new Error(`表达式末尾有多余内容: ${JSON.stringify(remaining)}`);
+  }
+  return result;
+}
+
+function attachInternalField(target, key, value) {
+  if (!target || typeof target !== 'object') return target;
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: false,
+    configurable: true,
+    writable: true
+  });
+  return target;
+}
 
 /**
  * 统一的 AI 模型调用接口
@@ -23,9 +206,13 @@ const isDebug = LOG_LEVEL === 'debug';
  * @returns {Promise<object>} - 返回映射后的响应数据
  */
 async function callAIModel(modelName, params = {}, apiKey = null) {
+  let model = null;
+  let billingState = null;
+  let requestStarted = false;
+  let mergedParams = { ...params };
   try {
     // 从数据库获取模型配置
-    const model = await queryOne(
+    model = await queryOne(
       'SELECT * FROM ai_model_configs WHERE name = ? AND is_active = 1',
       [modelName]
     );
@@ -35,7 +222,7 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
     }
     
     // 解析 JSON 字段
-    const priceConfig = parseJsonField(model.price_config);
+    const modelPricing = buildModelPricingPayload(model);
     const headersTemplate = parseJsonField(model.headers_template);
     const bodyTemplate = parseJsonField(model.body_template);
     const defaultParams = parseJsonField(model.default_params, {});
@@ -58,7 +245,9 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
     // 运行时参数（用户传入 + apiKey，优先级高）
     const runtimeParams = { ...params, apiKey };
     // 兼容旧逻辑：合并参数供 custom_handler 使用
-    const mergedParams = { ...defaultParams, ...runtimeParams };
+    mergedParams = { ...defaultParams, ...runtimeParams };
+
+    billingState = await prepareModelBilling(model, mergedParams);
     
     // 两轮渲染 URL（第一轮 runtimeParams，第二轮 defaultParams 兜底）
     const url = renderWithFallback('string', model.url_template, runtimeParams, defaultParams, 'url');
@@ -113,17 +302,33 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
         };
         
         // handler 返回原始 API 响应 data
+        requestStarted = true;
         const data = await handler.call(model, mergedParams, rendered);
         
         // 外层统一做 response_mapping
         const result = mapResponse(data, responseMapping);
         result._raw = data;
+        attachInternalField(result, '_submitParams', mergedParams);
         result._model = {
           name: model.name,
           provider: model.provider,
           category: model.category,
-          priceConfig
+          priceConfig: modelPricing.priceConfig,
+          priceSummary: modelPricing.priceSummary
         };
+
+        const taskId = result.taskId || result.task_id || result.task_Id;
+        if (taskId) {
+          result._billing = await createPendingAsyncBilling(model, billingState);
+        } else {
+          await finalizeImmediateBilling({
+            model,
+            params: mergedParams,
+            billingState,
+            submitResult: result,
+            requestStatus: 'success'
+          });
+        }
         return result;
       } else {
         console.warn(`[AI Model] custom_handler "${model.custom_handler}" 未找到或缺少 call 方法，回退到模板流程`);
@@ -176,6 +381,7 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
     let data;
     let response;
     try {
+      requestStarted = true;
       response = await fetch(url, {
         ...requestOptions,
         signal: controller.signal
@@ -248,15 +454,46 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
       },
       headers: Object.fromEntries(response.headers.entries())
     };
+    attachInternalField(result, '_submitParams', mergedParams);
     result._model = {
       name: model.name,
       provider: model.provider,
       category: model.category,
-      priceConfig
+      priceConfig: modelPricing.priceConfig,
+      priceSummary: modelPricing.priceSummary
     };
+
+    const taskId = result.taskId || result.task_id || result.task_Id;
+    if (taskId) {
+      result._billing = await createPendingAsyncBilling(model, billingState);
+    } else {
+      await finalizeImmediateBilling({
+        model,
+        params: mergedParams,
+        billingState,
+        submitResult: result,
+        requestStatus: 'success'
+      });
+    }
     
     return result;
   } catch (error) {
+    if (model && billingState && requestStarted) {
+      try {
+        await finalizeImmediateBilling({
+          model,
+          params: mergedParams,
+          billingState,
+          submitResult: {
+            _submitParams: mergedParams
+          },
+          requestStatus: 'failed',
+          errorMessage: error.message
+        });
+      } catch (billingError) {
+        console.error(`[AI Model] 失败计费写入失败 (${modelName}):`, billingError);
+      }
+    }
     console.error(`[AI Model] Error calling ${modelName}:`, error);
     throw error;
   }
@@ -364,6 +601,28 @@ async function queryAIModel(modelName, params = {}, apiKey = null) {
           result = mapResponse(data, queryResponseMapping);
           result._raw = data;
         }
+
+        const mappedBase = { ...result };
+        attachInternalField(result, '_queryParams', mergedParams);
+        delete mappedBase._raw;
+
+        const isSuccess = evaluateCondition(mappedBase, model.query_success_condition || null);
+        const isFail = evaluateCondition(mappedBase, model.query_fail_condition || null);
+
+        if (params?._billing?.recordId && (isSuccess || isFail)) {
+          const finalResult = {
+            ...result,
+            _raw: data
+          };
+          attachInternalField(finalResult, '_queryParams', mergedParams);
+          await finalizeAsyncBillingFromQuery(
+            model,
+            params,
+            finalResult,
+            isSuccess ? 'success' : 'failed'
+          );
+        }
+
         return result;
       } else {
         console.warn(`[AI Model Query] custom_query_handler "${model.custom_query_handler}" 未找到或缺少 query 方法，回退到模板流程`);
@@ -401,6 +660,27 @@ async function queryAIModel(modelName, params = {}, apiKey = null) {
     if (queryResponseMapping) {
       result = mapResponse(data, queryResponseMapping);
       result._raw = data;
+    }
+
+    const mappedBase = { ...result };
+    attachInternalField(result, '_queryParams', mergedParams);
+    delete mappedBase._raw;
+
+    const isSuccess = evaluateCondition(mappedBase, model.query_success_condition || null);
+    const isFail = evaluateCondition(mappedBase, model.query_fail_condition || null);
+
+    if (params?._billing?.recordId && (isSuccess || isFail)) {
+      const finalResult = {
+        ...result,
+        _raw: data
+      };
+      attachInternalField(finalResult, '_queryParams', mergedParams);
+      await finalizeAsyncBillingFromQuery(
+        model,
+        params,
+        finalResult,
+        isSuccess ? 'success' : 'failed'
+      );
     }
 
     return result;

@@ -9,8 +9,19 @@ const { getWorkflowDefinition } = require('../definitions');
 const ContextBuilder = require('./ContextBuilder');
 const JobStatusManager = require('./JobStatusManager');
 const { runWithTrace } = require('./generationTrace');
+const { withAIBillingContext } = require('../../aiBillingContext');
 
 const MAX_STEPS = 50; // 单个工作流最大步骤数，防止无限递归
+
+function extractResourceRefs(inputParams) {
+  const refs = {};
+  for (const key of ['scriptId', 'storyboardId', 'sceneId', 'characterId', 'projectId']) {
+    if (inputParams?.[key] !== undefined && inputParams?.[key] !== null && inputParams?.[key] !== '') {
+      refs[key] = inputParams[key];
+    }
+  }
+  return refs;
+}
 
 class WorkflowExecutor {
   constructor() {
@@ -167,8 +178,22 @@ class WorkflowExecutor {
         await execute('UPDATE generation_tasks SET progress = ? WHERE id = ?', [progress, taskId]);
       };
 
+      // 用统一 billing context 包裹 handler，保证工作流内所有真实模型调用都能自动计费
+      const billingContext = {
+        userId: inputParams?.userId || null,
+        projectId: inputParams?.projectId || null,
+        sourceType: 'workflow',
+        operationKey: stepDef.type,
+        workflowJobId: jobId,
+        generationTaskId: taskId,
+        resourceRefs: extractResourceRefs(inputParams)
+      };
+
       // 用追踪系统包裹 handler 调用，自动记录开始/结束/耗时
-      const { result: resultData, trace: traceData } = await runWithTrace(taskId, stepDef.type, () => stepDef.handler(inputParams, onProgress));
+      const { result: resultData, trace: traceData } = await withAIBillingContext(
+        billingContext,
+        () => runWithTrace(taskId, stepDef.type, () => stepDef.handler(inputParams, onProgress))
+      );
 
       // 任务成功：保存 result_data + trace
       await this.jobStatusManager.completeTask(taskId, resultData, traceData);

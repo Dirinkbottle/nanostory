@@ -5,6 +5,7 @@
 
 const { queryOne, queryAll } = require('../../dbHelper');
 const { getWorkflowDefinition } = require('../definitions');
+const { normalizeWorkflowJobForApi } = require('../../modules/generation/utils/workflowParams');
 
 class WorkflowQuery {
   /**
@@ -41,11 +42,11 @@ class WorkflowQuery {
     // 获取工作流定义信息
     const definition = getWorkflowDefinition(job.workflow_type);
 
-    return {
+    return normalizeWorkflowJobForApi({
       ...job,
       workflowName: definition?.name || job.workflow_type,
       tasks: parsedTasks
-    };
+    });
   }
 
   /**
@@ -111,7 +112,7 @@ class WorkflowQuery {
       job.workflowName = definition?.name || job.workflow_type;
       // 添加子任务数据
       job.tasks = tasksMap[job.id] || [];
-      return job;
+      return normalizeWorkflowJobForApi(job);
     });
   }
 }

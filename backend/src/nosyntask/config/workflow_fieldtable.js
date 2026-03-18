@@ -4,6 +4,10 @@
  * 所有工作流 handler 接收的字段名必须从此表中选取。
  * buildInputFactory.js 在编译期校验字段名是否合法。
  * 
+ * 注意：
+ *   这里现在只负责工作流 step 级输入字段，不再承担外部 HTTP 请求契约职责。
+ *   外部请求的校验、归一化、默认值和作用域解析统一收口到 modules/generation。
+ * 
  * 每个字段定义：
  *   from:         对应 jobParams 中的 key（运行时从 context.jobParams[from] 取值）
  *   defaultValue: 取不到时的默认值

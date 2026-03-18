@@ -56,7 +56,10 @@ async function deleteEpisode(req, res) {
       `DELETE FROM workflow_jobs 
        WHERE user_id = ? 
          AND project_id = ? 
-         AND JSON_EXTRACT(input_params, '$.scriptId') = ?`,
+         AND (
+           JSON_EXTRACT(input_params, '$.scriptId') = ?
+           OR JSON_EXTRACT(input_params, '$.scope.scriptId') = ?
+         )`,
       [userId, projectId, scriptId]
     );
     const deletedWorkflows = workflowResult?.affectedRows || 0;

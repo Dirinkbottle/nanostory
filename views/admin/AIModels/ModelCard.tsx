@@ -20,15 +20,6 @@ const getCategoryColor = (category: string) => {
   return colors[category] || 'bg-slate-700/50 text-slate-400';
 };
 
-const parsePrice = (priceConfig: any) => {
-  try {
-    const config = typeof priceConfig === 'string' ? JSON.parse(priceConfig) : priceConfig;
-    return `¥${config.price}/${config.unit}`;
-  } catch {
-    return '¥0.00';
-  }
-};
-
 const ModelCard: React.FC<ModelCardProps> = ({ model, onEdit, onDelete, onTest }) => {
   return (
     <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm hover:shadow-md hover:shadow-blue-500/5 transition-shadow">
@@ -60,13 +51,23 @@ const ModelCard: React.FC<ModelCardProps> = ({ model, onEdit, onDelete, onTest }
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">价格</span>
-            <span className="font-medium text-slate-200">{parsePrice(model.price_config)}</span>
+            <span className="font-medium text-slate-200 text-right max-w-[16rem] truncate" title={model.priceSummary || '计费配置错误'}>
+              {model.priceSummary || '计费配置错误'}
+            </span>
           </div>
           {model.custom_handler && (
             <div className="flex justify-between text-sm">
               <span className="text-slate-400">Handler</span>
               <Chip size="sm" className="bg-amber-500/10 text-amber-400">
                 {model.custom_handler}
+              </Chip>
+            </div>
+          )}
+          {model.billing_handler && (
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">计费</span>
+              <Chip size="sm" className="bg-cyan-500/10 text-cyan-400">
+                {model.billing_handler}
               </Chip>
             </div>
           )}

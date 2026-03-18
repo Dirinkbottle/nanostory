@@ -21,6 +21,7 @@
  */
 
 const FIELD_REGISTRY = require('./config/workflow_fieldtable');
+const { getNormalizedParamValue } = require('../modules/generation/utils/workflowParams');
 
 /**
  * 创建 buildInput 函数
@@ -76,7 +77,8 @@ function createBuildInput(fields) {
       if (resolver) {
         input[key] = resolver(context) ?? defaultValue;
       } else {
-        input[key] = context.jobParams[from] ?? defaultValue;
+        const resolvedValue = getNormalizedParamValue(context.jobParams, from);
+        input[key] = resolvedValue ?? defaultValue;
       }
     }
     return input;

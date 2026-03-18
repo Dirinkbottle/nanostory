@@ -54,6 +54,8 @@ async function loadModelConfig(modelName) {
     // 自定义处理器
     customHandler: model.custom_handler,
     customQueryHandler: model.custom_query_handler,
+    billingHandler: model.billing_handler,
+    billingQueryHandler: model.billing_query_handler,
 
     // 价格配置
     priceConfig: parseJsonField(model.price_config),

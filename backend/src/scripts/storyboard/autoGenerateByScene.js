@@ -11,10 +11,10 @@
  * POST /auto-generate-by-scene/:scriptId
  */
 
-const { queryOne, queryAll, execute } = require('../../dbHelper');
+const { generationStartService, sendGenerationError } = require('../../modules/generation');
 const { authMiddleware } = require('../../middleware');
-const { parseScriptScenes, getSceneCount } = require('../../utils/parseScriptScenes');
-const { findWorkflowConflict, sendWorkflowConflict } = require('../../nosyntask/workflowConflict');
+const { parseScriptScenes } = require('../../utils/parseScriptScenes');
+const { queryOne } = require('../../dbHelper');
 
 module.exports = (router) => {
   /**
@@ -31,68 +31,26 @@ module.exports = (router) => {
     }
 
     try {
-      const script = await queryOne(
-        'SELECT * FROM scripts WHERE id = ? AND user_id = ?',
-        [scriptId, userId]
-      );
-
-      if (!script) {
-        return res.status(404).json({ message: '剧本不存在' });
-      }
-
-      if (!script.content || script.content.trim() === '') {
-        return res.status(400).json({ message: '剧本内容为空，无法生成分镜' });
-      }
-
-      const projectId = script.project_id;
-
-      const conflict = await findWorkflowConflict({
-        userId,
-        workflowType: 'batch_storyboard_generation',
-        params: { scriptId }
-      });
-      if (conflict) {
-        return sendWorkflowConflict(res, 'batch_storyboard_generation', conflict);
-      }
-
-      // 预解析场景数量（不实际处理，只是为了返回场景数）
-      const totalScenes = getSceneCount(script.content);
-      
-      if (totalScenes === 0) {
-        return res.status(400).json({ message: '未能从剧本中识别出场景' });
-      }
-
-      console.log(`[BatchStoryboard] 识别到 ${totalScenes} 个场景，启动整合任务`);
-
-      const engine = require('../../nosyntask/engine/index');
-
-      // 创建单一的批量分镜生成任务
-      const result = await engine.startWorkflow('batch_storyboard_generation', {
-        userId,
-        projectId,
-        workflowName: `第${script.episode_number}集 分镜生成`,
-        jobParams: {
+      const result = await generationStartService.start({
+        operationKey: 'batch_storyboard_generate',
+        rawInput: {
           scriptId,
-          projectId,
-          userId,
           textModel,
-          clearExisting,
-          episodeNumber: script.episode_number,
-          scriptContent: script.content  // 用于角色提取步骤
-        }
+          clearExisting
+        },
+        actor: { userId }
       });
 
       console.log(`[BatchStoryboard] 任务已创建: jobId=${result.jobId}`);
 
-      res.json({
-        message: `已启动分镜生成（共 ${totalScenes} 个场景）`,
+      res.json(result.response || {
+        message: `已启动分镜生成（共 ${result.command.inputs.totalScenes} 个场景）`,
         scriptId,
-        totalScenes,
+        totalScenes: result.command.inputs.totalScenes,
         jobId: result.jobId
       });
     } catch (error) {
-      console.error('[BatchStoryboard]', error);
-      res.status(500).json({ message: '启动分镜生成失败: ' + error.message });
+      sendGenerationError(res, error, '启动分镜生成失败', '[BatchStoryboard]');
     }
   });
 

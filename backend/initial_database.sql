@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   role ENUM('user', 'admin') DEFAULT 'user' COMMENT '用户角色：user=普通用户, admin=管理员',
-  balance DECIMAL(10,2) DEFAULT 100.00,
+  balance DECIMAL(18,6) DEFAULT 100.000000,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_email (email),
@@ -207,15 +207,36 @@ CREATE TABLE IF NOT EXISTS billing_records (
   operation VARCHAR(50) NOT NULL,
   model_provider VARCHAR(100),
   model_tier VARCHAR(50),
-  tokens INT NOT NULL,
-  unit_price DECIMAL(10,4) NOT NULL,
-  amount DECIMAL(10,2) NOT NULL,
+  tokens INT NOT NULL DEFAULT 0,
+  unit_price DECIMAL(18,6) NOT NULL DEFAULT 0.000000,
+  amount DECIMAL(18,6) NOT NULL DEFAULT 0.000000,
+  model_name VARCHAR(255) DEFAULT NULL,
+  model_category VARCHAR(20) DEFAULT NULL,
+  source_type VARCHAR(50) DEFAULT NULL,
+  operation_key VARCHAR(100) DEFAULT NULL,
+  workflow_job_id INT DEFAULT NULL,
+  generation_task_id INT DEFAULT NULL,
+  request_status VARCHAR(50) DEFAULT NULL,
+  charge_status VARCHAR(50) DEFAULT NULL,
+  currency VARCHAR(16) NOT NULL DEFAULT 'CNY',
+  input_tokens INT NOT NULL DEFAULT 0,
+  output_tokens INT NOT NULL DEFAULT 0,
+  duration_seconds DECIMAL(18,6) NOT NULL DEFAULT 0.000000,
+  item_count INT NOT NULL DEFAULT 0,
+  price_breakdown_json JSON DEFAULT NULL,
+  usage_snapshot JSON DEFAULT NULL,
+  error_message TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE SET NULL,
   INDEX idx_user_id (user_id),
   INDEX idx_created_at (created_at),
-  INDEX idx_operation (operation)
+  INDEX idx_operation (operation),
+  INDEX idx_charge_status (charge_status),
+  INDEX idx_source_type (source_type),
+  INDEX idx_model_category (model_category),
+  INDEX idx_workflow_job_id (workflow_job_id),
+  INDEX idx_generation_task_id (generation_task_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- AI 模型配置表 (统一管理所有第三方 AI 接口)
@@ -231,8 +252,8 @@ CREATE TABLE IF NOT EXISTS ai_model_configs (
   api_key VARCHAR(500) COMMENT 'API 密钥，优先使用此字段，为空则从环境变量获取',
   
   -- 价格配置 (JSON 格式)
-  -- 示例: {"unit": "second", "price": 0.05} 或 {"unit": "token", "price": 0.0001}
-  price_config JSON NOT NULL COMMENT '价格配置，包含计费单位和单价',
+  -- 示例: {"currency":"CNY","charge_on_failure":false,"components":[{"type":"input_tokens","unit":"per_million_tokens","price":2},{"type":"output_tokens","unit":"per_million_tokens","price":8}]}
+  price_config JSON NOT NULL COMMENT '统一计费配置，支持 token/秒/次/个 等组合计费',
   
   -- 请求配置
   request_method ENUM('GET', 'POST', 'PUT', 'DELETE') DEFAULT 'POST' COMMENT 'HTTP 请求方法',
@@ -274,6 +295,8 @@ CREATE TABLE IF NOT EXISTS ai_model_configs (
   -- handler 名称对应 backend/src/customHandlers/ 目录下的文件名（不含 .js）
   custom_handler VARCHAR(100) DEFAULT NULL COMMENT '自定义提交 handler 名称，为空则走模板流程。示例: "kling_video"',
   custom_query_handler VARCHAR(100) DEFAULT NULL COMMENT '自定义查询 handler 名称，为空则走模板流程。示例: "kling_video"',
+  billing_handler VARCHAR(100) DEFAULT NULL COMMENT '复杂计费解析 handler 名称，为空则按标准 usage 字段解析',
+  billing_query_handler VARCHAR(100) DEFAULT NULL COMMENT '异步模型最终结算时使用的计费查询 handler 名称',
   
   -- 时间戳
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -366,7 +389,7 @@ INSERT INTO ai_model_configs (
   '高性价比AI文本生成，适合剧本创作和智能对话',
   1,
   NULL,  -- API Key 留空，首次使用时需在管理后台配置
-  '{"unit": "token", "price": 0.0000014}',
+  '{"currency":"CNY","charge_on_failure":false,"components":[{"type":"total_tokens","unit":"per_token","price":0.0000014}]}',
   'POST',
   'https://api.deepseek.com/v1/chat/completions',
   '{"Content-Type": "application/json", "Authorization": "Bearer {{apiKey}}"}',

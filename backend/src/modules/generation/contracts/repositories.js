@@ -1,0 +1,88 @@
+const { queryOne, queryAll } = require('../../../dbHelper');
+const { HttpError } = require('../utils/httpErrors');
+
+async function requireProjectForUser(projectId, userId) {
+  const project = await queryOne(
+    'SELECT * FROM projects WHERE id = ? AND user_id = ?',
+    [projectId, userId]
+  );
+
+  if (!project) {
+    throw new HttpError(404, '项目不存在或无权访问');
+  }
+
+  return project;
+}
+
+async function requireScriptForUser(scriptId, userId) {
+  const script = await queryOne(
+    'SELECT * FROM scripts WHERE id = ? AND user_id = ?',
+    [scriptId, userId]
+  );
+
+  if (!script) {
+    throw new HttpError(404, '剧本不存在或无权访问');
+  }
+
+  return script;
+}
+
+async function requireCharacterForUser(characterId, userId) {
+  const character = await queryOne(
+    'SELECT * FROM characters WHERE id = ? AND user_id = ?',
+    [characterId, userId]
+  );
+
+  if (!character) {
+    throw new HttpError(404, '角色不存在');
+  }
+
+  return character;
+}
+
+async function requireSceneForUser(sceneId, userId) {
+  const scene = await queryOne(
+    'SELECT * FROM scenes WHERE id = ? AND user_id = ?',
+    [sceneId, userId]
+  );
+
+  if (!scene) {
+    throw new HttpError(404, '场景不存在');
+  }
+
+  return scene;
+}
+
+async function listScenesForProject(projectId, userId) {
+  return queryAll(
+    `SELECT id, name, description, environment, lighting, mood, image_url, generation_prompt
+     FROM scenes
+     WHERE project_id = ? AND user_id = ?`,
+    [projectId, userId]
+  );
+}
+
+async function requireStoryboardForUser(storyboardId, userId) {
+  const storyboard = await queryOne(
+    `SELECT sb.*, sc.project_id, sc.user_id, sc.episode_number, sc.title AS script_title
+     FROM storyboards sb
+     JOIN scripts sc ON sb.script_id = sc.id
+     WHERE sb.id = ? AND sc.user_id = ?`,
+    [storyboardId, userId]
+  );
+
+  if (!storyboard) {
+    throw new HttpError(404, '分镜不存在或无权访问');
+  }
+
+  return storyboard;
+}
+
+module.exports = {
+  requireProjectForUser,
+  requireScriptForUser,
+  requireCharacterForUser,
+  requireSceneForUser,
+  listScenesForProject,
+  requireStoryboardForUser
+};

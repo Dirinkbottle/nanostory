@@ -9,20 +9,18 @@
  */
 
 const { authMiddleware } = require('../../middleware');
-const workflowEngine = require('../../nosyntask/engine');
-const { queryOne } = require('../../dbHelper');
+const { generationStartService, sendGenerationError } = require('../../modules/generation');
 
 module.exports = (router) => {
   router.post('/parallel-generate-frames/:scriptId', authMiddleware, async (req, res) => {
     try {
       const userId = req.user.id;
-      const { scriptId } = req.params;
+      const scriptId = Number(req.params.scriptId);
       const { 
         imageModel, 
         aspectRatio,
         textModel, 
         overwriteFrames = false, 
-        projectId,
         maxConcurrency = 5  // 默认并发数
       } = req.body;
 
@@ -35,33 +33,28 @@ module.exports = (router) => {
 
       console.log(`[ParallelGenerateFrames] 用户 ${userId} 请求并发生成，scriptId=${scriptId}, 并发=${maxConcurrency}, 覆盖=${overwriteFrames}`);
 
-      // 获取剧本信息（集数）
-      const script = await queryOne('SELECT episode_number FROM scripts WHERE id = ?', [scriptId]);
-      const episodeNumber = script?.episode_number || null;
-
-      const { jobId, tasks } = await workflowEngine.startWorkflow('parallel_frame_generation', {
-        userId,
-        projectId: projectId || null,
-        jobParams: {
-          scriptId: Number(scriptId),
-          episodeNumber,
+      const result = await generationStartService.start({
+        operationKey: 'parallel_frame_generate',
+        rawInput: {
+          scriptId,
           imageModel,
           aspectRatio: aspectRatio || null,
           textModel: textModel || null,
           overwriteFrames: !!overwriteFrames,
           maxConcurrency: Number(maxConcurrency) || 5
-        }
+        },
+        actor: { userId }
       });
+      const { jobId, tasks } = result;
 
-      res.json({
+      res.json(result.response || {
         success: true,
         jobId,
         tasks,
         message: '并发帧生成任务已启动（独立模式）'
       });
     } catch (error) {
-      console.error('[ParallelGenerateFrames] 启动失败:', error);
-      res.status(500).json({ message: error.message || '启动并发生成失败' });
+      sendGenerationError(res, error, '启动并发生成失败', '[ParallelGenerateFrames]');
     }
   });
 };

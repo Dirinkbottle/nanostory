@@ -11,10 +11,8 @@ export interface AIModel {
   category?: string;
   description?: string;
   isActive?: boolean;
-  priceConfig?: {
-    unit: string;
-    price: number;
-  };
+  priceConfig?: unknown;
+  priceSummary?: string;
   supportedAspectRatios?: unknown;
   supportedDurations?: unknown;
 }
@@ -46,6 +44,8 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
   isRequired = false,
   className = ''
 }) => {
+  const getPriceText = (model?: AIModel) => model?.priceSummary || '';
+
   // 根据类型过滤模型 - 使用 category 字段（后端返回的字段名）
   const filteredModels = React.useMemo(() => {
     const filtered = filterType
@@ -116,11 +116,11 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
         return (
           <div className="flex items-center justify-between gap-2 w-full">
             <span className="font-semibold truncate">{model.name}</span>
-            {model.priceConfig && (
+            {getPriceText(model) && (
               <div className="flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded shrink-0">
                 <Coins className="w-3 h-3 text-amber-400" />
                 <span className="text-xs font-medium text-amber-300 whitespace-nowrap">
-                  1 {model.priceConfig.unit} · {model.priceConfig.price} 点
+                  {getPriceText(model)}
                 </span>
               </div>
             )}
@@ -140,7 +140,7 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
               <span className="text-xs text-slate-400 truncate">
                 {model.provider} {model.description && `· ${model.description}`}
               </span>
-              {(((model.type || model.category)?.toUpperCase() === 'IMAGE') ||
+            {(((model.type || model.category)?.toUpperCase() === 'IMAGE') ||
                 ((model.type || model.category)?.toUpperCase() === 'VIDEO')) && (
                 <span className="text-[11px] text-slate-500 truncate">
                   比例: {summarizeCapabilityOptions(model.supportedAspectRatios, 'aspectRatio')}
@@ -149,11 +149,11 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
                 </span>
               )}
             </div>
-            {model.priceConfig && (
+            {getPriceText(model) && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-md shrink-0">
                 <Coins className="w-3.5 h-3.5 text-amber-400" />
                 <span className="text-xs font-medium text-amber-300 whitespace-nowrap">
-                  1 {model.priceConfig.unit} · {model.priceConfig.price} 点
+                  {getPriceText(model)}
                 </span>
               </div>
             )}
