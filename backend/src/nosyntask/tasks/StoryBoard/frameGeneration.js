@@ -24,6 +24,7 @@ const { selectReferenceImages } = require('./referenceImageSelector');
 const { collectCandidateImages, appendContextCandidates } = require('./collectCandidateImages');
 const { traced, trace } = require('../../engine/generationTrace');
 const { assertUpdated, assertPersistedFields } = require('./persistenceGuard');
+const { resolveMediaUrl } = require('../base/mediaResultResolver');
 
 /**
  * 生成单张图片（通过 submitAndPoll 自动处理同步/异步）
@@ -44,11 +45,23 @@ const generateSingleImage = traced('图片生成', async function _generateSingl
     logTag: logTag || 'FrameGen'
   });
 
-  const imageUrl = result.image_url || result.imageUrl || result.url || null;
-  if (!imageUrl) {
-    throw new Error('任务成功但未找到图片 URL');
+  const resolution = resolveMediaUrl(result, 'image');
+  console.log(`[${logTag || 'FrameGen'}] 返回字段诊断:`, {
+    modelName,
+    mappedKeys: result && typeof result === 'object' ? Object.keys(result) : [],
+    queryKeys: result?._queryResult && typeof result._queryResult === 'object' ? Object.keys(result._queryResult) : [],
+    rawQueryKeys: result?._rawQueryResult && typeof result._rawQueryResult === 'object' ? Object.keys(result._rawQueryResult) : [],
+    submitKeys: result?._submitResult && typeof result._submitResult === 'object' ? Object.keys(result._submitResult) : [],
+    selectedUrl: resolution.mediaUrl,
+    resolvedFrom: resolution.resolvedFrom,
+    urlCandidates: resolution.candidates,
+    aspectRatio: aspectRatio || null
+  });
+
+  if (!resolution.mediaUrl) {
+    throw new Error('任务成功但未找到图片 URL，请检查 response_mapping / query_success_mapping 配置');
   }
-  return imageUrl;
+  return resolution.mediaUrl;
 }, {
   extractInput: (modelName, prompt, w, h, logTag, urls) => ({ model: modelName, logTag, refCount: urls?.length || 0, prompt: prompt?.substring(0, 100) }),
   extractOutput: (url) => ({ imageUrl: url })
