@@ -20,6 +20,7 @@ const addStoryboard = require('./addStoryboard');
 const deleteStoryboard = require('./deleteStoryboard');
 const reorderStoryboards = require('./reorderStoryboards');
 const validateReadiness = require('./validateReadiness');
+const batchValidateReadiness = require('./batchValidateReadiness');
 const updateMedia = require('./updateMedia');
 const updateContent = require('./updateContent');
 const cleanBeforeRegenerate = require('./cleanBeforeRegenerate');
@@ -29,6 +30,7 @@ const updateDirectorParams = require('./updateDirectorParams');
 // 注册路由（顺序很重要！具体路由在前，通用路由在后）
 
 // 单个分镜操作（必须在 /:scriptId 之前）
+router.post('/batch-validate', authMiddleware, batchValidateReadiness);
 router.post('/clean-before-regenerate', authMiddleware, cleanBeforeRegenerate);
 router.post('/fix-links', authMiddleware, fixLinks);  // 修复资源关联
 router.post('/add', authMiddleware, addStoryboard);

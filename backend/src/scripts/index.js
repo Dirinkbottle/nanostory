@@ -19,6 +19,7 @@ const deleteScript = require('./ScriptStudio/deleteScript');
 const createScript = require('./ScriptStudio/createScript');
 const deleteEpisode = require('./ScriptStudio/deleteEpisode');
 const cleanOrphanResources = require('./ScriptStudio/cleanOrphanResources');
+const { createOrUpdateDraft, saveDraftContent, deleteDraft } = require('./ScriptStudio/draftScript');
 
 const router = express.Router();
 
@@ -46,6 +47,11 @@ router.get('/project/:projectId/recap', authMiddleware, getEpisodesRecap);
 
 // 获取指定集的剧本
 router.get('/project/:projectId/episode/:episodeNumber', authMiddleware, getEpisode);
+
+// 草稿相关
+router.post('/draft', authMiddleware, createOrUpdateDraft);
+router.put('/draft/:scriptId', authMiddleware, saveDraftContent);
+router.delete('/draft/:scriptId', authMiddleware, deleteDraft);
 
 // 清理孤立资源（角色/场景）
 router.post('/clean-orphans', authMiddleware, cleanOrphanResources);

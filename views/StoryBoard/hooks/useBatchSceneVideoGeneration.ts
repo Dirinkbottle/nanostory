@@ -2,11 +2,11 @@
  * 批量分镜视频生成 Hook
  * 一键生成一集所有分镜的视频
  * 支持页面刷新后自动恢复状态和进度
+ * 
+ * 此为 useBatchGeneration 的薄封装，保持原有接口兼容性
  */
 
-import { useCallback } from 'react';
-import { getAuthToken } from '../../../services/auth';
-import { useWorkflowRecovery } from './useWorkflowRecovery';
+import { useBatchGeneration, VIDEO_GENERATION_CONFIG, StoryboardScene } from './useBatchGeneration';
 
 interface UseBatchSceneVideoGenerationProps {
   scriptId: number | null;
@@ -15,6 +15,7 @@ interface UseBatchSceneVideoGenerationProps {
   textModel: string;
   aspectRatio: string;
   duration?: number | null;
+  scenes?: StoryboardScene[];
   onComplete?: () => void;
   onError?: (message: string) => void;
 }
@@ -26,84 +27,32 @@ export function useBatchSceneVideoGeneration({
   textModel,
   aspectRatio,
   duration,
+  scenes = [],
   onComplete,
   onError
 }: UseBatchSceneVideoGenerationProps) {
-  const recovery = useWorkflowRecovery({
+  const result = useBatchGeneration(VIDEO_GENERATION_CONFIG, {
+    scriptId,
     projectId,
-    workflowTypes: ['batch_scene_video_generation'],
-    isActive: true,
-    onCompleted: () => {
-      console.log('[useBatchSceneVideoGen] 批量视频生成完成');
-      onComplete?.();
-    },
-    onFailed: (failedJob) => {
-      console.error('[useBatchSceneVideoGen] 批量视频生成失败:', failedJob.error_message);
-      onError?.('批量视频生成失败: ' + (failedJob.error_message || '未知错误'));
-    },
-    logPrefix: '[useBatchSceneVideoGen]'
+    model: videoModel,
+    aspectRatio,
+    textModel,
+    scenes,
+    duration,
+    onComplete,
+    onError
   });
 
-  const startBatchVideoGeneration = useCallback(async (overwriteVideos: boolean) => {
-    if (recovery.isGenerating) {
-      onError?.('批量视频生成任务正在进行中');
-      return;
-    }
-    if (!scriptId) {
-      onError?.('请先选择剧本');
-      return;
-    }
-    if (!videoModel) {
-      onError?.('请先选择视频模型');
-      return;
-    }
-    if (!aspectRatio) {
-      onError?.('当前视频模型未配置可用长宽比');
-      return;
-    }
-    if (duration === null || duration === undefined) {
-      onError?.('当前视频模型未配置可用时长');
-      return;
-    }
-
-    try {
-      const token = getAuthToken();
-      const res = await fetch(`/api/storyboards/batch-generate-videos/${scriptId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          videoModel,
-          textModel,
-          aspectRatio,
-          duration,
-          overwriteVideos,
-          projectId
-        })
-      });
-
-      const data = await res.json();
-
-      if (data.jobId && (res.ok || res.status === 409)) {
-        console.log('[useBatchSceneVideoGen] 任务已启动, jobId:', data.jobId);
-        recovery.startJob(data.jobId);
-      } else {
-        onError?.(data.message || '启动批量视频生成失败');
-      }
-    } catch (error) {
-      console.error('[useBatchSceneVideoGen] 启动失败:', error);
-      onError?.('启动批量视频生成失败，请检查网络连接');
-    }
-  }, [scriptId, videoModel, textModel, aspectRatio, duration, projectId, recovery, onError]);
-
+  // 保持原有接口兼容性
   return {
-    startBatchVideoGeneration,
-    isGenerating: recovery.isGenerating,
-    isCompleted: recovery.isCompleted,
-    isFailed: recovery.isFailed,
-    progress: recovery.overallProgress,
-    job: recovery.job
+    startBatchVideoGeneration: result.startBatchGeneration,
+    isGenerating: result.isGenerating,
+    isCompleted: result.isCompleted,
+    isFailed: result.isFailed,
+    progress: result.progress,
+    job: result.job,
+    // 新增：部分批量支持
+    skippedScenes: result.skippedScenes,
+    validSceneCount: result.validSceneCount
   };
 }

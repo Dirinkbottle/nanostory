@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Component, ReactNode } from 'react';
 import { Button, Select, SelectItem } from '@heroui/react';
 import { Wand2, RefreshCw, Upload, Download, Video, ImageIcon } from 'lucide-react';
 import { useSceneManager } from './useSceneManager';
@@ -23,6 +23,45 @@ interface Script {
   episode_number: number;
   title: string;
   status: string;
+}
+
+// Error Boundary to catch rendering errors and prevent full-view crashes
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class StoryboardErrorBoundary extends Component<
+  { children: ReactNode },
+  ErrorBoundaryState
+> {
+  state: ErrorBoundaryState = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[StoryboardErrorBoundary] Caught error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-500 bg-[#0c0e1a]">
+          <p className="text-lg font-medium text-[#a8a29e]">Something went wrong loading the storyboard.</p>
+          <p className="text-sm text-gray-400">{this.state.error?.message}</p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 interface StoryBoardProps {
@@ -60,14 +99,24 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   const [isSubmittingSceneBatch, setIsSubmittingSceneBatch] = useState(false);
   const { showToast } = useToast();
 
-  const imageModelConfig = useMemo(
-    () => models.find((model) => model.name === imageModel && (model.type || model.category)?.toUpperCase() === 'IMAGE'),
-    [models, imageModel]
-  );
-  const videoModelConfig = useMemo(
-    () => models.find((model) => model.name === videoModel && (model.type || model.category)?.toUpperCase() === 'VIDEO'),
-    [models, videoModel]
-  );
+  // O(1) model lookup via Map
+  const modelMap = useMemo(() => {
+    const map = new Map<string, typeof models[number]>();
+    for (const m of models) {
+      map.set(m.name, m);
+    }
+    return map;
+  }, [models]);
+
+  const imageModelConfig = useMemo(() => {
+    const model = modelMap.get(imageModel);
+    return model && (model.type || model.category)?.toUpperCase() === 'IMAGE' ? model : undefined;
+  }, [modelMap, imageModel]);
+
+  const videoModelConfig = useMemo(() => {
+    const model = modelMap.get(videoModel);
+    return model && (model.type || model.category)?.toUpperCase() === 'VIDEO' ? model : undefined;
+  }, [modelMap, videoModel]);
 
   const imageAspectRatioOptions = useMemo(
     () => normalizeCapabilityOptions(imageModelConfig?.supportedAspectRatios, 'aspectRatio'),
@@ -82,24 +131,18 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     [videoModelConfig]
   );
 
-  // 同步外部 props - 修复：添加缺失的依赖，避免无限循环
+  // 同步外部 props - 合并为单个 useEffect 减少渲染开销
   useEffect(() => {
     if (scriptId !== undefined && scriptId !== currentScriptId) {
       setCurrentScriptId(scriptId || null);
     }
-  }, [scriptId, currentScriptId]);
-
-  useEffect(() => {
     if (projectId !== undefined && projectId !== currentProjectId) {
       setCurrentProjectId(projectId || null);
     }
-  }, [projectId, currentProjectId]);
-
-  useEffect(() => {
     if (episodeNumber !== undefined && episodeNumber !== currentEpisode) {
       setCurrentEpisode(episodeNumber);
     }
-  }, [episodeNumber, currentEpisode]);
+  }, [scriptId, projectId, episodeNumber, currentScriptId, currentProjectId, currentEpisode]);
 
   useEffect(() => {
     if (imageAspectRatioOptions.length === 0) {
@@ -240,6 +283,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       // 为每个角色启动生成任务
       let startedCount = 0;
       let recoveredCount = 0;
+      let failedCount = 0;
       for (const character of characters) {
         try {
           const response = await fetch(`/api/characters/${character.id}/generate-views`, {
@@ -262,15 +306,27 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           } else if (response.status === 409 && data.jobId) {
             recoveredCount += 1;
           } else {
+            failedCount += 1;
             console.error(`生成角色 ${character.name} 图片失败:`, data.message || response.statusText);
           }
         } catch (err) {
+          failedCount += 1;
           console.error(`生成角色 ${character.name} 图片失败:`, err);
         }
       }
 
       await characterBatchRecovery.checkAndResume();
-      showToast(`角色批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
+      
+      // Show summary with failure count if any
+      const total = characters.length;
+      if (failedCount > 0) {
+        showToast(
+          `角色批量生成：成功 ${startedCount + recoveredCount}/${total}，失败 ${failedCount} 个`,
+          failedCount === total ? 'error' : 'warning'
+        );
+      } else {
+        showToast(`角色批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
+      }
     } catch (error: any) {
       showToast('角色批量生成失败: ' + error.message, 'error');
       console.error('角色批量生成失败:', error);
@@ -318,6 +374,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       // 为每个场景启动生成任务
       let startedCount = 0;
       let recoveredCount = 0;
+      let failedCount = 0;
       for (const scene of scenesData) {
         try {
           const response = await fetch(`/api/scenes/${scene.id}/generate-image`, {
@@ -339,15 +396,27 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
           } else if (response.status === 409 && data.jobId) {
             recoveredCount += 1;
           } else {
+            failedCount += 1;
             console.error(`生成场景 ${scene.name} 图片失败:`, data.message || response.statusText);
           }
         } catch (err) {
+          failedCount += 1;
           console.error(`生成场景 ${scene.name} 图片失败:`, err);
         }
       }
 
       await sceneBatchRecovery.checkAndResume();
-      showToast(`场景批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
+      
+      // Show summary with failure count if any
+      const total = scenesData.length;
+      if (failedCount > 0) {
+        showToast(
+          `场景批量生成：成功 ${startedCount + recoveredCount}/${total}，失败 ${failedCount} 个`,
+          failedCount === total ? 'error' : 'warning'
+        );
+      } else {
+        showToast(`场景批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
+      }
     } catch (error: any) {
       showToast('场景批量生成失败: ' + error.message, 'error');
       console.error('场景批量生成失败:', error);
@@ -485,10 +554,13 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   };
 
 
-  // 收集资源面板数据
-  const allCharacters = [...new Set(scenes.flatMap(s => s.characters))];
-  const allLocations = [...new Set(scenes.map(s => s.location).filter(Boolean))];
-  const allProps = [...new Set(scenes.flatMap(s => s.props))];
+  // 收集资源面板数据 - 使用 useMemo 避免每次渲染重新计算
+  const allCharacters = useMemo(() => 
+    [...new Set(scenes.flatMap(s => s.characters))], [scenes]);
+  const allLocations = useMemo(() => 
+    [...new Set(scenes.map(s => s.location).filter(Boolean))], [scenes]);
+  const allProps = useMemo(() => 
+    [...new Set(scenes.flatMap(s => s.props))], [scenes]);
   
   // Debug: 检查角色数据
   useEffect(() => {
@@ -724,6 +796,7 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
               onBatchGenerateVideo={(overwrite) => batchSceneVideoGen.startBatchVideoGeneration(overwrite)}
               isBatchGeneratingVideo={batchSceneVideoGen.isGenerating}
               batchVideoProgress={batchSceneVideoGen.progress}
+              isLoading={isLoading}
             />
           </div>
 
@@ -768,4 +841,11 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   );
 };
 
-export default StoryBoard;
+// Wrap with error boundary
+const StoryBoardWithErrorBoundary: React.FC<StoryBoardProps> = (props) => (
+  <StoryboardErrorBoundary>
+    <StoryBoard {...props} />
+  </StoryboardErrorBoundary>
+);
+
+export default StoryBoardWithErrorBoundary;

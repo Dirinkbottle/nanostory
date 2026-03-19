@@ -1,6 +1,46 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Spinner } from '@heroui/react';
-import { Plus, RefreshCw, ZoomIn, X } from 'lucide-react';
+import { Plus, RefreshCw, ZoomIn, X, ImageOff } from 'lucide-react';
+
+// Image component with loading and error states
+interface LoadableImageProps {
+  src: string;
+  alt: string;
+  onClick?: () => void;
+  className?: string;
+}
+
+const LoadableImage: React.FC<LoadableImageProps> = ({ src, alt, onClick, className }) => {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  return (
+    <div className="relative w-full h-full">
+      {/* Loading placeholder */}
+      {!loaded && !error && (
+        <div className="absolute inset-0 animate-pulse bg-slate-700/50 rounded-lg flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-slate-500 border-t-blue-400 rounded-full animate-spin" />
+        </div>
+      )}
+      {/* Error state */}
+      {error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-800/80 rounded-lg">
+          <ImageOff className="w-4 h-4 text-slate-500 mb-1" />
+          <span className="text-slate-500 text-[8px]">加载失败</span>
+        </div>
+      )}
+      {/* Actual image */}
+      <img
+        src={src}
+        alt={alt}
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+        onClick={onClick}
+        className={`${className} ${loaded && !error ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+      />
+    </div>
+  );
+};
 
 interface ImageFramesProps {
   startFrame?: string;
@@ -36,10 +76,10 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
         <div className="w-20 h-14 bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg flex items-center justify-center group transition-all duration-300 border border-slate-600/50 relative overflow-hidden">
           {startFrame ? (
             <>
-              <img 
-                src={startFrame} 
+              <LoadableImage
+                src={startFrame}
                 alt={hasAction ? "首帧" : "图片"}
-                className="w-full h-full object-cover rounded-lg cursor-pointer" 
+                className="w-full h-full object-cover rounded-lg cursor-pointer"
                 onClick={() => onPreview(startFrame)}
               />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-1">
@@ -85,10 +125,10 @@ const ImageFrames: React.FC<ImageFramesProps> = ({
           <div className="w-20 h-14 bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg flex items-center justify-center group transition-all duration-300 border border-orange-500/30 relative overflow-hidden">
             {endFrame ? (
               <>
-                <img 
-                  src={endFrame} 
-                  alt="尾帧" 
-                  className="w-full h-full object-cover rounded-lg cursor-pointer" 
+                <LoadableImage
+                  src={endFrame}
+                  alt="尾帧"
+                  className="w-full h-full object-cover rounded-lg cursor-pointer"
                   onClick={() => onPreview(endFrame)}
                 />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-1">

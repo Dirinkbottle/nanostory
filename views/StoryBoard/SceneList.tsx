@@ -10,6 +10,7 @@ interface SceneListProps {
   selectedScene: number | null;
   projectId?: number | null;
   scriptId?: number | null;
+  isLoading?: boolean;
   onSelectScene: (id: number) => void;
   onMoveScene: (id: number, direction: 'up' | 'down') => void;
   onDeleteScene: (id: number) => void;
@@ -28,11 +29,34 @@ interface SceneListProps {
   batchVideoProgress?: number;
 }
 
+// Skeleton loading component for scene list
+const SceneListSkeleton: React.FC = () => (
+  <div className="space-y-3 p-4">
+    {Array.from({ length: 5 }).map((_, i) => (
+      <div key={i} className="animate-pulse">
+        <div className="bg-slate-800/60 rounded-xl p-3 border border-slate-700/30">
+          <div className="flex items-start gap-3">
+            {/* Image placeholder */}
+            <div className="w-20 h-14 bg-slate-700/50 rounded-lg flex-shrink-0" />
+            {/* Content placeholder */}
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-slate-700/50 rounded w-24" />
+              <div className="h-3 bg-slate-700/30 rounded w-full" />
+              <div className="h-3 bg-slate-700/30 rounded w-3/4" />
+            </div>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 const SceneList: React.FC<SceneListProps> = ({
   scenes,
   selectedScene,
   projectId,
   scriptId,
+  isLoading = false,
   onSelectScene,
   onMoveScene,
   onDeleteScene,
@@ -159,7 +183,9 @@ const SceneList: React.FC<SceneListProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {scenes.map((scene, index) => (
+        {isLoading ? (
+          <SceneListSkeleton />
+        ) : scenes.map((scene, index) => (
           <div
             key={scene.id}
             draggable

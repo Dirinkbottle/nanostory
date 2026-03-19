@@ -11,7 +11,9 @@ export interface Script {
   episode_number: number;
   title: string;
   content: string;
-  status: 'generating' | 'completed' | 'failed';
+  draft_description?: string;
+  draft_length?: string;
+  status: 'draft' | 'generating' | 'completed' | 'failed';
   created_at: string;
 }
 
@@ -211,6 +213,86 @@ export function useScriptManagement(options: UseScriptManagementOptions = {}) {
     }
   };
 
+  // 创建或更新草稿
+  const handleCreateDraft = async (projectId: number, episodeNumber: number, draftTitle?: string, description?: string, length?: string, content?: string) => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/scripts/draft', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          projectId,
+          episodeNumber,
+          title: draftTitle || `第${episodeNumber}集`,
+          description: description || '',
+          length: length || '短篇',
+          content: content || ''
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        // 重新加载剧本列表以显示草稿
+        await loadProjectScript(projectId);
+        return { success: true, scriptId: data.scriptId, message: data.message };
+      } else {
+        return { success: false, message: data.message || '创建草稿失败' };
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message || '创建草稿失败' };
+    }
+  };
+
+  // 保存草稿内容
+  const handleSaveDraft = async (draftScriptId: number, draftTitle?: string, draftContent?: string, description?: string, length?: string) => {
+    try {
+      setLoading(true);
+      const token = getAuthToken();
+      const res = await fetch(`/api/scripts/draft/${draftScriptId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          title: draftTitle,
+          content: draftContent,
+          description,
+          length
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        return { success: true, message: data.message, savedAt: data.savedAt };
+      } else {
+        return { success: false, message: data.message || '保存草稿失败' };
+      }
+    } catch (error: any) {
+      return { success: false, message: error.message || '保存草稿失败' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 删除草稿
+  const handleDeleteDraft = async (draftScriptId: number) => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/scripts/draft/${draftScriptId}`, {
+        method: 'DELETE',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, message: data.message } : { success: false, message: data.message };
+    } catch (error: any) {
+      return { success: false, message: error.message || '删除草稿失败' };
+    }
+  };
+
   return {
     // 状态
     scripts,
@@ -231,6 +313,9 @@ export function useScriptManagement(options: UseScriptManagementOptions = {}) {
     handleEpisodeChange,
     handleSaveScript,
     handleCreateScript,
+    handleCreateDraft,
+    handleSaveDraft,
+    handleDeleteDraft,
     handleDeleteScript,
     handleCleanOrphans
   };

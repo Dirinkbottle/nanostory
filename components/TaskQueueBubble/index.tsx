@@ -100,7 +100,6 @@ const savePanelPosition = (x: number, y: number) => {
 };
 
 const TaskQueueBubble: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState<Position>(loadPosition);
   const [isDragging, setIsDragging] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -117,6 +116,8 @@ const TaskQueueBubble: React.FC = () => {
   const {
     jobs,
     loading,
+    isExpanded: isOpen,
+    setIsExpanded: setIsOpen,
     fetchJobs,
     getJobProgress,
   } = useTaskQueue();

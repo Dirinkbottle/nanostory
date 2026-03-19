@@ -52,6 +52,9 @@ const ScriptStudio: React.FC = () => {
     handleEpisodeChange,
     handleSaveScript,
     handleCreateScript,
+    handleCreateDraft,
+    handleSaveDraft,
+    handleDeleteDraft,
     handleDeleteScript,
     handleCleanOrphans
   } = useScriptManagement({
@@ -78,7 +81,19 @@ const ScriptStudio: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [description, setDescription] = useState('');
   const [length, setLength] = useState('短篇');
-  const [selectedEpisodeForGeneration, setSelectedEpisodeForGeneration] = useState<number | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // 自动保存定时器引用
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // 用 useRef 缓存最新的 saveDraft 函数，解决闭包问题
+  const saveDraftRef = useRef<(silent?: boolean) => Promise<void>>(undefined);
+  
+  // 从 scripts 列表中查找草稿集数（数据库持久化）
+  const draftScript = scripts.find(s => s.status === 'draft');
+  const draftEpisode = draftScript?.episode_number || null;
 
   // 删除确认弹窗
   const { isOpen: isDeleteModalOpen, onOpen: openDeleteModal, onClose: closeDeleteModal } = useDisclosure();
@@ -142,6 +157,132 @@ const ScriptStudio: React.FC = () => {
     localStorage.setItem(LAST_TAB_KEY, key);
   };
 
+  // 保存草稿内容（故事走向就是草稿）
+  const saveDraft = async (silent = false) => {
+    // 先检查是否正在保存中
+    if (isSaving) {
+      console.warn('[saveDraft] Already saving, skip');
+      return;
+    }
+    
+    // 检查 draftScript 是否存在
+    if (!draftScript) {
+      if (!silent) {
+        showToast('无法保存：草稿未找到', 'error');
+      }
+      console.warn('[saveDraft] draftScript is null, cannot save. scripts:', scripts.map(s => ({ id: s.id, status: s.status, ep: s.episode_number })));
+      return;
+    }
+    
+    // 清除自动保存定时器
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    
+    setIsSaving(true);
+    try {
+      console.log('[saveDraft] Saving draft:', { id: draftScript.id, title, description: description?.substring(0, 50), length });
+      const result = await handleSaveDraft(
+        draftScript.id,
+        title,
+        description, // 故事走向就是草稿内容
+        description,
+        length
+      );
+      
+      if (result.success) {
+        setLastSavedAt(result.savedAt || new Date().toISOString());
+        setHasUnsavedChanges(false);
+        if (!silent) {
+          showToast('草稿已保存', 'success');
+        }
+        console.log('[saveDraft] Draft saved successfully at', result.savedAt);
+      } else {
+        if (!silent) {
+          showToast(result.message || '保存失败', 'error');
+        }
+        console.error('[saveDraft] Save failed:', result.message);
+      }
+    } catch (error) {
+      console.error('[saveDraft] Unexpected error:', error);
+      if (!silent) {
+        showToast('保存失败', 'error');
+      }
+    } finally {
+      setIsSaving(false);  // 确保在 finally 中重置
+    }
+  };
+  
+  // 每次 saveDraft 变化时更新 ref
+  saveDraftRef.current = saveDraft;
+
+  // Ctrl+S 快捷键保存草稿
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        // 使用 ref 获取最新的 saveDraft 函数，避免闭包问题
+        if (saveDraftRef.current) {
+          saveDraftRef.current();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []); // 依赖数组为空，因为我们使用 ref 获取最新函数
+
+  // 自动保存防抖（3秒）
+  useEffect(() => {
+    // 仅对草稿状态生效
+    if (!draftScript) {
+      console.log('[autoSave] No draft script, skip auto-save setup');
+      return;
+    }
+    // 仅在有内容时触发
+    if (!description.trim()) {
+      console.log('[autoSave] No description content, skip auto-save setup');
+      return;
+    }
+    
+    setHasUnsavedChanges(true);
+    console.log('[autoSave] Content changed, scheduling auto-save in 3s');
+    
+    // 清理之前的定时器
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    
+    // 设置新的 3 秒防抖
+    autoSaveTimerRef.current = setTimeout(async () => {
+      // 使用 ref 获取最新的 saveDraft 函数，解决闭包问题
+      console.log('[autoSave] Timer fired, calling saveDraftRef.current');
+      if (saveDraftRef.current) {
+        await saveDraftRef.current(true); // silent mode
+      }
+    }, 3000);
+    
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [description, title, length, draftScript?.id]); // 依赖 description, title, length 和 draftScript.id
+
+  // 页面关闭/刷新时提醒未保存更改
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
   // 加载项目剧本
   useEffect(() => {
     if (selectedProject) {
@@ -182,12 +323,12 @@ const ScriptStudio: React.FC = () => {
   // 当需要创建新剧集时，加载前情回顾
   useEffect(() => {
     if (selectedProject && !scriptId && nextEpisode > 1) {
-      const targetEp = selectedEpisodeForGeneration || nextEpisode;
+      const targetEp = draftEpisode || nextEpisode;
       fetchRecapData(selectedProject.id, targetEp);
     } else {
       setRecapData(null);
     }
-  }, [selectedProject, scriptId, nextEpisode, selectedEpisodeForGeneration]);
+  }, [selectedProject, scriptId, nextEpisode, draftEpisode]);
 
   const handleBackToProjects = () => {
     navigate('/projects');
@@ -331,20 +472,43 @@ const ScriptStudio: React.FC = () => {
                   currentEpisode={currentEpisode}
                   nextEpisode={nextEpisode}
                   loading={loading}
-                  onEpisodeChange={(episode) => {
+                  onEpisodeChange={async (episode) => {
+                    // 切换集数前自动保存当前草稿（如果有未保存的更改）
+                    if (draftScript && currentEpisode === draftEpisode && description.trim()) {
+                      // 先清除自动保存定时器
+                      if (autoSaveTimerRef.current) {
+                        clearTimeout(autoSaveTimerRef.current);
+                        autoSaveTimerRef.current = null;
+                      }
+                      await saveDraft(true); // 静默保存
+                      showToast('草稿已自动保存', 'success');
+                    }
+                    
                     // 如果点击的是草稿集数，切换到草稿编辑界面
-                    if (episode === selectedEpisodeForGeneration) {
+                    if (draftScript && episode === draftEpisode) {
                       setCurrentEpisode(episode);
                       setScriptId(null);
                       setContent('');
+                      setTitle(draftScript.title || '');
+                      setDescription(draftScript.draft_description || draftScript.content || '');
+                      setLength(draftScript.draft_length || '短篇');
+                      setLastSavedAt(null);
                       setIsEditing(false);
+                      setHasUnsavedChanges(false);
                     } else {
-                      // 切换到已有集数时，保留草稿状态（不清除 selectedEpisodeForGeneration）
+                      // 切换到已有集数
                       handleEpisodeChange(episode);
                     }
                   }}
-                  onNewEpisode={() => setShowEpisodeModal(true)}
-                  draftEpisode={selectedEpisodeForGeneration}
+                  onNewEpisode={async () => {
+                    // 创建新集前自动保存当前草稿
+                    if (draftScript) {
+                      await saveDraft(true);
+                      showToast('草稿已自动保存', 'success');
+                    }
+                    setShowEpisodeModal(true);
+                  }}
+                  draftEpisode={draftEpisode}
                 />
 
                 <ScriptActions
@@ -364,32 +528,47 @@ const ScriptStudio: React.FC = () => {
                     description={description}
                     length={length}
                     loading={loading}
-                    nextEpisode={selectedEpisodeForGeneration || nextEpisode}
+                    nextEpisode={draftEpisode || nextEpisode}
                     onTitleChange={setTitle}
                     onDescriptionChange={setDescription}
                     onLengthChange={setLength}
                     generationProgress={generationProgress}
                     recapData={recapData}
                     recapLoading={recapLoading}
-                    onGenerate={() => {
+                    onSaveDraft={saveDraft}
+                    isSaving={isSaving}
+                    lastSavedAt={lastSavedAt}
+                    isDraft={!!draftScript}
+                    hasUnsavedChanges={hasUnsavedChanges}
+                    onGenerate={async () => {
                       if (!aiModels.selected.text) {
                         showToast('请先点击右上角「AI 模型」按钮选择文本模型', 'warning');
                         return;
                       }
-                      const episodeToGenerate = selectedEpisodeForGeneration || nextEpisode;
+                      // 生成前自动保存草稿
+                      if (draftScript) {
+                        // 先清除自动保存定时器
+                        if (autoSaveTimerRef.current) {
+                          clearTimeout(autoSaveTimerRef.current);
+                          autoSaveTimerRef.current = null;
+                        }
+                        await saveDraft(true);
+                        showToast('草稿已自动保存', 'success');
+                      }
+                      const episodeToGenerate = draftEpisode || nextEpisode;
                       handleGenerate(episodeToGenerate, title, description, length, nextEpisode, aiModels.selected.text);
-                      setSelectedEpisodeForGeneration(null);
+                      // 生成后不需要手动清除草稿，因为 generateScript API 会将草稿转为 generating 状态
                     }}
                     onManualSave={async (manualTitle, manualContent) => {
                       if (!selectedProject) {
                         showToast('请先选择一个项目', 'warning');
                         return;
                       }
-                      const ep = selectedEpisodeForGeneration || nextEpisode;
+                      const ep = draftEpisode || nextEpisode;
                       const result = await handleCreateScript(selectedProject.id, manualTitle, manualContent, ep);
                       if (result.success) {
                         showToast(result.message, 'success');
-                        setSelectedEpisodeForGeneration(null);
+                        // 手动保存后会自动重新加载 scripts，草稿会被替换为完成状态
                       } else {
                         showToast(result.message, 'error');
                       }
@@ -469,16 +648,23 @@ const ScriptStudio: React.FC = () => {
       <EpisodeSelectModal
         isOpen={showEpisodeModal}
         onClose={() => setShowEpisodeModal(false)}
-        scripts={scripts}
+        scripts={scripts as any}
         nextEpisode={nextEpisode}
-        onConfirm={(episodeNumber) => {
-          // 选择集数后，关闭对话框并显示表单
+        onConfirm={async (episodeNumber) => {
+          // 选择集数后，创建草稿记录到数据库
           setShowEpisodeModal(false);
-          setSelectedEpisodeForGeneration(episodeNumber);
-          // 清空当前剧本，显示生成表单
-          setScriptId(null);
-          setContent('');
-          setIsEditing(false);
+          if (selectedProject) {
+            const result = await handleCreateDraft(selectedProject.id, episodeNumber);
+            if (result.success) {
+              // 草稿创建成功，切换到草稿界面
+              setCurrentEpisode(episodeNumber);
+              setScriptId(null);
+              setContent('');
+              setIsEditing(false);
+            } else {
+              showToast(result.message || '创建草稿失败', 'error');
+            }
+          }
         }}
       />
 

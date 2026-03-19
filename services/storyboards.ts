@@ -70,3 +70,32 @@ export async function saveStoryboards(scriptId: number, items: StoryboardItem[])
     throw new Error(data?.message || 'Failed to save storyboards');
   }
 }
+
+export interface BatchValidationResult {
+  sceneId: number;
+  ready: boolean;
+  blockingIssues: string[];
+  warningIssues: string[];
+}
+
+export async function batchValidateScenes(
+  sceneIds: number[],
+  scriptId: number,
+  type: 'frame' | 'video'
+): Promise<{ results: BatchValidationResult[] }> {
+  const res = await fetch('/api/storyboards/batch-validate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ sceneIds, scriptId, type }),
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || 'Failed to batch validate scenes');
+  }
+
+  return data as { results: BatchValidationResult[] };
+}

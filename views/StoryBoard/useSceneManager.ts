@@ -71,6 +71,36 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
     };
   }, [scriptId]);
 
+  // 监听任务完成事件，刷新分镜数据
+  useEffect(() => {
+    if (!scriptId) return;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const handleTaskCompleted = (event: Event) => {
+      const customEvent = event as CustomEvent<{ completedJobIds: number[] }>;
+      console.log('[useSceneManager] 收到任务完成事件，准备刷新分镜数据', customEvent.detail);
+
+      // 使用防抖，避免短时间内多次刷新
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      debounceTimer = setTimeout(() => {
+        console.log('[useSceneManager] 执行分镜数据刷新');
+        loadStoryboards(scriptId);
+      }, 500);
+    };
+
+    window.addEventListener('storyboard:taskCompleted', handleTaskCompleted);
+
+    return () => {
+      window.removeEventListener('storyboard:taskCompleted', handleTaskCompleted);
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+    };
+  }, [scriptId]);
+
   const loadStoryboards = async (targetScriptId: number) => {
     if (!targetScriptId) return;
 

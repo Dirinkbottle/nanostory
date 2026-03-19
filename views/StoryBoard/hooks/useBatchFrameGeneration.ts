@@ -2,12 +2,11 @@
  * 批量分镜帧生成 Hook
  * 一键生成一集所有分镜的首帧/首尾帧图片
  * 支持页面刷新后自动恢复状态和进度
+ * 
+ * 此为 useBatchGeneration 的薄封装，保持原有接口兼容性
  */
 
-import { useCallback } from 'react';
-import { getAuthToken } from '../../../services/auth';
-import { validateBatchFrameReadiness, formatValidationMessage } from '../utils/validateFrameReadiness';
-import { useWorkflowRecovery } from './useWorkflowRecovery';
+import { useBatchGeneration, FRAME_GENERATION_CONFIG, StoryboardScene } from './useBatchGeneration';
 
 interface UseBatchFrameGenerationProps {
   scriptId: number | null;
@@ -15,7 +14,7 @@ interface UseBatchFrameGenerationProps {
   imageModel: string;
   aspectRatio: string;
   textModel: string;
-  scenes: { id?: number; characters: string[]; location: string }[];
+  scenes: StoryboardScene[];
   onComplete?: () => void;
   onError?: (message: string) => void;
 }
@@ -30,89 +29,27 @@ export function useBatchFrameGeneration({
   onComplete,
   onError
 }: UseBatchFrameGenerationProps) {
-  const recovery = useWorkflowRecovery({
+  const result = useBatchGeneration(FRAME_GENERATION_CONFIG, {
+    scriptId,
     projectId,
-    workflowTypes: ['batch_frame_generation'],
-    isActive: true,
-    onCompleted: () => {
-      console.log('[useBatchFrameGen] 批量生成完成');
-      onComplete?.();
-    },
-    onFailed: (failedJob) => {
-      console.error('[useBatchFrameGen] 批量生成失败:', failedJob.error_message);
-      onError?.('批量帧生成失败: ' + (failedJob.error_message || '未知错误'));
-    },
-    logPrefix: '[useBatchFrameGen]'
+    model: imageModel,
+    aspectRatio,
+    textModel,
+    scenes,
+    onComplete,
+    onError
   });
 
-  const startBatchGeneration = useCallback(async (overwriteFrames: boolean) => {
-    if (recovery.isGenerating) {
-      onError?.('批量帧生成任务正在进行中');
-      return;
-    }
-    if (!scriptId) {
-      onError?.('请先选择剧本');
-      return;
-    }
-    if (!imageModel) {
-      onError?.('请先选择图片模型');
-      return;
-    }
-    if (!aspectRatio) {
-      onError?.('当前图片模型未配置可用长宽比');
-      return;
-    }
-
-    // 前置校验：检查所有分镜涉及的角色和场景是否完整
-    if (projectId && scenes.length > 0) {
-      try {
-        const validation = await validateBatchFrameReadiness(projectId, scenes, scriptId);
-        if (!validation.ready) {
-          onError?.(formatValidationMessage(validation));
-          return;
-        }
-      } catch (err) {
-        console.error('[useBatchFrameGen] 预检失败:', err);
-      }
-    }
-
-    try {
-      const token = getAuthToken();
-      const res = await fetch(`/api/storyboards/batch-generate-frames/${scriptId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({
-          imageModel,
-          aspectRatio,
-          textModel,
-          overwriteFrames,
-          projectId
-        })
-      });
-
-      const data = await res.json();
-
-      if (data.jobId && (res.ok || res.status === 409)) {
-        console.log('[useBatchFrameGen] 任务已启动, jobId:', data.jobId);
-        recovery.startJob(data.jobId);
-      } else {
-        onError?.(data.message || '启动批量生成失败');
-      }
-    } catch (error) {
-      console.error('[useBatchFrameGen] 启动失败:', error);
-      onError?.('启动批量生成失败，请检查网络连接');
-    }
-  }, [scriptId, imageModel, aspectRatio, projectId, scenes, recovery, onError]);
-
+  // 保持原有接口兼容性
   return {
-    startBatchGeneration,
-    isGenerating: recovery.isGenerating,
-    isCompleted: recovery.isCompleted,
-    isFailed: recovery.isFailed,
-    progress: recovery.overallProgress,
-    job: recovery.job
+    startBatchGeneration: result.startBatchGeneration,
+    isGenerating: result.isGenerating,
+    isCompleted: result.isCompleted,
+    isFailed: result.isFailed,
+    progress: result.progress,
+    job: result.job,
+    // 新增：部分批量支持
+    skippedScenes: result.skippedScenes,
+    validSceneCount: result.validSceneCount
   };
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Card, CardBody, Button, Input, Textarea, Select, SelectItem } from '@heroui/react';
-import { FileText, PenLine, Sparkles } from 'lucide-react';
+import { Card, CardBody, Button, Input, Textarea, Select, SelectItem, Spinner } from '@heroui/react';
+import { FileText, PenLine, Sparkles, Save, Loader2 } from 'lucide-react';
 import ManualScriptForm from './ManualScriptForm';
 import PreviousEpisodesRecap, { RecapData } from './PreviousEpisodesRecap';
 
@@ -25,6 +25,12 @@ interface ScriptGeneratorFormProps {
   // 新增：前情回顾数据
   recapData?: RecapData | null;
   recapLoading?: boolean;
+  // 新增：草稿保存（故事走向就是草稿）
+  onSaveDraft?: () => void;
+  isSaving?: boolean;
+  lastSavedAt?: string | null;
+  isDraft?: boolean;
+  hasUnsavedChanges?: boolean;
 }
 
 const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
@@ -40,10 +46,22 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
   onManualSave,
   generationProgress,
   recapData,
-  recapLoading
+  recapLoading,
+  onSaveDraft,
+  isSaving,
+  lastSavedAt,
+  isDraft,
+  hasUnsavedChanges
 }) => {
   const isFirstEpisode = nextEpisode === 1;
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
+  
+  // 格式化保存时间
+  const formatSavedTime = (isoString: string | null | undefined) => {
+    if (!isoString) return null;
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  };
   
   return (
     <Card className="bg-slate-900/80 border border-slate-700/50 shadow-lg shadow-black/20 rounded-2xl">
@@ -114,21 +132,64 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
               }}
             />
 
-            <Textarea
-              label={isFirstEpisode ? "故事概述" : "故事走向"}
-              placeholder={isFirstEpisode 
-                ? "描述你的故事创意..." 
-                : "描述你希望剧情如何发展，例如：主角发现了隐藏的真相..."
-              }
-              value={description}
-              onValueChange={onDescriptionChange}
-              minRows={4}
-              classNames={{
-                input: "bg-transparent text-slate-100 font-medium placeholder:text-slate-500",
-                label: "text-slate-400 font-medium",
-                inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 data-[focus=true]:border-blue-500 shadow-sm"
-              }}
-            />
+            <div>
+              <Textarea
+                label={
+                  <div className="flex items-center gap-2 w-full">
+                    <span>故事走向</span>
+                    {isDraft && (
+                      <span className="text-xs px-1.5 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded font-normal">
+                        草稿
+                      </span>
+                    )}
+                  </div>
+                }
+                placeholder={isFirstEpisode 
+                  ? "描述你的故事创意..." 
+                  : "描述你希望剧情如何发展..."
+                }
+                value={description}
+                onValueChange={onDescriptionChange}
+                minRows={4}
+                classNames={{
+                  input: "bg-transparent text-slate-100 font-medium placeholder:text-slate-500",
+                  label: "text-slate-400 font-medium w-full",
+                  inputWrapper: "bg-slate-800/60 border border-slate-600 hover:border-slate-500 data-[focus=true]:border-slate-400 shadow-sm"
+                }}
+              />
+              {/* 状态/操作栏 - 仅在草稿模式下显示 */}
+              {isDraft && (
+                <div className="flex items-center justify-between px-1 mt-1.5">
+                  <span className="text-xs text-slate-500">
+                    {isSaving ? (
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        保存中...
+                      </span>
+                    ) : hasUnsavedChanges ? (
+                      <span className="text-amber-400/80">未保存的更改</span>
+                    ) : lastSavedAt ? (
+                      <span>已自动保存 {formatSavedTime(lastSavedAt)}</span>
+                    ) : null}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <kbd className="text-xs text-slate-600 bg-slate-800/60 border border-slate-700 rounded px-1.5 py-0.5 font-mono">
+                      Ctrl+S
+                    </kbd>
+                    <Button
+                      size="sm"
+                      variant="light"
+                      className="text-slate-400 hover:text-slate-200 h-6 min-w-0 px-2 text-xs"
+                      startContent={<Save className="w-3 h-3" />}
+                      isLoading={isSaving}
+                      onPress={onSaveDraft}
+                    >
+                      保存草稿
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="pt-2">
               <Select
@@ -165,7 +226,7 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
                     ? `${generationProgress.step}/${generationProgress.totalSteps} ${generationProgress.stepName}...` 
                     : '启动生成...'
                   )
-                : `生成第${nextEpisode}集`
+                : isDraft ? `基于草稿生成第${nextEpisode}集` : `生成第${nextEpisode}集`
               }
             </Button>
           </>

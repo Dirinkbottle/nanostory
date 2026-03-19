@@ -203,19 +203,29 @@ async function generateScript(req, res) {
     }
 
     // 检查该集是否已存在（使用合并查询的结果）
+    let scriptId;
     if (combinedQuery.existing_script_id && combinedQuery.existing_script_status) {
       if (combinedQuery.existing_script_status === 'generating') {
         return res.status(400).json({ message: `第${targetEpisode}集正在生成中，请稍候` });
       }
-      return res.status(400).json({ message: `第${targetEpisode}集已存在，请编辑或生成下一集` });
+      if (combinedQuery.existing_script_status === 'draft') {
+        // 草稿状态，更新为生成中
+        await execute(
+          'UPDATE scripts SET status = ?, title = ?, updated_at = NOW() WHERE id = ?',
+          ['generating', title || `第${targetEpisode}集`, combinedQuery.existing_script_id]
+        );
+        scriptId = combinedQuery.existing_script_id;
+      } else {
+        return res.status(400).json({ message: `第${targetEpisode}集已存在，请编辑或生成下一集` });
+      }
+    } else {
+      // 创建生成中的剧本记录
+      const insertResult = await execute(
+        'INSERT INTO scripts (user_id, project_id, episode_number, title, content, status) VALUES (?, ?, ?, ?, ?, ?)', 
+        [userId, projectId, targetEpisode, title || `第${targetEpisode}集`, '', 'generating']
+      );
+      scriptId = insertResult.insertId;
     }
-
-    // 创建生成中的剧本记录
-    const insertResult = await execute(
-      'INSERT INTO scripts (user_id, project_id, episode_number, title, content, status) VALUES (?, ?, ?, ?, ?, ?)', 
-      [userId, projectId, targetEpisode, title || `第${targetEpisode}集`, '', 'generating']
-    );
-    const scriptId = insertResult.insertId;
 
     console.log('[Generate Script] 准备启动工作流:', {
       workflowType: 'script_only',

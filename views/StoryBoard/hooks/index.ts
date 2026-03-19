@@ -7,3 +7,13 @@ export { useCharacterViewsGeneration } from './useCharacterViewsGeneration';
 export { useWorkflowRecovery } from './useWorkflowRecovery';
 export { useBatchFrameGeneration } from './useBatchFrameGeneration';
 export { useBatchSceneVideoGeneration } from './useBatchSceneVideoGeneration';
+export { 
+  useBatchGeneration, 
+  FRAME_GENERATION_CONFIG, 
+  VIDEO_GENERATION_CONFIG,
+  type BatchGenerationConfig,
+  type UseBatchGenerationProps,
+  type BatchGenerationResult,
+  type StoryboardScene,
+  type SkippedSceneInfo
+} from './useBatchGeneration';

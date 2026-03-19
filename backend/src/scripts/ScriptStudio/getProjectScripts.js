@@ -18,7 +18,7 @@ async function getProjectScripts(req, res) {
 
     // 获取项目的所有剧本（按集数排序）
     const scripts = await queryAll(
-      `SELECT id, episode_number, title, content, model_provider, token_used, status, created_at, updated_at 
+      `SELECT id, episode_number, title, content, draft_description, draft_length, model_provider, token_used, status, created_at, updated_at 
        FROM scripts WHERE project_id = ? AND user_id = ? 
        ORDER BY episode_number ASC`,
       [projectId, userId]

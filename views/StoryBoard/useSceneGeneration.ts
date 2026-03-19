@@ -65,19 +65,41 @@ function normalizeFrameResult(result: any) {
   return { startFrame, endFrame };
 }
 
-function persistStoryboardMedia(storyboardId: number, payload: Record<string, unknown>) {
+async function persistStoryboardMedia(storyboardId: number, payload: Record<string, unknown>) {
   const token = getAuthToken();
 
-  return fetch(`/api/storyboards/${storyboardId}/media`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
-    body: JSON.stringify(payload)
-  }).catch((error) => {
-    console.error('保存分镜媒体失败:', error);
-  });
+  const doFetch = () =>
+    fetch(`/api/storyboards/${storyboardId}/media`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(payload)
+    });
+
+  try {
+    const res = await doFetch();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
+  } catch (firstError) {
+    console.warn('[persistStoryboardMedia] First attempt failed, retrying in 2s...', firstError);
+    await new Promise((r) => setTimeout(r, 2000));
+    try {
+      const res = await doFetch();
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res;
+    } catch (retryError) {
+      console.error('[persistStoryboardMedia] Retry failed:', retryError);
+      // Dispatch event for UI notification
+      window.dispatchEvent(
+        new CustomEvent('storyboard:mediaPersistFailed', {
+          detail: { storyboardId, error: (retryError as Error).message }
+        })
+      );
+      throw retryError;
+    }
+  }
 }
 
 export function useSceneGeneration({

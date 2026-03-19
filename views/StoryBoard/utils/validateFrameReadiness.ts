@@ -8,6 +8,7 @@
  */
 
 import { getAuthToken } from '../../../services/auth';
+import { batchValidateScenes } from '../../../services/storyboards';
 
 export interface ValidationIssue {
   type: string;
@@ -226,14 +227,77 @@ export async function validateFrameReadiness(
 }
 
 /**
- * 批量帧生成预检：遍历所有分镜，汇总校验问题
+ * 批量帧生成预检：通过单次请求校验所有分镜
  * 
- * @param projectId  项目 ID
- * @param scenes     分镜列表（需包含 characters 和 location）
- * @param scriptId   可选，剧本 ID
+ * @param projectId  项目 ID（保留参数以保持接口兼容）
+ * @param scenes     分镜列表（需包含 id, characters 和 location）
+ * @param scriptId   剧本 ID
+ * @param type       校验类型：'frame' | 'video'，默认 'frame'
  * @returns 汇总的校验结果（去重后的 blocking issues）
  */
 export async function validateBatchFrameReadiness(
+  projectId: number,
+  scenes: { id?: number; characters: string[]; location: string }[],
+  scriptId?: number,
+  type: 'frame' | 'video' = 'frame'
+): Promise<ValidationResult> {
+  // 过滤出有 id 的分镜
+  const scenesWithId = scenes.filter(s => s.id != null) as { id: number; characters: string[]; location: string }[];
+  
+  if (scenesWithId.length === 0 || !scriptId) {
+    // 无有效分镜或无 scriptId，返回空结果
+    return {
+      ready: true,
+      issues: [],
+      blockingIssues: [],
+      warningIssues: [],
+    };
+  }
+
+  try {
+    const sceneIds = scenesWithId.map(s => s.id);
+    const response = await batchValidateScenes(sceneIds, scriptId, type);
+    
+    // 汇总所有问题
+    const allIssues: ValidationIssue[] = [];
+    
+    for (const result of response.results) {
+      for (const message of result.blockingIssues) {
+        allIssues.push({ type: 'blocking', message, blocking: true });
+      }
+      for (const message of result.warningIssues) {
+        allIssues.push({ type: 'warning', message, blocking: false });
+      }
+    }
+
+    // 去重（同一条 message 只保留一次）
+    const seen = new Set<string>();
+    const uniqueIssues = allIssues.filter(i => {
+      if (seen.has(i.message)) return false;
+      seen.add(i.message);
+      return true;
+    });
+
+    const blockingIssues = uniqueIssues.filter(i => i.blocking);
+    const warningIssues = uniqueIssues.filter(i => !i.blocking);
+
+    return {
+      ready: blockingIssues.length === 0,
+      issues: uniqueIssues,
+      blockingIssues,
+      warningIssues,
+    };
+  } catch (e) {
+    console.warn('[validateBatchFrameReadiness] 批量校验失败，降级为逐个校验:', e);
+    // 降级：逐个校验（原有逻辑）
+    return await validateBatchFrameReadinessLegacy(projectId, scenes, scriptId);
+  }
+}
+
+/**
+ * 批量帧生成预检（原有逻辑，作为降级方案）
+ */
+async function validateBatchFrameReadinessLegacy(
   projectId: number,
   scenes: { id?: number; characters: string[]; location: string }[],
   scriptId?: number

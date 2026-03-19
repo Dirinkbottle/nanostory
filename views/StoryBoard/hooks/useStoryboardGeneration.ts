@@ -22,12 +22,20 @@ const STEP_NAMES: Record<string, string> = {
   single_frame_generation: '生成单帧'
 };
 
+// Per-scene progress tracking
+export interface SceneProgress {
+  sceneId: number;
+  sceneIndex: number;
+  status: 'pending' | 'generating' | 'completed' | 'failed';
+}
+
 export interface GenerationProgress {
   currentStep: number;
   totalSteps: number;
   stepName: string;
   stepStatus: 'pending' | 'processing' | 'completed' | 'failed';
   overallProgress: number; // 0-100
+  sceneStatuses: SceneProgress[]; // Per-scene status tracking
 }
 
 interface UseStoryboardGenerationProps {
@@ -145,13 +153,60 @@ export function useStoryboardGeneration({
       (completedCount / totalSteps) * 100 + 
       (processingProgress / 100) * (100 / totalSteps)
     );
+
+    // Build per-scene status from job metadata and tasks
+    const sceneStatuses: SceneProgress[] = [];
+    const inputParams = recovery.job.input_params as any;
+    
+    // Try to extract scene info from input params or tasks
+    if (inputParams?.scenes && Array.isArray(inputParams.scenes)) {
+      inputParams.scenes.forEach((scene: any, index: number) => {
+        const sceneId = scene.id || scene.sceneId || index;
+        // Check if there's a task for this scene
+        const sceneTask = tasks.find((t: any) => 
+          t.metadata?.sceneId === sceneId || 
+          t.metadata?.scene_id === sceneId ||
+          t.metadata?.sceneIndex === index
+        );
+        
+        let status: SceneProgress['status'] = 'pending';
+        if (sceneTask) {
+          switch (sceneTask.status) {
+            case 'completed': status = 'completed'; break;
+            case 'processing': status = 'generating'; break;
+            case 'failed': status = 'failed'; break;
+            default: status = 'pending';
+          }
+        } else if (index < completedCount) {
+          status = 'completed';
+        } else if (index === completedCount && processingTask) {
+          status = 'generating';
+        }
+        
+        sceneStatuses.push({ sceneId, sceneIndex: index, status });
+      });
+    } else {
+      // Fallback: create scene statuses based on task count
+      tasks.forEach((task: any, index: number) => {
+        const sceneId = task.metadata?.sceneId || task.metadata?.scene_id || index;
+        let status: SceneProgress['status'] = 'pending';
+        switch (task.status) {
+          case 'completed': status = 'completed'; break;
+          case 'processing': status = 'generating'; break;
+          case 'failed': status = 'failed'; break;
+          default: status = 'pending';
+        }
+        sceneStatuses.push({ sceneId, sceneIndex: index, status });
+      });
+    }
     
     return {
       currentStep,
       totalSteps,
       stepName,
       stepStatus,
-      overallProgress: Math.min(overallProgress, 99) // 完成前最多99%
+      overallProgress: Math.min(overallProgress, 99), // 完成前最多99%
+      sceneStatuses
     };
   }, [recovery.job]);
 
