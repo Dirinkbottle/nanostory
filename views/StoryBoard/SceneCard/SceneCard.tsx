@@ -12,6 +12,7 @@ import { getAuthToken } from '../../../services/auth';
 import { validateFrameReadiness, formatValidationMessage } from '../utils/validateFrameReadiness';
 import { useToast } from '../../../contexts/ToastContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
+import { SpatialDescription } from '../useSceneManager';
 
 export interface SceneCardProps {
   scene: StoryboardScene;
@@ -110,6 +111,53 @@ const SceneCard: React.FC<SceneCardProps> = ({
       console.log('[SceneCard] 已删除首尾帧, sceneId:', scene.id);
     } catch (err) {
       console.error('[SceneCard] 删除首尾帧失败:', err);
+    }
+  }, [scene.id, onUpdateScene]);
+
+  // 独立删除首帧
+  const handleDeleteFirstFrame = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      await fetch(`/api/storyboards/${scene.id}/media`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ firstFrameUrl: null })
+      });
+      // 更新本地状态：只清除 startFrame
+      if (onUpdateScene) {
+        onUpdateScene(scene.id, { 
+          startFrame: undefined, 
+          imageUrl: scene.endFrame || undefined 
+        });
+      }
+      console.log('[SceneCard] 已删除首帧, sceneId:', scene.id);
+    } catch (err) {
+      console.error('[SceneCard] 删除首帧失败:', err);
+    }
+  }, [scene.id, scene.endFrame, onUpdateScene]);
+
+  // 独立删除尾帧
+  const handleDeleteLastFrame = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      await fetch(`/api/storyboards/${scene.id}/media`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ lastFrameUrl: null })
+      });
+      // 更新本地状态：只清除 endFrame
+      if (onUpdateScene) {
+        onUpdateScene(scene.id, { endFrame: undefined });
+      }
+      console.log('[SceneCard] 已删除尾帧, sceneId:', scene.id);
+    } catch (err) {
+      console.error('[SceneCard] 删除尾帧失败:', err);
     }
   }, [scene.id, onUpdateScene]);
 
@@ -262,10 +310,13 @@ const SceneCard: React.FC<SceneCardProps> = ({
                 startFrame={scene.startFrame}
                 endFrame={scene.endFrame}
                 hasAction={scene.hasAction}
+                hasVideo={!!scene.videoUrl}
                 sceneDescription={scene.description}
                 isGenerating={isGeneratingImage}
                 onGenerate={handleGenerateImageWithValidation}
                 onDeleteFrames={handleDeleteFrames}
+                onDeleteFirstFrame={handleDeleteFirstFrame}
+                onDeleteLastFrame={handleDeleteLastFrame}
               />
             )}
 
@@ -281,7 +332,14 @@ const SceneCard: React.FC<SceneCardProps> = ({
                 onDelete={handleDeleteClick}
               />
 
-              <SceneCardMetadata scene={scene} />
+              <SceneCardMetadata 
+                scene={scene} 
+                onUpdateSpatialDescription={(spatialDescription) => {
+                  if (onUpdateScene) {
+                    onUpdateScene(scene.id, { spatialDescription });
+                  }
+                }}
+              />
 
               <SceneCardActions
                 scene={scene}

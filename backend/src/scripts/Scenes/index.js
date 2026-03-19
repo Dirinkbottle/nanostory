@@ -83,17 +83,21 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // 创建场景
 router.post('/', authMiddleware, async (req, res) => {
   const userId = req.user.id;
-  const { name, description, environment, lighting, mood, image_url, tags } = req.body;
+  const { name, description, environment, lighting, mood, image_url, tags, spatial_layout, camera_defaults } = req.body;
 
   if (!name) {
     return res.status(400).json({ message: '场景名称不能为空' });
   }
 
+  // 序列化空间布局和摄像机默认参数为JSON字符串
+  const spatialLayoutJson = spatial_layout ? (typeof spatial_layout === 'string' ? spatial_layout : JSON.stringify(spatial_layout)) : null;
+  const cameraDefaultsJson = camera_defaults ? (typeof camera_defaults === 'string' ? camera_defaults : JSON.stringify(camera_defaults)) : null;
+
   try {
     const result = await execute(
-      `INSERT INTO scenes (user_id, name, description, environment, lighting, mood, image_url, tags) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, name, description || '', environment || '', lighting || '', mood || '', image_url || '', tags || '']
+      `INSERT INTO scenes (user_id, name, description, environment, lighting, mood, image_url, tags, spatial_layout, camera_defaults) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, name, description || '', environment || '', lighting || '', mood || '', image_url || '', tags || '', spatialLayoutJson, cameraDefaultsJson]
     );
 
     const id = result.insertId;
@@ -110,7 +114,7 @@ router.post('/', authMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
-  const { name, description, environment, lighting, mood, image_url, tags } = req.body;
+  const { name, description, environment, lighting, mood, image_url, tags, spatial_layout, camera_defaults } = req.body;
 
   try {
     const existing = await queryOne(
@@ -122,12 +126,23 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: '场景不存在' });
     }
 
+    // 序列化空间布局和摄像机默认参数为JSON字符串
+    // 注意：使用 undefined 检查以区分"未传递"和"显式传 null 清空"
+    let spatialLayoutJson = existing.spatial_layout;
+    if (spatial_layout !== undefined) {
+      spatialLayoutJson = spatial_layout ? (typeof spatial_layout === 'string' ? spatial_layout : JSON.stringify(spatial_layout)) : null;
+    }
+    let cameraDefaultsJson = existing.camera_defaults;
+    if (camera_defaults !== undefined) {
+      cameraDefaultsJson = camera_defaults ? (typeof camera_defaults === 'string' ? camera_defaults : JSON.stringify(camera_defaults)) : null;
+    }
+
     await execute(
       `UPDATE scenes 
-       SET name = ?, description = ?, environment = ?, lighting = ?, mood = ?, image_url = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+       SET name = ?, description = ?, environment = ?, lighting = ?, mood = ?, image_url = ?, tags = ?, spatial_layout = ?, camera_defaults = ?, updated_at = CURRENT_TIMESTAMP
        WHERE id = ? AND user_id = ?`,
       [name || existing.name, description || existing.description, environment || existing.environment,
-       lighting || existing.lighting, mood || existing.mood, image_url || existing.image_url, tags || existing.tags, id, userId]
+       lighting || existing.lighting, mood || existing.mood, image_url || existing.image_url, tags || existing.tags, spatialLayoutJson, cameraDefaultsJson, id, userId]
     );
 
     const scene = await queryOne('SELECT * FROM scenes WHERE id = ?', [id]);

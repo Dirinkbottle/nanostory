@@ -18,6 +18,21 @@ export interface LinkedScene {
   image_url?: string;
 }
 
+// 分镜空间描述接口
+export interface CharacterPosition {
+  name: string;
+  position: string;
+  depth?: string;
+  facing?: string;
+}
+
+export interface SpatialDescription {
+  characterPositions?: CharacterPosition[];
+  cameraAngle?: string;
+  spatialRelationship?: string;
+  environmentDepth?: string;
+}
+
 export interface StoryboardScene {
   id: number;
   order: number;
@@ -41,6 +56,7 @@ export interface StoryboardScene {
   linkedCharacters?: LinkedCharacter[];
   linkedScenes?: LinkedScene[];
   directorParams?: DirectorParams;  // 导演参数
+  spatialDescription?: SpatialDescription;  // 空间描述
 }
 
 export const useSceneManager = (scriptId: number | null, projectId?: number | null) => {
@@ -167,7 +183,8 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
               endState: vars.endState || undefined,
               linkedCharacters: item.linkedCharacters || [],
               linkedScenes: item.linkedScenes || [],
-              directorParams: vars.directorParams || undefined  // 导演参数
+              directorParams: vars.directorParams || undefined,  // 导演参数
+              spatialDescription: item.spatial_description || undefined  // 空间描述
             };
           });
 

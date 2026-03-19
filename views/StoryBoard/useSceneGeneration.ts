@@ -264,10 +264,74 @@ export function useSceneGeneration({
     }
   };
 
+  // 独立删除首帧
+  const deleteFirstFrame = async (sceneId: number): Promise<{ success: boolean; error?: string; warnings?: string[] }> => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/storyboards/${sceneId}/media`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ firstFrameUrl: null })
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      
+      const data = await res.json();
+      
+      // 更新本地状态：只清除 startFrame
+      setScenes(prev => prev.map(s => 
+        s.id === sceneId 
+          ? { ...s, startFrame: undefined, imageUrl: s.endFrame || undefined } 
+          : s
+      ));
+      
+      return { success: true, warnings: data.warnings };
+    } catch (err: any) {
+      console.error('删除首帧失败:', err);
+      return { success: false, error: err.message || '删除首帧失败' };
+    }
+  };
+
+  // 独立删除尾帧
+  const deleteLastFrame = async (sceneId: number): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/storyboards/${sceneId}/media`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ lastFrameUrl: null })
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      
+      // 更新本地状态：只清除 endFrame
+      setScenes(prev => prev.map(s => 
+        s.id === sceneId ? { ...s, endFrame: undefined } : s
+      ));
+      
+      return { success: true };
+    } catch (err: any) {
+      console.error('删除尾帧失败:', err);
+      return { success: false, error: err.message || '删除尾帧失败' };
+    }
+  };
+
   return {
     tasks,
     isRunning,
     generateImage,
-    generateVideo
+    generateVideo,
+    deleteFirstFrame,
+    deleteLastFrame
   };
 }

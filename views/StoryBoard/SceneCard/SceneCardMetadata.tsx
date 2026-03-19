@@ -1,13 +1,47 @@
-import React from 'react';
-import { Chip } from '@heroui/react';
-import { Video } from 'lucide-react';
-import { StoryboardScene } from '../useSceneManager';
+import React, { useState } from 'react';
+import { Chip, Button } from '@heroui/react';
+import { Video, MapPin, Edit3 } from 'lucide-react';
+import { StoryboardScene, SpatialDescription } from '../useSceneManager';
+import SpatialDescriptionEditor from './SpatialDescriptionEditor';
+import { updateSpatialDescription } from '../../../services/storyboards';
+import { useToast } from '../../../contexts/ToastContext';
 
 interface SceneCardMetadataProps {
   scene: StoryboardScene;
+  onUpdateSpatialDescription?: (spatialDescription: SpatialDescription | undefined) => void;
 }
 
-const SceneCardMetadata: React.FC<SceneCardMetadataProps> = ({ scene }) => {
+const SceneCardMetadata: React.FC<SceneCardMetadataProps> = ({ scene, onUpdateSpatialDescription }) => {
+  const [showSpatialEditor, setShowSpatialEditor] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const { showToast } = useToast();
+
+  const handleSaveSpatialDescription = async (spatialDesc: SpatialDescription | null) => {
+    setIsSaving(true);
+    try {
+      await updateSpatialDescription(scene.id, spatialDesc);
+      if (onUpdateSpatialDescription) {
+        onUpdateSpatialDescription(spatialDesc || undefined);
+      }
+      showToast('空间描述已保存', 'success');
+    } catch (error: any) {
+      showToast(error.message || '保存失败', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 格式化空间描述显示
+  const formatSpatialSummary = (spatial: SpatialDescription): string => {
+    const parts: string[] = [];
+    if (spatial.characterPositions && spatial.characterPositions.length > 0) {
+      parts.push(`${spatial.characterPositions.length}个角色位置`);
+    }
+    if (spatial.cameraAngle) parts.push(spatial.cameraAngle);
+    if (spatial.spatialRelationship) parts.push('有空间关系');
+    return parts.join(' · ') || '已设置';
+  };
+
   return (
     <div className="space-y-3 mt-3">
       {/* 镜头类型和场景位置 */}
@@ -32,6 +66,21 @@ const SceneCardMetadata: React.FC<SceneCardMetadataProps> = ({ scene }) => {
             有动作
           </Chip>
         )}
+      </div>
+
+      {/* 空间描述区域 */}
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="flat"
+          className={`text-xs ${scene.spatialDescription ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700/30 text-slate-400'}`}
+          onPress={() => setShowSpatialEditor(true)}
+          isLoading={isSaving}
+          startContent={<MapPin className="w-3 h-3" />}
+          endContent={<Edit3 className="w-3 h-3 opacity-60" />}
+        >
+          {scene.spatialDescription ? formatSpatialSummary(scene.spatialDescription) : '添加空间描述'}
+        </Button>
       </div>
 
       {/* 首尾帧 */}
@@ -81,6 +130,15 @@ const SceneCardMetadata: React.FC<SceneCardMetadataProps> = ({ scene }) => {
           </div>
         </div>
       )}
+
+      {/* 空间描述编辑器 */}
+      <SpatialDescriptionEditor
+        isOpen={showSpatialEditor}
+        onClose={() => setShowSpatialEditor(false)}
+        spatialDescription={scene.spatialDescription}
+        characters={scene.characters || []}
+        onSave={handleSaveSpatialDescription}
+      />
     </div>
   );
 };

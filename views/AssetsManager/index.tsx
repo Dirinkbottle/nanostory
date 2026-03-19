@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Input, Tabs, Tab, useDisclosure } from '@heroui/react';
-import { Users, MapPin, FileText, Plus, Search, Tag } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button, Input, Tabs, Tab, useDisclosure, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Popover, PopoverTrigger, PopoverContent } from '@heroui/react';
+import { Users, MapPin, FileText, Plus, Search, Tag, Settings, X, Edit2, ChevronDown, ChevronRight } from 'lucide-react';
 import { getAuthToken } from '../../services/auth';
 import { useSceneImageGeneration } from '../StoryBoard/hooks/useSceneImageGeneration';
 import SceneDetailModal from '../StoryBoard/ResourcePanel/SceneDetailModal';
 import { 
-  Character, Scene, Prop,
+  Character, Scene, Prop, TagGroup, CharacterTagGroupEntry,
   fetchCharacters, fetchScenes, fetchProps,
   createCharacter, createScene, createProp,
   updateCharacter, updateScene, updateProp,
-  deleteCharacter, deleteScene, deleteProp
+  deleteCharacter, deleteScene, deleteProp,
+  fetchTagGroups, createTagGroup, updateTagGroup, deleteTagGroup,
+  TAG_GROUP_COLORS
 } from '../../services/assets';
 import CharacterList from './CharacterList';
 import SceneList from './SceneList';
@@ -17,23 +19,263 @@ import PropList from './PropList';
 import { CharacterModal, SceneModal, PropModal } from './AssetModel';
 import { useToast } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
+import { AIModel } from '../../components/AIModelSelector';
 
 type TabType = 'characters' | 'scenes' | 'props';
+
+// 标签分组管理面板组件
+interface TagGroupManagerProps {
+  isOpen: boolean;
+  onOpenChange: () => void;
+  tagGroups: TagGroup[];
+  onRefresh: () => void;
+}
+
+const TagGroupManager: React.FC<TagGroupManagerProps> = ({ isOpen, onOpenChange, tagGroups, onRefresh }) => {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newColor, setNewColor] = useState(TAG_GROUP_COLORS[0]);
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
+
+  const handleStartEdit = (group: TagGroup) => {
+    setEditingId(group.id);
+    setEditName(group.name);
+    setEditColor(group.color);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId || !editName.trim()) return;
+    try {
+      await updateTagGroup(editingId, { name: editName.trim(), color: editColor });
+      setEditingId(null);
+      onRefresh();
+      showToast('分组更新成功', 'success');
+    } catch (error: any) {
+      showToast(error.message, 'error');
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    const confirmed = await confirm({
+      title: '删除确认',
+      message: '确定要删除这个标签分组吗？',
+      type: 'danger',
+      confirmText: '删除'
+    });
+    if (!confirmed) return;
+    try {
+      await deleteTagGroup(id);
+      onRefresh();
+      showToast('分组删除成功', 'success');
+    } catch (error: any) {
+      showToast(error.message, 'error');
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    try {
+      await createTagGroup({ name: newName.trim(), color: newColor });
+      setNewName('');
+      setNewColor(TAG_GROUP_COLORS[0]);
+      onRefresh();
+      showToast('分组创建成功', 'success');
+    } catch (error: any) {
+      showToast(error.message, 'error');
+    }
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+      size="lg"
+      classNames={{
+        base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50",
+        header: "border-b border-slate-700/50",
+        body: "py-4"
+      }}
+    >
+      <ModalContent>
+        {(onClose) => (
+          <>
+            <ModalHeader className="text-slate-100 font-bold flex items-center gap-2">
+              <Tag className="w-5 h-5" />
+              标签分组管理
+            </ModalHeader>
+            <ModalBody className="space-y-4">
+              {/* 新建分组 */}
+              <div className="flex gap-2 items-center p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                <Input
+                  size="sm"
+                  placeholder="输入新分组名称"
+                  value={newName}
+                  onValueChange={setNewName}
+                  classNames={{
+                    input: "bg-transparent text-slate-100",
+                    inputWrapper: "bg-slate-700/60 border border-slate-600/50"
+                  }}
+                  className="flex-1"
+                />
+                <Popover>
+                  <PopoverTrigger>
+                    <button
+                      className="w-8 h-8 rounded-full border-2 border-white/20 flex-shrink-0"
+                      style={{ backgroundColor: newColor }}
+                    />
+                  </PopoverTrigger>
+                  <PopoverContent className="bg-slate-800 border border-slate-700 p-2">
+                    <div className="flex flex-wrap gap-2 max-w-[200px]">
+                      {TAG_GROUP_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => setNewColor(color)}
+                          className={`w-6 h-6 rounded-full transition-all ${
+                            newColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : ''
+                          }`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <Button
+                  size="sm"
+                  className="bg-blue-500 text-white"
+                  onPress={handleCreate}
+                  isDisabled={!newName.trim()}
+                >
+                  <Plus className="w-4 h-4" />
+                  添加
+                </Button>
+              </div>
+
+              {/* 分组列表 */}
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {tagGroups.length === 0 ? (
+                  <div className="text-center text-slate-500 py-8">
+                    暂无标签分组，点击上方添加
+                  </div>
+                ) : (
+                  tagGroups.map((group) => (
+                    <div
+                      key={group.id}
+                      className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-lg border border-slate-700/30 hover:border-slate-600/50 transition-colors"
+                    >
+                      {editingId === group.id ? (
+                        <>
+                          <Popover>
+                            <PopoverTrigger>
+                              <button
+                                className="w-6 h-6 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: editColor }}
+                              />
+                            </PopoverTrigger>
+                            <PopoverContent className="bg-slate-800 border border-slate-700 p-2">
+                              <div className="flex flex-wrap gap-2 max-w-[200px]">
+                                {TAG_GROUP_COLORS.map((color) => (
+                                  <button
+                                    key={color}
+                                    onClick={() => setEditColor(color)}
+                                    className={`w-6 h-6 rounded-full transition-all ${
+                                      editColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : ''
+                                    }`}
+                                    style={{ backgroundColor: color }}
+                                  />
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          <Input
+                            size="sm"
+                            value={editName}
+                            onValueChange={setEditName}
+                            classNames={{
+                              input: "bg-transparent text-slate-100",
+                              inputWrapper: "bg-slate-700/60 border border-slate-600/50"
+                            }}
+                            className="flex-1"
+                          />
+                          <Button size="sm" className="bg-green-500 text-white" onPress={handleSaveEdit}>
+                            保存
+                          </Button>
+                          <Button size="sm" variant="light" onPress={() => setEditingId(null)}>
+                            取消
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <span
+                            className="w-4 h-4 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: group.color }}
+                          />
+                          <span className="flex-1 text-slate-200">{group.name}</span>
+                          <Button
+                            size="sm"
+                            isIconOnly
+                            variant="light"
+                            onPress={() => handleStartEdit(group)}
+                            className="text-slate-400 hover:text-blue-400"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            isIconOnly
+                            variant="light"
+                            onPress={() => handleDelete(group.id)}
+                            className="text-slate-400 hover:text-red-400"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="light" onPress={onClose} className="text-slate-400">
+                关闭
+              </Button>
+            </ModalFooter>
+          </>
+        )}
+      </ModalContent>
+    </Modal>
+  );
+};
 
 const AssetsManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('characters');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [props, setProps] = useState<Prop[]>([]);
+  const [tagGroups, setTagGroups] = useState<TagGroup[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  // 分组筛选状态：{ groupId: number, tag: string } | null
+  const [activeGroupFilter, setActiveGroupFilter] = useState<{ groupId: number; tag: string } | null>(null);
+  // 展开的分组
+  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
+  // AI 模型列表
+  const [aiModels, setAiModels] = useState<AIModel[]>([]);
+  const [selectedImageModel, setSelectedImageModel] = useState('');
+  const [selectedTextModel, setSelectedTextModel] = useState('');
   const { showToast } = useToast();
   const { confirm } = useConfirm();
   
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [editMode, setEditMode] = useState(false);
   const [currentId, setCurrentId] = useState<number | null>(null);
+  
+  // 标签分组管理模态框
+  const { isOpen: isTagManagerOpen, onOpen: onTagManagerOpen, onOpenChange: onTagManagerOpenChange } = useDisclosure();
   
   // 场景详情模态框
   const { isOpen: isDetailOpen, onOpen: onDetailOpen, onOpenChange: onDetailOpenChange } = useDisclosure();
@@ -49,22 +291,61 @@ const AssetsManager: React.FC = () => {
     mood: '',
     category: '',
     image_url: '',
-    tags: ''
+    tags: '',
+    tag_groups_json: null
   });
 
   useEffect(() => {
     loadData();
   }, [activeTab]);
 
+  useEffect(() => {
+    loadTagGroups();
+  }, []);
+
+  // 加载 AI 模型列表
+  useEffect(() => {
+    const loadAiModels = async () => {
+      try {
+        const token = getAuthToken();
+        const res = await fetch('/api/ai-models', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const models = data.models || [];
+          setAiModels(models);
+          // 设置默认模型
+          const imageModel = models.find((m: AIModel) => (m.type || m.category)?.toUpperCase() === 'IMAGE');
+          const textModel = models.find((m: AIModel) => (m.type || m.category)?.toUpperCase() === 'TEXT');
+          if (imageModel) setSelectedImageModel(imageModel.name);
+          if (textModel) setSelectedTextModel(textModel.name);
+        }
+      } catch (err) {
+        console.error('[加载 AI 模型失败]:', err);
+      }
+    };
+    loadAiModels();
+  }, []);
+
   // 场景图片生成轮询
   const { isGenerating } = useSceneImageGeneration({
     sceneId: selectedScene?.id?.toString() || null,
-    projectId: null, // AssetsManager 不关联项目
+    projectId: null,
     isActive: activeTab === 'scenes' && isDetailOpen,
     onComplete: () => {
-      loadData(); // 刷新场景列表
+      loadData();
     }
   });
+
+  const loadTagGroups = async () => {
+    try {
+      const data = await fetchTagGroups();
+      setTagGroups(data);
+    } catch (error) {
+      console.error('加载标签分组失败:', error);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -107,7 +388,8 @@ const AssetsManager: React.FC = () => {
       mood: '',
       category: '',
       image_url: '',
-      tags: ''
+      tags: '',
+      tag_groups_json: null
     });
     onOpen();
   };
@@ -118,6 +400,21 @@ const AssetsManager: React.FC = () => {
     setFormData(item);
     onOpen();
   };
+
+  // 刷新当前编辑的角色数据
+  const handleRefreshCharacter = useCallback(async () => {
+    if (!currentId) return;
+    try {
+      const updatedCharacters = await fetchCharacters();
+      setCharacters(updatedCharacters);
+      const updatedChar = updatedCharacters.find(c => c.id === currentId);
+      if (updatedChar) {
+        setFormData(updatedChar);
+      }
+    } catch (error) {
+      console.error('刷新角色数据失败:', error);
+    }
+  }, [currentId]);
 
   const handleSave = async () => {
     try {
@@ -170,13 +467,11 @@ const AssetsManager: React.FC = () => {
     }
   };
 
-  // 查看场景详情
   const handleViewSceneDetail = (scene: Scene) => {
     setSelectedScene(scene);
     onDetailOpen();
   };
 
-  // 生成场景图片
   const handleGenerateSceneImage = async (sceneId: number, style: string, imageModel: string) => {
     try {
       const token = getAuthToken();
@@ -208,7 +503,43 @@ const AssetsManager: React.FC = () => {
     }
   };
 
-  // 提取所有标签（去重并统计出现次数）
+  // 切换分组展开状态
+  const toggleGroupExpand = (groupId: number) => {
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
+      }
+      return newSet;
+    });
+  };
+
+  // 从角色的 tag_groups_json 中提取分组下的所有标签
+  const getGroupedTags = () => {
+    const groupedTags: Record<number, { groupName: string; color: string; tags: Set<string> }> = {};
+    
+    characters.forEach(c => {
+      if (c.tag_groups_json) {
+        c.tag_groups_json.forEach(entry => {
+          if (!groupedTags[entry.groupId]) {
+            const group = tagGroups.find(g => g.id === entry.groupId);
+            groupedTags[entry.groupId] = {
+              groupName: entry.groupName,
+              color: group?.color || '#6366f1',
+              tags: new Set()
+            };
+          }
+          entry.tags.forEach(tag => groupedTags[entry.groupId].tags.add(tag));
+        });
+      }
+    });
+
+    return groupedTags;
+  };
+
+  // 提取所有普通标签（去重并统计出现次数）
   const allTags = React.useMemo(() => {
     const tagCount: Record<string, number> = {};
     const extractTags = (tagStr?: string) => {
@@ -225,6 +556,17 @@ const AssetsManager: React.FC = () => {
       .slice(0, 30);
   }, [characters, scenes, props, activeTab]);
 
+  const groupedTags = React.useMemo(() => getGroupedTags(), [characters, tagGroups]);
+
+  // 匹配分组标签筛选
+  const matchesGroupFilter = (character: Character) => {
+    if (!activeGroupFilter) return true;
+    if (!character.tag_groups_json) return false;
+    
+    const entry = character.tag_groups_json.find(e => e.groupId === activeGroupFilter.groupId);
+    return entry ? entry.tags.includes(activeGroupFilter.tag) : false;
+  };
+
   const matchesTag = (tags?: string) => {
     if (!activeTag) return true;
     if (!tags) return false;
@@ -232,7 +574,11 @@ const AssetsManager: React.FC = () => {
   };
 
   const filteredCharacters = characters.filter(c => {
+    // 分组筛选
+    if (activeGroupFilter && !matchesGroupFilter(c)) return false;
+    // 普通标签筛选
     if (!matchesTag(c.tags)) return false;
+    // 搜索
     const q = searchQuery.toLowerCase();
     return c.name.toLowerCase().includes(q) ||
       c.description.toLowerCase().includes(q) ||
@@ -263,13 +609,25 @@ const AssetsManager: React.FC = () => {
         {/* 头部 */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold genshin-title">资产管理</h1>
-          <Button
-            className="bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-[#1a1d35] font-bold shadow-lg shadow-amber-500/30 hover:shadow-[0_0_25px_rgba(230,200,122,0.4)] transition-all"
-            startContent={<Plus className="w-4 h-4" />}
-            onPress={handleAdd}
-          >
-            新建{getTabLabel()}
-          </Button>
+          <div className="flex gap-2">
+            {activeTab === 'characters' && (
+              <Button
+                variant="flat"
+                className="bg-slate-800/60 text-slate-300 hover:bg-slate-700/60"
+                startContent={<Settings className="w-4 h-4" />}
+                onPress={onTagManagerOpen}
+              >
+                标签分组管理
+              </Button>
+            )}
+            <Button
+              className="bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-[#1a1d35] font-bold shadow-lg shadow-amber-500/30 hover:shadow-[0_0_25px_rgba(230,200,122,0.4)] transition-all"
+              startContent={<Plus className="w-4 h-4" />}
+              onPress={handleAdd}
+            >
+              新建{getTabLabel()}
+            </Button>
+          </div>
         </div>
 
         {/* 搜索 */}
@@ -284,7 +642,76 @@ const AssetsManager: React.FC = () => {
           }}
         />
 
-        {/* 标签过滤 */}
+        {/* 分组标签筛选（仅角色Tab显示） */}
+        {activeTab === 'characters' && Object.keys(groupedTags).length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Tag className="w-3.5 h-3.5 text-white/40" />
+              <span className="text-xs text-white/40">分组标签筛选</span>
+              {activeGroupFilter && (
+                <button
+                  onClick={() => setActiveGroupFilter(null)}
+                  className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition-all"
+                >
+                  清除分组筛选
+                </button>
+              )}
+            </div>
+            <div className="space-y-1">
+              {Object.entries(groupedTags).map(([groupIdStr, { groupName, color, tags }]) => {
+                const groupId = parseInt(groupIdStr);
+                const isExpanded = expandedGroups.has(groupId);
+                return (
+                  <div key={groupId} className="space-y-1">
+                    <button
+                      onClick={() => toggleGroupExpand(groupId)}
+                      className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="w-3 h-3" />
+                      ) : (
+                        <ChevronRight className="w-3 h-3" />
+                      )}
+                      <span
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span>{groupName}</span>
+                      <span className="text-xs text-slate-500">({tags.size})</span>
+                    </button>
+                    {isExpanded && (
+                      <div className="flex flex-wrap gap-1.5 pl-6">
+                        {Array.from(tags).map((tag) => {
+                          const isActive = activeGroupFilter?.groupId === groupId && activeGroupFilter?.tag === tag;
+                          return (
+                            <button
+                              key={tag}
+                              onClick={() => setActiveGroupFilter(isActive ? null : { groupId, tag })}
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all border ${
+                                isActive
+                                  ? 'shadow-sm'
+                                  : 'hover:opacity-80'
+                              }`}
+                              style={{
+                                backgroundColor: isActive ? `${color}30` : `${color}10`,
+                                color: color,
+                                borderColor: isActive ? color : `${color}30`
+                              }}
+                            >
+                              {tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 普通标签过滤 */}
         {allTags.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
             <Tag className="w-3.5 h-3.5 text-white/40 flex-shrink-0" />
@@ -333,6 +760,7 @@ const AssetsManager: React.FC = () => {
           >
             <CharacterList 
               characters={filteredCharacters} 
+              tagGroups={tagGroups}
               onEdit={handleEdit} 
               onDelete={handleDelete} 
             />
@@ -381,6 +809,12 @@ const AssetsManager: React.FC = () => {
             formData={formData}
             setFormData={setFormData}
             onSave={handleSave}
+            tagGroups={tagGroups}
+            onTagGroupsChange={loadTagGroups}
+            onRefreshCharacter={handleRefreshCharacter}
+            aiModels={aiModels}
+            selectedImageModel={selectedImageModel}
+            selectedTextModel={selectedTextModel}
           />
         )}
         
@@ -413,6 +847,14 @@ const AssetsManager: React.FC = () => {
           scene={selectedScene}
           onGenerateImage={(sceneId: number, imageModel: string) => handleGenerateSceneImage(sceneId, '', imageModel)}
           isGenerating={isGenerating}
+        />
+
+        {/* 标签分组管理模态框 */}
+        <TagGroupManager
+          isOpen={isTagManagerOpen}
+          onOpenChange={onTagManagerOpenChange}
+          tagGroups={tagGroups}
+          onRefresh={loadTagGroups}
         />
       </div>
     </div>

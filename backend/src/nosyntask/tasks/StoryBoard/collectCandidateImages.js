@@ -101,11 +101,12 @@ const collectCandidateImages = traced('收集候选参考图', async function _c
     }
   }
 
-  // 通过关联表查询场景（含 A/B 两面 + 生成提示词）
+  // 通过关联表查询场景（含 A/B 两面 + 生成提示词 + 空间布局）
   const linkedScene = await queryOne(
     `SELECT s.name, s.description, s.environment, s.lighting, s.mood,
             s.image_url, s.reverse_image_url,
-            s.generation_prompt, s.reverse_generation_prompt
+            s.generation_prompt, s.reverse_generation_prompt,
+            s.spatial_layout, s.camera_defaults
      FROM storyboard_scenes ss
      JOIN scenes s ON ss.scene_id = s.id
      WHERE ss.storyboard_id = ? AND s.name = ?`,
@@ -149,7 +150,18 @@ const collectCandidateImages = traced('收集候选参考图', async function _c
     description: linkedScene.description,
     environment: linkedScene.environment,
     lighting: linkedScene.lighting,
-    mood: linkedScene.mood
+    mood: linkedScene.mood,
+    // 新增：空间布局和摄像机默认参数
+    spatialLayout: linkedScene.spatial_layout ? (
+      typeof linkedScene.spatial_layout === 'string' 
+        ? JSON.parse(linkedScene.spatial_layout) 
+        : linkedScene.spatial_layout
+    ) : null,
+    cameraDefaults: linkedScene.camera_defaults ? (
+      typeof linkedScene.camera_defaults === 'string' 
+        ? JSON.parse(linkedScene.camera_defaults) 
+        : linkedScene.camera_defaults
+    ) : null
   };
 
   return { candidateImages, characterName, characterInfo, location, sceneInfo };

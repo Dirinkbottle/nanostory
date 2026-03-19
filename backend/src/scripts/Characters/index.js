@@ -10,8 +10,10 @@ const create = require('./create');
 const update = require('./update');
 const deleteCharacter = require('./delete');
 const generateViews = require('./generateViews');
+const tagGroups = require('./tagGroups');
 
 // 注册路由（顺序很重要！具体路由在前，通用路由在后）
+tagGroups(router);  // 标签分组路由优先（/tag-groups）
 getAll(router);
 getByProject(router);
 batchSave(router);

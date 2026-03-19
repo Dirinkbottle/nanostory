@@ -7,6 +7,7 @@ export { useCharacterViewsGeneration } from './useCharacterViewsGeneration';
 export { useWorkflowRecovery } from './useWorkflowRecovery';
 export { useBatchFrameGeneration } from './useBatchFrameGeneration';
 export { useBatchSceneVideoGeneration } from './useBatchSceneVideoGeneration';
+export { useImagePreloader, useScrollIndex } from './useImagePreloader';
 export { 
   useBatchGeneration, 
   FRAME_GENERATION_CONFIG, 

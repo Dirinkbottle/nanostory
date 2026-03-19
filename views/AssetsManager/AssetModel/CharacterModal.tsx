@@ -1,5 +1,18 @@
-import React from 'react';
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Textarea } from '@heroui/react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Textarea, Select, SelectItem, Popover, PopoverTrigger, PopoverContent } from '@heroui/react';
+import { Plus, X, Tag, Download, RefreshCw, Trash2, Image as ImageIcon } from 'lucide-react';
+import { 
+  TagGroup, 
+  CharacterTagGroupEntry, 
+  TAG_GROUP_COLORS, 
+  createTagGroup,
+  Character,
+  generateCharacterViews,
+  getCharacterViewStatus,
+  downloadCharacterView,
+  downloadAllCharacterViews
+} from '../../../services/assets';
+import AIModelSelector, { AIModel } from '../../../components/AIModelSelector';
 
 interface CharacterModalProps {
   isOpen: boolean;
@@ -8,6 +21,12 @@ interface CharacterModalProps {
   formData: any;
   setFormData: (data: any) => void;
   onSave: () => void;
+  tagGroups: TagGroup[];
+  onTagGroupsChange?: () => void;
+  onRefreshCharacter?: () => void;
+  aiModels?: AIModel[];
+  selectedImageModel?: string;
+  selectedTextModel?: string;
 }
 
 const CharacterModal: React.FC<CharacterModalProps> = ({
@@ -16,8 +35,221 @@ const CharacterModal: React.FC<CharacterModalProps> = ({
   editMode,
   formData,
   setFormData,
-  onSave
+  onSave,
+  tagGroups,
+  onTagGroupsChange,
+  onRefreshCharacter,
+  aiModels = [],
+  selectedImageModel = '',
+  selectedTextModel = ''
 }) => {
+  // 当前选择的分组（用于添加新标签）
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('');
+  // 新标签输入
+  const [newTagInput, setNewTagInput] = useState('');
+  // 快速创建分组
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupColor, setNewGroupColor] = useState(TAG_GROUP_COLORS[0]);
+
+  // 三视图生成状态
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [localImageModel, setLocalImageModel] = useState(selectedImageModel);
+
+  // 同步外部选中的模型
+  useEffect(() => {
+    if (selectedImageModel) {
+      setLocalImageModel(selectedImageModel);
+    }
+  }, [selectedImageModel]);
+
+  // 检查是否有任何三视图
+  const hasAnyView = !!(formData.front_view_url || formData.side_view_url || formData.back_view_url);
+
+  // 轮询生成状态
+  useEffect(() => {
+    if (!formData.id || formData.generation_status !== 'generating') {
+      setIsGenerating(false);
+      return;
+    }
+
+    setIsGenerating(true);
+    const interval = setInterval(async () => {
+      try {
+        const status = await getCharacterViewStatus(formData.id);
+        if (status.status === 'completed' || status.status === 'failed') {
+          clearInterval(interval);
+          setIsGenerating(false);
+          if (status.status === 'failed') {
+            setGenerationError('生成失败，请重试');
+          }
+          // 刷新角色数据
+          onRefreshCharacter?.();
+        }
+      } catch (error) {
+        console.error('查询生成状态失败:', error);
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [formData.id, formData.generation_status, onRefreshCharacter]);
+
+  // 一键生成三视图
+  const handleGenerateViews = useCallback(async () => {
+    if (!formData.id) {
+      setGenerationError('请先保存角色');
+      return;
+    }
+    if (!localImageModel) {
+      setGenerationError('请选择图片模型');
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationError(null);
+
+    try {
+      await generateCharacterViews(formData.id, {
+        imageModel: localImageModel,
+        textModel: selectedTextModel || undefined
+      });
+      // 更新本地状态以触发轮询
+      setFormData({ ...formData, generation_status: 'generating' });
+    } catch (error: any) {
+      setIsGenerating(false);
+      setGenerationError(error.message || '启动生成失败');
+    }
+  }, [formData, localImageModel, selectedTextModel, setFormData]);
+
+  // 下载单个视图
+  const handleDownloadView = useCallback(async (viewType: 'front' | 'side' | 'back') => {
+    const urlMap = {
+      front: formData.front_view_url,
+      side: formData.side_view_url,
+      back: formData.back_view_url
+    };
+    const nameMap = {
+      front: '正面',
+      side: '侧面',
+      back: '背面'
+    };
+    const url = urlMap[viewType];
+    if (url) {
+      await downloadCharacterView(url, `${formData.name || '角色'}_${nameMap[viewType]}.png`);
+    }
+  }, [formData]);
+
+  // 下载全部三视图
+  const handleDownloadAll = useCallback(async () => {
+    try {
+      await downloadAllCharacterViews(formData as Character);
+    } catch (error: any) {
+      console.error('下载失败:', error);
+    }
+  }, [formData]);
+
+  // 删除单个视图
+  const handleDeleteView = useCallback((viewType: 'front' | 'side' | 'back') => {
+    const fieldMap = {
+      front: 'front_view_url',
+      side: 'side_view_url',
+      back: 'back_view_url'
+    };
+    setFormData({ ...formData, [fieldMap[viewType]]: '' });
+  }, [formData, setFormData]);
+
+  // 获取当前的 tag_groups_json 数组
+  const getTagGroupsJson = (): CharacterTagGroupEntry[] => {
+    return formData.tag_groups_json || [];
+  };
+
+  // 添加标签到指定分组
+  const handleAddTag = () => {
+    if (!selectedGroupId || !newTagInput.trim()) return;
+
+    const groupId = parseInt(selectedGroupId);
+    const group = tagGroups.find(g => g.id === groupId);
+    if (!group) return;
+
+    const tagName = newTagInput.trim();
+    const currentGroups = getTagGroupsJson();
+    
+    // 查找是否已有该分组的条目
+    const existingEntry = currentGroups.find(e => e.groupId === groupId);
+    
+    let newGroups: CharacterTagGroupEntry[];
+    if (existingEntry) {
+      // 检查是否已存在该标签
+      if (existingEntry.tags.includes(tagName)) {
+        setNewTagInput('');
+        return;
+      }
+      // 添加标签到已有分组
+      newGroups = currentGroups.map(e => 
+        e.groupId === groupId 
+          ? { ...e, tags: [...e.tags, tagName] }
+          : e
+      );
+    } else {
+      // 创建新的分组条目
+      newGroups = [...currentGroups, {
+        groupId: groupId,
+        groupName: group.name,
+        tags: [tagName]
+      }];
+    }
+
+    setFormData({ ...formData, tag_groups_json: newGroups });
+    setNewTagInput('');
+  };
+
+  // 移除标签
+  const handleRemoveTag = (groupId: number, tagName: string) => {
+    const currentGroups = getTagGroupsJson();
+    const newGroups = currentGroups
+      .map(e => 
+        e.groupId === groupId 
+          ? { ...e, tags: e.tags.filter(t => t !== tagName) }
+          : e
+      )
+      .filter(e => e.tags.length > 0); // 移除空分组
+
+    setFormData({ ...formData, tag_groups_json: newGroups });
+  };
+
+  // 快速创建分组
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim()) return;
+
+    try {
+      await createTagGroup({
+        name: newGroupName.trim(),
+        color: newGroupColor
+      });
+      setNewGroupName('');
+      setNewGroupColor(TAG_GROUP_COLORS[0]);
+      setIsCreatingGroup(false);
+      onTagGroupsChange?.();
+    } catch (error: any) {
+      console.error('创建分组失败:', error);
+    }
+  };
+
+  // 获取分组颜色
+  const getGroupColor = (groupId: number): string => {
+    const group = tagGroups.find(g => g.id === groupId);
+    return group?.color || '#6366f1';
+  };
+
+  // 键盘事件：回车添加标签
+  const handleTagInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -89,17 +321,161 @@ const CharacterModal: React.FC<CharacterModalProps> = ({
                     }}
                   />
 
-                  <Input
-                    label="标签"
-                    placeholder="多个标签用逗号分隔"
-                    value={formData.tags}
-                    onValueChange={(val) => setFormData({ ...formData, tags: val })}
-                    classNames={{
-                      input: "bg-transparent text-slate-100 placeholder:text-slate-500",
-                      label: "text-slate-400 font-medium",
-                      inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
-                    }}
-                  />
+                  {/* 标签分组编辑区 */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-slate-400 flex items-center gap-1">
+                        <Tag className="w-4 h-4" />
+                        标签分组
+                      </label>
+                      <Popover isOpen={isCreatingGroup} onOpenChange={setIsCreatingGroup}>
+                        <PopoverTrigger>
+                          <Button
+                            size="sm"
+                            variant="light"
+                            className="text-blue-400 hover:bg-blue-500/10"
+                            startContent={<Plus className="w-3 h-3" />}
+                          >
+                            新建分组
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="bg-slate-800 border border-slate-700 p-3 space-y-3">
+                          <Input
+                            size="sm"
+                            placeholder="分组名称"
+                            value={newGroupName}
+                            onValueChange={setNewGroupName}
+                            classNames={{
+                              input: "bg-transparent text-slate-100",
+                              inputWrapper: "bg-slate-700/60 border border-slate-600/50"
+                            }}
+                          />
+                          <div className="flex flex-wrap gap-2">
+                            {TAG_GROUP_COLORS.map((color) => (
+                              <button
+                                key={color}
+                                onClick={() => setNewGroupColor(color)}
+                                className={`w-6 h-6 rounded-full transition-all ${
+                                  newGroupColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : ''
+                                }`}
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </div>
+                          <Button
+                            size="sm"
+                            className="w-full bg-blue-500 text-white"
+                            onPress={handleCreateGroup}
+                          >
+                            创建
+                          </Button>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* 添加标签区域 */}
+                    <div className="flex gap-2">
+                      <Select
+                        size="sm"
+                        placeholder="选择分组"
+                        selectedKeys={selectedGroupId ? [selectedGroupId] : []}
+                        onSelectionChange={(keys) => {
+                          const key = Array.from(keys)[0] as string;
+                          setSelectedGroupId(key || '');
+                        }}
+                        classNames={{
+                          trigger: "bg-slate-800/60 border border-slate-600/50",
+                          value: "text-slate-100"
+                        }}
+                        className="flex-1"
+                      >
+                        {tagGroups.map((group) => (
+                          <SelectItem key={group.id.toString()} textValue={group.name}>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="w-3 h-3 rounded-full"
+                                style={{ backgroundColor: group.color }}
+                              />
+                              {group.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </Select>
+                      <Input
+                        size="sm"
+                        placeholder="输入标签名，回车添加"
+                        value={newTagInput}
+                        onValueChange={setNewTagInput}
+                        onKeyDown={handleTagInputKeyDown}
+                        classNames={{
+                          input: "bg-transparent text-slate-100",
+                          inputWrapper: "bg-slate-800/60 border border-slate-600/50"
+                        }}
+                        className="flex-1"
+                      />
+                      <Button
+                        size="sm"
+                        isIconOnly
+                        className="bg-blue-500 text-white"
+                        onPress={handleAddTag}
+                        isDisabled={!selectedGroupId || !newTagInput.trim()}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {/* 已添加的标签展示 */}
+                    <div className="space-y-2">
+                      {getTagGroupsJson().map((entry) => (
+                        <div key={entry.groupId} className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: getGroupColor(entry.groupId) }}
+                            />
+                            <span className="text-xs text-slate-500">{entry.groupName}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pl-4">
+                            {entry.tags.map((tag, idx) => {
+                              const color = getGroupColor(entry.groupId);
+                              return (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border"
+                                  style={{
+                                    backgroundColor: `${color}15`,
+                                    color: color,
+                                    borderColor: `${color}30`
+                                  }}
+                                >
+                                  {tag}
+                                  <button
+                                    onClick={() => handleRemoveTag(entry.groupId, tag)}
+                                    className="hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 兼容旧的普通标签输入 */}
+                    <Input
+                      label="普通标签（兼容）"
+                      placeholder="多个标签用逗号分隔"
+                      value={formData.tags}
+                      onValueChange={(val) => setFormData({ ...formData, tags: val })}
+                      classNames={{
+                        input: "bg-transparent text-slate-100 placeholder:text-slate-500",
+                        label: "text-slate-400 font-medium text-xs",
+                        inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* 右侧：图片显示 */}
@@ -111,7 +487,7 @@ const CharacterModal: React.FC<CharacterModalProps> = ({
                         <img 
                           src={formData.image_url} 
                           alt={formData.name || '角色图片'} 
-                          className="w-full h-64 object-cover rounded-lg border border-slate-700/50 shadow-sm"
+                          className="w-full h-48 object-cover rounded-lg border border-slate-700/50 shadow-sm"
                         />
                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all rounded-lg flex items-center justify-center">
                           <Button
@@ -124,42 +500,193 @@ const CharacterModal: React.FC<CharacterModalProps> = ({
                         </div>
                       </div>
                     ) : (
-                      <div className="w-full h-64 bg-slate-800/60 rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center text-slate-500">
-                        <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-full h-48 bg-slate-800/60 rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center text-slate-500">
+                        <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                         <p className="text-sm">暂无图片</p>
-                        <p className="text-xs mt-1">可通过三视图生成功能添加</p>
+                        <p className="text-xs mt-1">生成三视图后自动设置</p>
                       </div>
                     )}
                   </div>
 
-                  {/* 三视图预览（如果有） */}
-                  {(formData.front_view_url || formData.side_view_url || formData.back_view_url) && (
-                    <div>
-                      <label className="text-sm font-medium text-slate-400 mb-2 block">三视图</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {formData.front_view_url && (
-                          <div>
-                            <p className="text-xs text-slate-500 mb-1">正面</p>
-                            <img src={formData.front_view_url} alt="正面" className="w-full h-24 object-cover rounded border" />
+                  {/* 三视图区域 */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-slate-400 flex items-center gap-1.5">
+                        <ImageIcon className="w-4 h-4" />
+                        角色三视图
+                      </label>
+                      <div className="flex gap-2">
+                        {hasAnyView && (
+                          <Button
+                            size="sm"
+                            variant="flat"
+                            className="bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                            startContent={<Download className="w-3 h-3" />}
+                            onPress={handleDownloadAll}
+                          >
+                            下载全部
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 模型选择和生成按钮 */}
+                    {editMode && formData.id && (
+                      <div className="flex gap-2 items-end">
+                        <div className="flex-1">
+                          <AIModelSelector
+                            label="图片模型"
+                            placeholder="选择图片模型"
+                            models={aiModels}
+                            selectedModel={localImageModel}
+                            onModelChange={setLocalImageModel}
+                            filterType="IMAGE"
+                            size="sm"
+                            isDisabled={isGenerating}
+                          />
+                        </div>
+                        <Button
+                          size="md"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
+                          onPress={handleGenerateViews}
+                          isLoading={isGenerating}
+                          isDisabled={isGenerating || !localImageModel}
+                          startContent={!isGenerating && <RefreshCw className="w-4 h-4" />}
+                        >
+                          {isGenerating ? '生成中...' : '一键生成'}
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* 错误提示 */}
+                    {generationError && (
+                      <div className="text-xs text-red-400 bg-red-500/10 px-2 py-1 rounded">
+                        {generationError}
+                      </div>
+                    )}
+
+                    {/* 生成进度提示 */}
+                    {isGenerating && (
+                      <div className="text-xs text-indigo-400 animate-pulse flex items-center gap-2">
+                        <div className="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                        正在生成三视图，请稍候...
+                      </div>
+                    )}
+
+                    {/* 三视图卡片 */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {/* 正面视图 */}
+                      <div className="relative group border border-slate-700 rounded-lg overflow-hidden bg-slate-800/50">
+                        <div className="text-center text-xs text-slate-400 py-1 bg-slate-800/80">正面</div>
+                        {formData.front_view_url ? (
+                          <>
+                            <img src={formData.front_view_url} alt="正面视图" className="w-full aspect-square object-cover" />
+                            <div className="absolute inset-0 top-6 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                              <button 
+                                onClick={() => handleDownloadView('front')} 
+                                className="p-1.5 bg-white/20 rounded hover:bg-white/30" 
+                                title="下载"
+                              >
+                                <Download className="w-3 h-3 text-white" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteView('front')} 
+                                className="p-1.5 bg-red-500/50 rounded hover:bg-red-500/70" 
+                                title="删除"
+                              >
+                                <Trash2 className="w-3 h-3 text-white" />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-full aspect-square flex items-center justify-center text-slate-500 text-xs">
+                            {isGenerating ? (
+                              <div className="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full" />
+                            ) : (
+                              '暂无'
+                            )}
                           </div>
                         )}
-                        {formData.side_view_url && (
-                          <div>
-                            <p className="text-xs text-slate-500 mb-1">侧面</p>
-                            <img src={formData.side_view_url} alt="侧面" className="w-full h-24 object-cover rounded border" />
+                      </div>
+
+                      {/* 侧面视图 */}
+                      <div className="relative group border border-slate-700 rounded-lg overflow-hidden bg-slate-800/50">
+                        <div className="text-center text-xs text-slate-400 py-1 bg-slate-800/80">侧面</div>
+                        {formData.side_view_url ? (
+                          <>
+                            <img src={formData.side_view_url} alt="侧面视图" className="w-full aspect-square object-cover" />
+                            <div className="absolute inset-0 top-6 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                              <button 
+                                onClick={() => handleDownloadView('side')} 
+                                className="p-1.5 bg-white/20 rounded hover:bg-white/30" 
+                                title="下载"
+                              >
+                                <Download className="w-3 h-3 text-white" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteView('side')} 
+                                className="p-1.5 bg-red-500/50 rounded hover:bg-red-500/70" 
+                                title="删除"
+                              >
+                                <Trash2 className="w-3 h-3 text-white" />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-full aspect-square flex items-center justify-center text-slate-500 text-xs">
+                            {isGenerating ? (
+                              <div className="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full" />
+                            ) : (
+                              '暂无'
+                            )}
                           </div>
                         )}
-                        {formData.back_view_url && (
-                          <div>
-                            <p className="text-xs text-slate-500 mb-1">背面</p>
-                            <img src={formData.back_view_url} alt="背面" className="w-full h-24 object-cover rounded border" />
+                      </div>
+
+                      {/* 背面视图 */}
+                      <div className="relative group border border-slate-700 rounded-lg overflow-hidden bg-slate-800/50">
+                        <div className="text-center text-xs text-slate-400 py-1 bg-slate-800/80">背面</div>
+                        {formData.back_view_url ? (
+                          <>
+                            <img src={formData.back_view_url} alt="背面视图" className="w-full aspect-square object-cover" />
+                            <div className="absolute inset-0 top-6 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                              <button 
+                                onClick={() => handleDownloadView('back')} 
+                                className="p-1.5 bg-white/20 rounded hover:bg-white/30" 
+                                title="下载"
+                              >
+                                <Download className="w-3 h-3 text-white" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteView('back')} 
+                                className="p-1.5 bg-red-500/50 rounded hover:bg-red-500/70" 
+                                title="删除"
+                              >
+                                <Trash2 className="w-3 h-3 text-white" />
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="w-full aspect-square flex items-center justify-center text-slate-500 text-xs">
+                            {isGenerating ? (
+                              <div className="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full" />
+                            ) : (
+                              '暂无'
+                            )}
                           </div>
                         )}
                       </div>
                     </div>
-                  )}
+
+                    {/* 编辑模式下的提示 */}
+                    {!editMode && !hasAnyView && (
+                      <p className="text-xs text-slate-500 text-center">
+                        保存角色后可生成三视图
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </ModalBody>

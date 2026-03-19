@@ -1,5 +1,23 @@
 import { getAuthToken } from './auth';
 
+// 标签分组接口
+export interface TagGroup {
+  id: number;
+  user_id: number;
+  name: string;
+  color: string;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// 角色标签分组条目
+export interface CharacterTagGroupEntry {
+  groupId: number;
+  groupName: string;
+  tags: string[];
+}
+
 export interface Character {
   id: number;
   user_id: number;
@@ -8,10 +26,30 @@ export interface Character {
   appearance: string;
   personality: string;
   image_url: string;
+  front_view_url?: string;
+  side_view_url?: string;
+  back_view_url?: string;
+  generation_status?: 'idle' | 'generating' | 'completed' | 'failed';
+  generation_prompt?: string;
   tags: string;
+  tag_groups_json?: CharacterTagGroupEntry[] | null;
   project_name?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface SpatialLayout {
+  foreground?: string;
+  midground?: string;
+  background?: string;
+  depthNotes?: string;
+}
+
+export interface CameraDefaults {
+  angle?: string;      // 平视/仰视/俑视
+  distance?: string;   // 远景/中景/近景/特写
+  height?: string;     // 低角度/水平/高角度
+  movement?: string;   // 固定/推拉/环绕
 }
 
 export interface Scene {
@@ -26,6 +64,8 @@ export interface Scene {
   reverse_image_url?: string;
   tags: string;
   project_name?: string;
+  spatial_layout?: SpatialLayout | null;
+  camera_defaults?: CameraDefaults | null;
   created_at: string;
   updated_at: string;
 }
@@ -236,4 +276,218 @@ export async function deleteProp(id: number): Promise<void> {
     const data = await response.json();
     throw new Error(data.message || '删除道具失败');
   }
+}
+
+// ============================================================
+// 标签分组 API
+// ============================================================
+
+// 预设颜色方案
+export const TAG_GROUP_COLORS = [
+  '#ef4444', // 红
+  '#f97316', // 橙
+  '#eab308', // 黄
+  '#22c55e', // 绿
+  '#06b6d4', // 青
+  '#3b82f6', // 蓝
+  '#8b5cf6', // 紫
+  '#ec4899', // 粉
+  '#6b7280', // 灰
+  '#78716c', // 棕
+];
+
+export async function fetchTagGroups(): Promise<TagGroup[]> {
+  const token = getAuthToken();
+  const response = await fetch('/api/characters/tag-groups', {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (!response.ok) {
+    throw new Error('获取标签分组失败');
+  }
+  const data = await response.json();
+  return data.tagGroups || [];
+}
+
+export async function createTagGroup(data: { name: string; color: string; sort_order?: number }): Promise<TagGroup> {
+  const token = getAuthToken();
+  const response = await fetch('/api/characters/tag-groups', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '创建标签分组失败');
+  }
+  const result = await response.json();
+  return result.tagGroup;
+}
+
+export async function updateTagGroup(id: number, data: Partial<TagGroup>): Promise<TagGroup> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/characters/tag-groups/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '更新标签分组失败');
+  }
+  const result = await response.json();
+  return result.tagGroup;
+}
+
+export async function deleteTagGroup(id: number): Promise<void> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/characters/tag-groups/${id}`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '删除标签分组失败');
+  }
+}
+
+// ============================================================
+// 角色三视图 API
+// ============================================================
+
+export interface GenerateViewsParams {
+  imageModel: string;
+  textModel?: string;
+  aspectRatio?: string;
+}
+
+export interface GenerateViewsResponse {
+  message: string;
+  jobId: string;
+  characterId: number;
+  status: 'generating';
+}
+
+export interface GenerationStatusResponse {
+  status: 'idle' | 'generating' | 'completed' | 'failed';
+  progress?: string;
+  error?: string;
+}
+
+/**
+ * 生成角色三视图
+ */
+export async function generateCharacterViews(
+  characterId: number,
+  params: GenerateViewsParams
+): Promise<GenerateViewsResponse> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/characters/${characterId}/generate-views`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(params)
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '启动三视图生成失败');
+  }
+  return response.json();
+}
+
+/**
+ * 查询角色三视图生成状态
+ */
+export async function getCharacterViewStatus(
+  characterId: number
+): Promise<GenerationStatusResponse> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/characters/${characterId}/generation-status`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '查询生成状态失败');
+  }
+  return response.json();
+}
+
+/**
+ * 下载单个视图图片
+ */
+export async function downloadCharacterView(
+  url: string,
+  fileName: string
+): Promise<void> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error('下载图片失败');
+  }
+  const blob = await response.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+/**
+ * 批量下载角色三视图为ZIP文件
+ */
+export async function downloadAllCharacterViews(
+  character: Character
+): Promise<void> {
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+  
+  const views = [
+    { url: character.front_view_url, name: `${character.name}_正面.png` },
+    { url: character.side_view_url, name: `${character.name}_侧面.png` },
+    { url: character.back_view_url, name: `${character.name}_背面.png` },
+  ].filter(item => item.url);
+  
+  if (views.length === 0) {
+    throw new Error('没有可下载的三视图');
+  }
+  
+  // 下载所有图片并添加到 ZIP
+  const downloadPromises = views.map(async (item) => {
+    if (!item.url) return;
+    try {
+      const response = await fetch(item.url);
+      if (response.ok) {
+        const blob = await response.blob();
+        zip.file(item.name, blob);
+      }
+    } catch (e) {
+      console.error(`下载 ${item.name} 失败:`, e);
+    }
+  });
+  
+  await Promise.all(downloadPromises);
+  
+  // 生成并下载 ZIP 文件
+  const content = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(content);
+  a.download = `${character.name}_三视图.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
 }

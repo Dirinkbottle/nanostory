@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import { Plus, Images, Video } from 'lucide-react';
 import SceneCard from './SceneCard';
 import { StoryboardScene } from './useSceneManager';
 import { TaskState } from '../../hooks/useTaskRunner';
+import { useImagePreloader, useScrollIndex } from './hooks/useImagePreloader';
 
 interface SceneListProps {
   scenes: StoryboardScene[];
@@ -78,6 +79,15 @@ const SceneList: React.FC<SceneListProps> = ({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [showBatchVideoModal, setShowBatchVideoModal] = useState(false);
+
+  // 滚动容器 ref，用于追踪滚动位置
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // 追踪当前滚动位置对应的分镜索引，每个卡片约 120px 高度
+  const currentScrollIndex = useScrollIndex(scrollContainerRef, 120, 100);
+  
+  // 预加载当前位置前后各 3 个分镜的图片
+  useImagePreloader(scenes, currentScrollIndex, 3);
 
   // 统计已有帧的镜头数
   const scenesWithFrames = scenes.filter(s => s.startFrame).length;
@@ -182,7 +192,11 @@ const SceneList: React.FC<SceneListProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      {/* 分镜卡片列表 - 添加滚动容器 ref */}
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-3"
+      >
         {isLoading ? (
           <SceneListSkeleton />
         ) : scenes.map((scene, index) => (
@@ -199,6 +213,11 @@ const SceneList: React.FC<SceneListProps> = ({
             } ${
               dragOverIndex === index ? 'transform translate-y-2' : ''
             }`}
+            style={{
+              // 性能优化：让浏览器跳过离屏元素的渲染
+              contentVisibility: 'auto',
+              containIntrinsicSize: '0 120px', // 估计卡片高度
+            }}
           >
             <SceneCard
               scene={scene}

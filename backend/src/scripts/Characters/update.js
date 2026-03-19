@@ -6,7 +6,7 @@ module.exports = (router) => {
   router.put('/:id', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
-    const { name, description, appearance, personality, image_url, tags } = req.body;
+    const { name, description, appearance, personality, image_url, tags, tag_groups_json } = req.body;
 
     try {
       const existing = await queryOne(
@@ -18,9 +18,17 @@ module.exports = (router) => {
         return res.status(404).json({ message: '角色不存在' });
       }
 
+      // 处理 tag_groups_json，确保是有效的 JSON 字符串
+      let tagGroupsStr = existing.tag_groups_json;
+      if (tag_groups_json !== undefined) {
+        tagGroupsStr = tag_groups_json 
+          ? (typeof tag_groups_json === 'string' ? tag_groups_json : JSON.stringify(tag_groups_json))
+          : null;
+      }
+
       await execute(
         `UPDATE characters 
-         SET name = ?, description = ?, appearance = ?, personality = ?, image_url = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+         SET name = ?, description = ?, appearance = ?, personality = ?, image_url = ?, tags = ?, tag_groups_json = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ? AND user_id = ?`,
         [
           name || existing.name,
@@ -29,6 +37,7 @@ module.exports = (router) => {
           personality !== undefined ? personality : existing.personality,
           image_url !== undefined ? image_url : existing.image_url,
           tags !== undefined ? tags : existing.tags,
+          tagGroupsStr,
           id,
           userId
         ]

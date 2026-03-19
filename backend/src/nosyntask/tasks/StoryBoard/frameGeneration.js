@@ -89,7 +89,7 @@ const generateSingleImage = traced('图片生成', async function _generateSingl
  * @param {object} [opts.directorParams] - 导演参数（光线、镜头、氛围）
  */
 const generateFramePrompt = traced('生成帧提示词', async function _generateFramePrompt(opts) {
-  const { textModel, description, frameType, characterInfo, sceneInfo, shotType, emotion, prevDescription, visualStyle, startFrameDesc, endFrameDesc, dialogue, prevEndState, endState, sceneState, environmentChange, directorParams } = opts;
+  const { textModel, description, frameType, characterInfo, sceneInfo, shotType, emotion, prevDescription, visualStyle, startFrameDesc, endFrameDesc, dialogue, prevEndState, endState, sceneState, environmentChange, directorParams, spatialDescription } = opts;
 
   // 角色信息：有角色时提供详细外貌，无角色时明确排除
   let charBlock;
@@ -150,6 +150,16 @@ ${charInfoText}
 环境: ${sceneInfo.environment}
 光照: ${sceneInfo.lighting}
 氛围: ${sceneInfo.mood}
+${sceneInfo.spatialLayout ? `【场景空间布局】
+- 前景: ${sceneInfo.spatialLayout.foreground || '无'}
+- 中景: ${sceneInfo.spatialLayout.midground || '无'}
+- 背景: ${sceneInfo.spatialLayout.background || '无'}
+${sceneInfo.spatialLayout.depthNotes ? `- 纵深备注: ${sceneInfo.spatialLayout.depthNotes}` : ''}` : ''}
+${sceneInfo.cameraDefaults ? `【场景默认摄像机】
+- 角度: ${sceneInfo.cameraDefaults.angle || '平视'}
+- 距离: ${sceneInfo.cameraDefaults.distance || '中景'}
+- 高度: ${sceneInfo.cameraDefaults.height || '水平'}
+- 运动: ${sceneInfo.cameraDefaults.movement || '固定'}` : ''}
 ${sceneConstraint}`
     : '';
 
@@ -262,7 +272,27 @@ ${sceneConstraint}`
     }
   }
 
-  const extraInfo = [charBlock, sceneBlock, shotInfo, emotionInfo, styleInfo, frameDescBlock, dialogueBlock, prevEndStateBlock, cameraPositionBlock, endStateBlock, directorBlock, charConstraint, prevContext].filter(Boolean).join('\n');
+  // 分镜空间描述块（如果有）
+  let spatialDescBlock = '';
+  if (spatialDescription) {
+    const parts = [];
+    if (spatialDescription.characterPositions && spatialDescription.characterPositions.length > 0) {
+      const posDesc = spatialDescription.characterPositions.map(cp => 
+        `${cp.name}: ${cp.position}${cp.depth ? `(深度层:${cp.depth})` : ''}${cp.facing ? `, ${cp.facing}` : ''}`
+      ).join('; ');
+      parts.push(`角色位置: ${posDesc}`);
+    }
+    if (spatialDescription.cameraAngle) parts.push(`摄像机角度: ${spatialDescription.cameraAngle}`);
+    if (spatialDescription.spatialRelationship) parts.push(`空间关系: ${spatialDescription.spatialRelationship}`);
+    if (spatialDescription.environmentDepth) parts.push(`环境纵深: ${spatialDescription.environmentDepth}`);
+    if (parts.length > 0) {
+      spatialDescBlock = `【分镜空间布局 - 必须遵循】
+${parts.join('\n')}
+（以上空间位置信息必须在提示词中准确体现，确保角色的位置关系和摄像机角度符合描述）`;
+    }
+  }
+
+  const extraInfo = [charBlock, sceneBlock, spatialDescBlock, shotInfo, emotionInfo, styleInfo, frameDescBlock, dialogueBlock, prevEndStateBlock, cameraPositionBlock, endStateBlock, directorBlock, charConstraint, prevContext].filter(Boolean).join('\n');
 
   const promptRequest = `你是一个专业的图片生成提示词专家。你的任务是描述一个完全静止的画面瞬间。
 
@@ -351,7 +381,20 @@ async function handleFrameGeneration(inputParams, onProgress) {
   }
 
   const description = prompt || storyboard.prompt_template || '';
-  trace('查询分镜数据', { storyboardId, idx: storyboard.idx, sceneState: inputSceneState || variables.scene_state, hasAction: variables.hasAction, location: variables.location });
+  
+  // 解析分镜空间描述
+  let spatialDescription = null;
+  if (storyboard.spatial_description) {
+    try {
+      spatialDescription = typeof storyboard.spatial_description === 'string' 
+        ? JSON.parse(storyboard.spatial_description) 
+        : storyboard.spatial_description;
+    } catch (e) {
+      console.warn('[FrameGen] 解析 spatial_description 失败:', e.message);
+    }
+  }
+  
+  trace('查询分镜数据', { storyboardId, idx: storyboard.idx, sceneState: inputSceneState || variables.scene_state, hasAction: variables.hasAction, location: variables.location, hasSpatialDesc: !!spatialDescription });
 
   // 2. 收集候选参考图（角色三视图 + 场景图）
   if (onProgress) onProgress(10);
@@ -385,7 +428,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
   let startPrompt = description;
   if (textModel) {
     console.log('[FrameGen] 使用文本模型生成首帧提示词...');
-    startPrompt = await generateFramePrompt({ textModel, description, frameType: 'start', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: resolvedPrevDescription || null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: resolvedPrevEndState, endState: variables.endState, sceneState, environmentChange, directorParams: variables.directorParams });
+    startPrompt = await generateFramePrompt({ textModel, description, frameType: 'start', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: resolvedPrevDescription || null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: resolvedPrevEndState, endState: variables.endState, sceneState, environmentChange, directorParams: variables.directorParams, spatialDescription });
     trace('首帧提示词', { prompt: startPrompt });
     console.log(`\x1b[32m[FrameGen] 首帧提示词: ${startPrompt}\x1b[0m`);
   } else {
@@ -426,7 +469,7 @@ async function handleFrameGeneration(inputParams, onProgress) {
   let endPrompt = description;
   if (textModel) {
     console.log('[FrameGen] 使用文本模型生成尾帧提示词...');
-    endPrompt = await generateFramePrompt({ textModel, description, frameType: 'end', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: null, endState: variables.endState, sceneState, environmentChange, directorParams: variables.directorParams });
+    endPrompt = await generateFramePrompt({ textModel, description, frameType: 'end', characterInfo, sceneInfo, shotType: variables.shotType, emotion: variables.emotion, prevDescription: null, visualStyle, startFrameDesc: variables.startFrame, endFrameDesc: variables.endFrame, dialogue: variables.dialogue, prevEndState: null, endState: variables.endState, sceneState, environmentChange, directorParams: variables.directorParams, spatialDescription });
     trace('尾帧提示词', { prompt: endPrompt });
     console.log(`\x1b[32m[FrameGen] 尾帧提示词: ${endPrompt}\x1b[0m`);
   } else {
