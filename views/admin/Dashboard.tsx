@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardBody } from '@heroui/react';
 import { Users, Cpu, TrendingUp, Activity } from 'lucide-react';
-import { getAuthToken } from '../../services/auth';
+import { getAdminAuthHeaders } from '../../services/auth';
 
 interface DashboardStats {
   totalUsers: number;
@@ -25,9 +25,8 @@ const Dashboard: React.FC = () => {
 
   const fetchStats = async () => {
     try {
-      const token = getAuthToken();
       const response = await fetch('/api/admin/stats', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: getAdminAuthHeaders()
       });
 
       if (response.ok) {

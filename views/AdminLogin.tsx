@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardBody, Input, Button } from '@heroui/react';
-import { Lock, User, Shield } from 'lucide-react';
-import { login } from '../services/auth';
+import { KeyRound, Lock, User, Shield } from 'lucide-react';
+import { loginWithAdminAccess, logout } from '../services/auth';
 import { useToast } from '../contexts/ToastContext';
 
 const AdminLogin: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [adminAccessKey, setAdminAccessKey] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -17,9 +18,10 @@ const AdminLogin: React.FC = () => {
     setLoading(true);
 
     try {
-      const user = await login(email, password);
+      const user = await loginWithAdminAccess(email, password, adminAccessKey);
 
       if (user.role !== 'admin') {
+        logout();
         showToast('权限不足，仅管理员可访问', 'error');
         setLoading(false);
         return;
@@ -56,6 +58,22 @@ const AdminLogin: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 startContent={<User className="w-4 h-4 text-slate-400" />}
+                classNames={{
+                  input: "text-slate-100",
+                  inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 focus-within:border-blue-500"
+                }}
+                required
+              />
+            </div>
+
+            <div>
+              <Input
+                type="password"
+                label="后台访问密钥"
+                placeholder="请输入后台访问密钥"
+                value={adminAccessKey}
+                onChange={(e) => setAdminAccessKey(e.target.value)}
+                startContent={<KeyRound className="w-4 h-4 text-slate-400" />}
                 classNames={{
                   input: "text-slate-100",
                   inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 focus-within:border-blue-500"

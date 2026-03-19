@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Input, Select, SelectItem, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Chip } from '@heroui/react';
 import { Settings2, Plus, Edit, Trash2, Save, User } from 'lucide-react';
-import { getAuthToken } from '../../services/auth';
+import { getAdminAuthHeaders } from '../../services/auth';
 import { useToast } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 
@@ -39,9 +39,8 @@ const UserSettingsManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const token = getAuthToken();
       const res = await fetch('/api/admin/users', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: getAdminAuthHeaders()
       });
 
       if (res.ok) {
@@ -60,9 +59,8 @@ const UserSettingsManagement: React.FC = () => {
 
   const fetchUserSettings = async (userId: number) => {
     try {
-      const token = getAuthToken();
       const res = await fetch(`/api/admin/users/${userId}/settings`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: getAdminAuthHeaders()
       });
 
       if (res.ok) {
@@ -103,7 +101,6 @@ const UserSettingsManagement: React.FC = () => {
     if (!selectedUserId) return;
 
     try {
-      const token = getAuthToken();
       let parsedValue: any;
       try {
         parsedValue = JSON.parse(formData.value);
@@ -113,10 +110,9 @@ const UserSettingsManagement: React.FC = () => {
 
       const res = await fetch(`/api/admin/users/${selectedUserId}/settings`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
+        headers: getAdminAuthHeaders({
+          'Content-Type': 'application/json'
+        }),
         body: JSON.stringify({
           [formData.key]: parsedValue
         })
@@ -146,10 +142,9 @@ const UserSettingsManagement: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      const token = getAuthToken();
       const res = await fetch(`/api/admin/users/${selectedUserId}/settings/${key}`, {
         method: 'DELETE',
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: getAdminAuthHeaders()
       });
 
       if (res.ok) {

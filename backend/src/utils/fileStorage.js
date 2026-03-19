@@ -15,8 +15,8 @@
  */
 
 const Minio = require('minio');
-const fetch = require('node-fetch');
 const path = require('path');
+const { safeFetch } = require('./outboundRequestGuard');
 
 // ========== 配置 ==========
 
@@ -163,7 +163,11 @@ async function downloadAndStore(tempUrl, objectPath, options = {}) {
 
   try {
     // 1. 下载临时文件
-    const response = await fetch(tempUrl, { timeout: 120000 });
+    const response = await safeFetch(
+      tempUrl,
+      { timeout: 120000 },
+      '文件持久化下载'
+    );
     if (!response.ok) {
       throw new Error(`下载失败: HTTP ${response.status} - ${tempUrl}`);
     }

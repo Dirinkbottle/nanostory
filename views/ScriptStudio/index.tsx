@@ -18,7 +18,7 @@ import VideoComposition from '../VideoComposition';
 import AIModelConfigModal from '../../components/AIModelConfigModal';
 import { useAIModels } from '../../hooks/useAIModels';
 import { useToast } from '../../contexts/ToastContext';
-import { getAuthToken } from '../../services/auth';
+import { getAuthToken, isAdminUser } from '../../services/auth';
 import { RecapData } from './PreviousEpisodesRecap';
 
 const LAST_TAB_KEY = 'nanostory_last_tab';
@@ -600,7 +600,7 @@ const ScriptStudio: React.FC = () => {
             </div>
           </div>
         ) : (
-          localStorage.getItem('userRole') === 'admin' ? (
+          isAdminUser() ? (
             <StoryBoard 
               scriptId={scriptId}
               projectId={selectedProject?.id || null}

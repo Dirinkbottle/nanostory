@@ -1,6 +1,6 @@
 const express = require('express');
 const { queryOne, queryAll, execute } = require('./dbHelper');
-const { authMiddleware } = require('./middleware');
+const { authMiddleware, requireAdmin } = require('./middleware');
 
 const router = express.Router();
 
@@ -77,12 +77,8 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // GET /api/feedback/admin - 管理员获取所有反馈
-router.get('/admin', authMiddleware, async (req, res) => {
+router.get('/admin', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: '权限不足' });
-    }
-
     const { status, type, page = 1, limit = 20 } = req.query;
     const offset = (Math.max(1, Number(page)) - 1) * Number(limit);
 
@@ -111,12 +107,8 @@ router.get('/admin', authMiddleware, async (req, res) => {
 });
 
 // PATCH /api/feedback/:id - 管理员更新反馈状态/回复
-router.patch('/:id', authMiddleware, async (req, res) => {
+router.patch('/:id', authMiddleware, requireAdmin, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: '权限不足' });
-    }
-
     const { id } = req.params;
     const { status, admin_reply } = req.body;
 

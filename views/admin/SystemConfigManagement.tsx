@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardBody, Button, Input, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import { Settings, Plus, Edit, Trash2, Save } from 'lucide-react';
-import { getAuthToken } from '../../services/auth';
+import { getAdminAuthHeaders } from '../../services/auth';
 import { useToast } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 
@@ -33,9 +33,8 @@ const SystemConfigManagement: React.FC = () => {
 
   const fetchConfigs = async () => {
     try {
-      const token = getAuthToken();
       const res = await fetch('/api/admin/system-configs', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: getAdminAuthHeaders()
       });
 
       if (res.ok) {
@@ -72,17 +71,15 @@ const SystemConfigManagement: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      const token = getAuthToken();
       const url = editingConfig
         ? `/api/admin/system-configs/${editingConfig.id}`
         : '/api/admin/system-configs';
 
       const res = await fetch(url, {
         method: editingConfig ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
+        headers: getAdminAuthHeaders({
+          'Content-Type': 'application/json'
+        }),
         body: JSON.stringify(formData)
       });
 
@@ -109,10 +106,9 @@ const SystemConfigManagement: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      const token = getAuthToken();
       const res = await fetch(`/api/admin/system-configs/${id}`, {
         method: 'DELETE',
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
+        headers: getAdminAuthHeaders()
       });
 
       if (res.ok) {

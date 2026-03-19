@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { queryOne, execute } = require('./dbHelper');
-const { JWT_SECRET } = require('./middleware');
+const { JWT_SECRET, validateAdminAccessRequest } = require('./middleware');
 
 const router = express.Router();
 
@@ -104,6 +104,17 @@ router.post('/login', async (req, res) => {
     const isValid = bcrypt.compareSync(password, row.password_hash);
     if (!isValid) {
       return res.status(401).json({ message: '用户名或密码错误' });
+    }
+
+    if (row.role === 'admin') {
+      const adminAccessCheck = validateAdminAccessRequest(req);
+      if (!adminAccessCheck.ok) {
+        const status = adminAccessCheck.reason === 'unconfigured' ? 503 : 401;
+        const message = adminAccessCheck.reason === 'unconfigured'
+          ? adminAccessCheck.message
+          : '用户名、密码或后台访问密钥错误';
+        return res.status(status).json({ message });
+      }
     }
 
     const token = jwt.sign({ userId: row.id, email: username, role: row.role }, JWT_SECRET, { expiresIn: '7d' });

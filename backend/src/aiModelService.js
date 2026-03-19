@@ -12,6 +12,7 @@ const { getHandler } = require('./customHandlers');
 const { sanitizeHeaders } = require('./utils/logSanitizer');
 const { parseJsonField } = require('./utils/parseJsonField');
 const { getAIBillingContext } = require('./aiBillingContext');
+const { assertSafeOutboundUrl, safeFetch } = require('./utils/outboundRequestGuard');
 const {
   buildModelPricingPayload,
   prepareModelBilling,
@@ -300,6 +301,8 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
       }
     }
     
+    await assertSafeOutboundUrl(url, { context: `AI 模型 ${modelName} 提交请求` });
+
     // === 自定义 Handler 拦截 ===
     // 模板渲染完成后，如果配置了 custom_handler，则交给 handler 处理请求
     if (model.custom_handler) {
@@ -401,10 +404,10 @@ async function callAIModel(modelName, params = {}, apiKey = null) {
     let response;
     try {
       requestStarted = true;
-      response = await fetch(url, {
+      response = await safeFetch(url, {
         ...requestOptions,
         signal: controller.signal
-      });
+      }, `AI 模型 ${modelName} 提交请求`);
       clearTimeout(timeout);
       
       console.log('[AI Model] Response Status:', response.status, response.statusText);
@@ -588,6 +591,8 @@ async function queryAIModel(modelName, params = {}, apiKey = null) {
       }
     }
 
+    await assertSafeOutboundUrl(url, { context: `AI 模型 ${modelName} 查询请求` });
+
     // === 自定义 Query Handler 拦截 ===
     if (model.custom_query_handler) {
       const handler = getHandler(model.custom_query_handler);
@@ -657,7 +662,7 @@ async function queryAIModel(modelName, params = {}, apiKey = null) {
 
     let data;
     try {
-      const response = await fetch(url, { ...requestOptions, signal: controller.signal });
+      const response = await safeFetch(url, { ...requestOptions, signal: controller.signal }, `AI 模型 ${modelName} 查询请求`);
       clearTimeout(timeout);
       data = await response.json();
     } catch (fetchError) {

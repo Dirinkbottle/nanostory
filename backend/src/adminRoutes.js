@@ -1,6 +1,6 @@
 const express = require('express');
 const { queryOne, queryAll, execute } = require('./dbHelper');
-const { authMiddleware } = require('./middleware');
+const { authMiddleware, requireAdmin } = require('./middleware');
 const { parseJsonField } = require('./utils/parseJsonField');
 const { withAIBillingContext } = require('./aiBillingContext');
 const { getPriceSummary } = require('./aiBillingService');
@@ -8,13 +8,6 @@ const { callAIModel, queryAIModel, getTextModels } = require('./aiModelService')
 const { generationStartService, sendGenerationError } = require('./modules/generation');
 
 const router = express.Router();
-
-const adminMiddleware = async (req, res, next) => {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ message: '权限不足，仅管理员可访问' });
-  }
-  next();
-};
 
 function stringifyJsonValue(value, { preserveNull = false } = {}) {
   if (value === undefined) return null;
@@ -54,7 +47,7 @@ function runAsAdminTool(req, operationKey, resourceRefs, fn) {
   );
 }
 
-router.get('/stats', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/stats', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const totalUsers = await queryOne('SELECT COUNT(*) as count FROM users');
     
@@ -81,7 +74,7 @@ router.get('/stats', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/users', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const users = await queryAll(
       'SELECT id, email, role, balance, created_at, updated_at FROM users ORDER BY id DESC'
@@ -93,7 +86,7 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-router.get('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/users/:id', authMiddleware, requireAdmin, async (req, res) => {
   const { id } = req.params;
   
   try {
@@ -113,7 +106,7 @@ router.get('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-router.put('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/users/:id', authMiddleware, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { email, role, balance } = req.body;
   
@@ -156,7 +149,7 @@ router.put('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.delete('/users/:id', authMiddleware, requireAdmin, async (req, res) => {
   const { id } = req.params;
   
   try {
@@ -177,7 +170,7 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
   }
 });
 
-router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/users', authMiddleware, requireAdmin, async (req, res) => {
   const { email, password, role, balance } = req.body;
   
   if (!email || !password) {
@@ -205,7 +198,7 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-router.get('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/ai-models', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const models = await queryAll(
       `SELECT id, name, category, provider, description, is_active, api_key,
@@ -228,7 +221,7 @@ router.get('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-router.get('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/ai-models/:id', authMiddleware, requireAdmin, async (req, res) => {
   const { id } = req.params;
   
   try {
@@ -248,7 +241,7 @@ router.get('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) =
   }
 });
 
-router.post('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/ai-models', authMiddleware, requireAdmin, async (req, res) => {
   const {
     name, category, provider, description, is_active, api_key,
     price_config, request_method, url_template, headers_template,
@@ -306,7 +299,7 @@ router.post('/ai-models', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-router.put('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.put('/ai-models/:id', authMiddleware, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const {
     name, category, provider, description, is_active, api_key,
@@ -367,7 +360,7 @@ router.put('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) =
   }
 });
 
-router.delete('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res) => {
+router.delete('/ai-models/:id', authMiddleware, requireAdmin, async (req, res) => {
   const { id } = req.params;
   
   try {
@@ -384,7 +377,7 @@ router.delete('/ai-models/:id', authMiddleware, adminMiddleware, async (req, res
   }
 });
 
-router.post('/ai-models/smart-parse', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/ai-models/smart-parse', authMiddleware, requireAdmin, async (req, res) => {
   const { apiDoc, textModel, customPrompt } = req.body;
   
   if (!apiDoc || !textModel) {
@@ -410,7 +403,7 @@ router.post('/ai-models/smart-parse', authMiddleware, adminMiddleware, async (re
   }
 });
 
-router.get('/text-models', authMiddleware, adminMiddleware, async (req, res) => {
+router.get('/text-models', authMiddleware, requireAdmin, async (req, res) => {
   try {
     const models = await getTextModels();
     res.json({ models });
@@ -425,7 +418,7 @@ router.get('/text-models', authMiddleware, adminMiddleware, async (req, res) => 
  * Text 模型：直接返回结果
  * Image/Video/Audio 模型：返回提交结果（含 taskId 等）
  */
-router.post('/ai-models/:id/test', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/ai-models/:id/test', authMiddleware, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { params } = req.body; // 用户自定义的调用参数
 
@@ -466,7 +459,7 @@ router.post('/ai-models/:id/test', authMiddleware, adminMiddleware, async (req, 
  * 前端传入 submitResult：提交接口经 response_mapping 映射后的字段
  * 这些字段自动作为查询模板的占位符参数
  */
-router.post('/ai-models/:id/query', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/ai-models/:id/query', authMiddleware, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { submitResult } = req.body;
 
@@ -511,7 +504,7 @@ router.post('/ai-models/:id/query', authMiddleware, adminMiddleware, async (req,
  * 
  * 请求会阻塞直到 handler 完成（图片/视频可能需要数分钟）
  */
-router.post('/ai-models/:id/test-handler', authMiddleware, adminMiddleware, async (req, res) => {
+router.post('/ai-models/:id/test-handler', authMiddleware, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { params } = req.body;
 

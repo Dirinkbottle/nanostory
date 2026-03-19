@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { getAuthUser } from '../services/auth';
+import { getAdminAccessKey, getAuthUser, isAdminUser } from '../services/auth';
 
 interface AdminRouteProps {
   children: React.ReactNode;
@@ -13,7 +13,7 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
     return <Navigate to="/admin/login" replace />;
   }
 
-  if (authUser.role !== 'admin') {
+  if (!isAdminUser()) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-lg p-8 text-center">
@@ -35,6 +35,10 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
         </div>
       </div>
     );
+  }
+
+  if (!getAdminAccessKey()) {
+    return <Navigate to="/admin/login" replace />;
   }
 
   return <>{children}</>;

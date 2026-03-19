@@ -3,7 +3,7 @@ import { Button, Textarea, Modal, ModalContent, ModalHeader, ModalBody, ModalFoo
 import { Play, AlertCircle } from 'lucide-react';
 import { AIModel } from '../types';
 import DebugPanel from './DebugPanel';
-import { getAuthToken } from '../../../../services/auth';
+import { getAdminAuthHeaders } from '../../../../services/auth';
 import { useToast } from '../../../../contexts/ToastContext';
 
 interface ModelTestModalProps {
@@ -64,13 +64,11 @@ const ModelTestModal: React.FC<ModelTestModalProps> = ({ isOpen, onClose, model 
     abortRef.current = controller;
 
     try {
-      const token = getAuthToken();
       const res = await fetch(`/api/admin/ai-models/${model.id}/test-handler`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
+        headers: getAdminAuthHeaders({
+          'Content-Type': 'application/json'
+        }),
         body: JSON.stringify({ params }),
         signal: controller.signal
       });

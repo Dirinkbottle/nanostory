@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardBody, Button, Input, useDisclosure } from '@heroui/react';
 import { Plus, Search, Sparkles } from 'lucide-react';
-import { getAuthToken } from '../../../services/auth';
+import { getAdminAuthHeaders } from '../../../services/auth';
 import { useWorkflow } from '../../../hooks/useWorkflow';
 import { useToast } from '../../../contexts/ToastContext';
 import { useConfirm } from '../../../contexts/ConfirmContext';
@@ -156,9 +156,8 @@ const AIModels: React.FC = () => {
 
   const fetchTextModels = async () => {
     try {
-      const token = getAuthToken();
       const response = await fetch('/api/admin/text-models', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: getAdminAuthHeaders()
       });
 
       if (response.ok) {
@@ -175,9 +174,8 @@ const AIModels: React.FC = () => {
 
   const fetchModels = async () => {
     try {
-      const token = getAuthToken();
       const response = await fetch('/api/admin/ai-models', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: getAdminAuthHeaders()
       });
 
       if (response.ok) {
@@ -199,7 +197,6 @@ const AIModels: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      const token = getAuthToken();
       const payload = {
         name: formData.name,
         category: formData.category,
@@ -237,10 +234,9 @@ const AIModels: React.FC = () => {
       
       const response = await fetch(url, {
         method: editingModel ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: getAdminAuthHeaders({
+          'Content-Type': 'application/json'
+        }),
         body: JSON.stringify(payload)
       });
 
@@ -269,10 +265,9 @@ const AIModels: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      const token = getAuthToken();
       const response = await fetch(`/api/admin/ai-models/${modelId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: getAdminAuthHeaders()
       });
 
       if (response.ok) {
@@ -337,13 +332,11 @@ const AIModels: React.FC = () => {
 
     setParsing(true);
     try {
-      const token = getAuthToken();
       const response = await fetch('/api/admin/ai-models/smart-parse', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: getAdminAuthHeaders({
+          'Content-Type': 'application/json'
+        }),
         body: JSON.stringify({
           apiDoc,
           textModel: selectedTextModel

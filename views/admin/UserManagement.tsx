@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardBody, Button, Input, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure } from '@heroui/react';
 import { Plus, Search, Edit, Trash2, User } from 'lucide-react';
-import { getAuthToken } from '../../services/auth';
+import { getAdminAuthHeaders } from '../../services/auth';
 import { useConfirm } from '../../contexts/ConfirmContext';
 
 interface UserData {
@@ -33,9 +33,8 @@ const UserManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const token = getAuthToken();
       const response = await fetch('/api/admin/users', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: getAdminAuthHeaders()
       });
 
       if (response.ok) {
@@ -61,17 +60,15 @@ const UserManagement: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      const token = getAuthToken();
       const url = editingUser 
         ? `/api/admin/users/${editingUser.id}`
         : '/api/admin/users';
       
       const response = await fetch(url, {
         method: editingUser ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: getAdminAuthHeaders({
+          'Content-Type': 'application/json'
+        }),
         body: JSON.stringify(formData)
       });
 
@@ -96,10 +93,9 @@ const UserManagement: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      const token = getAuthToken();
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: getAdminAuthHeaders()
       });
 
       if (response.ok) {
