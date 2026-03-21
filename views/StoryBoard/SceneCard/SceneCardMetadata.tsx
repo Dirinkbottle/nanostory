@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { Chip, Button } from '@heroui/react';
-import { Video, MapPin, Edit3 } from 'lucide-react';
+import { Video, MapPin, Edit3, Camera } from 'lucide-react';
 import { StoryboardScene, SpatialDescription } from '../useSceneManager';
 import SpatialDescriptionEditor from './SpatialDescriptionEditor';
 import { updateSpatialDescription } from '../../../services/storyboards';
 import { useToast } from '../../../contexts/ToastContext';
+import ShotLanguageBadge from '../components/ShotLanguageBadge';
 
 interface SceneCardMetadataProps {
   scene: StoryboardScene;
   onUpdateSpatialDescription?: (spatialDescription: SpatialDescription | undefined) => void;
+  onOpenShotLanguageEditor?: () => void;
 }
 
-const SceneCardMetadata: React.FC<SceneCardMetadataProps> = ({ scene, onUpdateSpatialDescription }) => {
+const SceneCardMetadata: React.FC<SceneCardMetadataProps> = ({ scene, onUpdateSpatialDescription, onOpenShotLanguageEditor }) => {
   const [showSpatialEditor, setShowSpatialEditor] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { showToast } = useToast();
@@ -82,6 +84,34 @@ const SceneCardMetadata: React.FC<SceneCardMetadataProps> = ({ scene, onUpdateSp
           {scene.spatialDescription ? formatSpatialSummary(scene.spatialDescription) : '添加空间描述'}
         </Button>
       </div>
+
+      {/* 镜头语言参数 */}
+      {scene.shotLanguage && Object.keys(scene.shotLanguage).length > 0 ? (
+        <div className="flex items-center gap-2">
+          <ShotLanguageBadge shotLanguage={scene.shotLanguage} compact />
+          {onOpenShotLanguageEditor && (
+            <Button
+              size="sm"
+              isIconOnly
+              variant="flat"
+              className="bg-slate-700/30 text-slate-400 w-6 h-6 min-w-6"
+              onPress={onOpenShotLanguageEditor}
+            >
+              <Edit3 className="w-3 h-3" />
+            </Button>
+          )}
+        </div>
+      ) : onOpenShotLanguageEditor && (
+        <Button
+          size="sm"
+          variant="flat"
+          className="text-xs bg-slate-700/30 text-slate-400"
+          onPress={onOpenShotLanguageEditor}
+          startContent={<Camera className="w-3 h-3" />}
+        >
+          添加镜头参数
+        </Button>
+      )}
 
       {/* 首尾帧 */}
       {scene.hasAction && (scene.startFrame || scene.endFrame) && (

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getAuthToken } from '../../services/auth';
 import { DirectorParams } from '../SimpleStoryBoard/DirectorAssistant';
 import { useToast } from '../../contexts/ToastContext';
+import { ShotLanguage } from '../../types/shotLanguage';
 
 export interface LinkedCharacter {
   character_id: number;
@@ -62,6 +63,9 @@ export interface StoryboardScene {
   sketchType?: string;          // 草图类型 (stick_figure / storyboard_sketch / detailed_lineart)
   sketchData?: unknown;         // Excalidraw 矢量数据，用于回显编辑
   controlStrength?: number;     // 控制强度 (0.0 ~ 1.0)
+  // 镜头语言参数
+  shotLanguage?: ShotLanguage;  // 专业镜头参数
+  isLocked?: boolean;           // 是否锁定
 }
 
 export const useSceneManager = (scriptId: number | null, projectId?: number | null) => {

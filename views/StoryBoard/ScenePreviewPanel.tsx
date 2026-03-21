@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Textarea, Chip } from '@heroui/react';
-import { ImageIcon, Video, Film, Camera, Users, MapPin, Zap, Edit3, Save, X, Play, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ImageIcon, Video, Film, Camera, Users, MapPin, Zap, Edit3, Save, X, Play, Trash2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { StoryboardScene } from './useSceneManager';
 import { TaskState } from '../../hooks/useTaskRunner';
 import { getAuthToken } from '../../services/auth';
@@ -8,6 +8,8 @@ import { useToast } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { validateFrameReadiness, formatValidationMessage } from './utils/validateFrameReadiness';
 import SketchPanel from './SceneCard/SketchPanel';
+import ShotLanguageEditor from './components/ShotLanguageEditor';
+import ShotLanguageBadge from './components/ShotLanguageBadge';
 
 interface ScenePreviewPanelProps {
   scene: StoryboardScene | null;
@@ -38,6 +40,7 @@ const ScenePreviewPanel: React.FC<ScenePreviewPanelProps> = ({
   const [editedDescription, setEditedDescription] = useState('');
   const [isSavingDescription, setIsSavingDescription] = useState(false);
   const [showStartFrame, setShowStartFrame] = useState(true);
+  const [showShotLanguageEditor, setShowShotLanguageEditor] = useState(false);
   const { showToast } = useToast();
   const { confirm } = useConfirm();
 
@@ -421,6 +424,39 @@ const ScenePreviewPanel: React.FC<ScenePreviewPanelProps> = ({
               }
             }}
           />
+        </div>
+
+        {/* 镜头语言参数 */}
+        <div className="px-4 py-3 border-t border-[var(--border-color)]">
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={() => setShowShotLanguageEditor(!showShotLanguageEditor)}
+              className="flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider hover:text-[var(--text-primary)] transition-colors"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              镜头语言参数
+              {showShotLanguageEditor ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+            {scene.shotLanguage && Object.keys(scene.shotLanguage).length > 0 && !showShotLanguageEditor && (
+              <ShotLanguageBadge shotLanguage={scene.shotLanguage} compact />
+            )}
+          </div>
+          {showShotLanguageEditor && (
+            <ShotLanguageEditor
+              storyboardId={scene.id}
+              initialValues={scene.shotLanguage || {}}
+              onChange={(values) => {
+                if (onUpdateScene) {
+                  onUpdateScene({ shotLanguage: values });
+                }
+              }}
+              onSave={(values) => {
+                if (onUpdateScene) {
+                  onUpdateScene({ shotLanguage: values });
+                }
+              }}
+            />
+          )}
         </div>
 
         {/* 生成操作 */}
