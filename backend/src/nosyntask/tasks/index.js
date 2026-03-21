@@ -28,6 +28,7 @@ const handleBatchStoryboardGeneration = require('./StoryBoard/batchStoryboardGen
 const handleSketchPreprocess = require('./StoryBoard/sketchPreprocess');
 const handleSketchToImage = require('./StoryBoard/sketchToImage');
 const handleBatchSketchFrameGeneration = require('./StoryBoard/batchSketchFrameGeneration');
+const { handlePropPromptGeneration, handlePropImageGeneration } = require('./StoryBoard/propGeneration');
 
 module.exports = {
   handleScriptGeneration,
@@ -54,5 +55,7 @@ module.exports = {
   handleBatchStoryboardGeneration,
   handleSketchPreprocess,
   handleSketchToImage,
-  handleBatchSketchFrameGeneration
+  handleBatchSketchFrameGeneration,
+  handlePropPromptGeneration,
+  handlePropImageGeneration
 };

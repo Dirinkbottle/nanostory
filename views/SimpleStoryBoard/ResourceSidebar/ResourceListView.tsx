@@ -50,17 +50,18 @@ const ResourceListView: React.FC<ResourceListViewProps> = ({
   return (
     <div className="flex flex-col h-full">
       {/* Tab 切换 + 批量生成 */}
-      <div className="px-3 pt-3 pb-2 border-b border-slate-700/50 space-y-2">
+      <div className="px-3 pt-3 pb-2 space-y-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
         <div className="flex items-center gap-1">
           {tabs.map(t => (
             <button
               key={t.key}
               onClick={() => onTabChange(t.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === t.key
-                  ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/40'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
-              }`}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{
+                backgroundColor: activeTab === t.key ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
+                color: activeTab === t.key ? 'var(--accent-primary)' : 'var(--text-muted)',
+                border: activeTab === t.key ? '1px solid rgba(6, 182, 212, 0.4)' : '1px solid transparent',
+              }}
             >
               {t.label}
             </button>
@@ -69,7 +70,12 @@ const ResourceListView: React.FC<ResourceListViewProps> = ({
           {onBatchGenerate && (
             <button
               onClick={onBatchGenerate}
-              className="px-2 py-1.5 rounded-lg text-[10px] font-semibold text-orange-400 bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 transition-all flex items-center gap-1"
+              className="px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-all flex items-center gap-1"
+              style={{
+                color: '#f97316',
+                backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                border: '1px solid rgba(249, 115, 22, 0.3)',
+              }}
             >
               <Sparkles className="w-3 h-3" />
               批量生成
@@ -79,12 +85,17 @@ const ResourceListView: React.FC<ResourceListViewProps> = ({
 
         {/* 搜索 */}
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--text-muted)' }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={`搜索${tabs.find(t => t.key === activeTab)?.label}...`}
-            className="w-full pl-7 pr-3 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs text-slate-300 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+            className="w-full pl-7 pr-3 py-1.5 rounded-lg text-xs focus:outline-none"
+            style={{
+              backgroundColor: 'var(--bg-input)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)',
+            }}
           />
         </div>
       </div>
@@ -106,7 +117,7 @@ const ResourceListView: React.FC<ResourceListViewProps> = ({
                 <>
                   {totalInUse > 0 && (
                     <div className="space-y-2">
-                      <div className="text-xs font-semibold text-cyan-400">作品中角色 ({totalInUse})</div>
+                      <div className="text-xs font-semibold" style={{ color: 'var(--accent-primary)' }}>作品中角色 ({totalInUse})</div>
                       <div className="grid grid-cols-3 gap-2">
                         {inUse.map(c => (
                           <ResourceCard
@@ -132,13 +143,16 @@ const ResourceListView: React.FC<ResourceListViewProps> = ({
                   )}
 
                   {/* 分割线 */}
-                  {totalInUse > 0 && <div className="border-t border-slate-700/50" />}
+                  {totalInUse > 0 && <div style={{ borderTop: '1px solid var(--border-color)' }} />}
 
                   {/* 全部可用角色 */}
                   <div className="space-y-2">
-                    <div className="text-xs text-slate-500 font-medium">全部可用角色 ({filteredChars.length})</div>
+                    <div className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>全部可用角色 ({filteredChars.length})</div>
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="aspect-square rounded-xl border-2 border-dashed border-slate-600 flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-slate-300 hover:border-slate-400 cursor-pointer transition-all">
+                      <div 
+                        className="aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all"
+                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                      >
                         <Plus className="w-6 h-6" />
                         <span className="text-[10px]">创建</span>
                       </div>
@@ -169,7 +183,7 @@ const ResourceListView: React.FC<ResourceListViewProps> = ({
                 <>
                   {inUse.length > 0 && (
                     <div className="space-y-2">
-                      <div className="text-xs font-semibold text-emerald-400">作品中场景 ({inUse.length})</div>
+                      <div className="text-xs font-semibold" style={{ color: '#10b981' }}>作品中场景 ({inUse.length})</div>
                       <div className="grid grid-cols-2 gap-2">
                         {inUse.map(s => (
                           <ResourceCard key={s.id} type="scene" name={s.name} imageUrl={s.image_url} isActive onClick={() => onSceneClick(s)} />
@@ -177,11 +191,14 @@ const ResourceListView: React.FC<ResourceListViewProps> = ({
                       </div>
                     </div>
                   )}
-                  {inUse.length > 0 && <div className="border-t border-slate-700/50" />}
+                  {inUse.length > 0 && <div style={{ borderTop: '1px solid var(--border-color)' }} />}
                   <div className="space-y-2">
-                    <div className="text-xs text-slate-500 font-medium">全部场景 ({filteredScenes.length})</div>
+                    <div className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>全部场景 ({filteredScenes.length})</div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="aspect-video rounded-xl border-2 border-dashed border-slate-600 flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-slate-300 hover:border-slate-400 cursor-pointer transition-all">
+                      <div 
+                        className="aspect-video rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all"
+                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                      >
                         <Plus className="w-6 h-6" />
                         <span className="text-[10px]">创建</span>
                       </div>
@@ -199,9 +216,12 @@ const ResourceListView: React.FC<ResourceListViewProps> = ({
         {/* ========== 道具 Tab ========== */}
         {activeTab === 'prop' && (
           <div className="space-y-3">
-            <div className="text-xs text-slate-500 font-medium">全部道具 ({filteredProps.length})</div>
+            <div className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>全部道具 ({filteredProps.length})</div>
             <div className="grid grid-cols-3 gap-2">
-              <div className="aspect-square rounded-xl border-2 border-dashed border-slate-600 flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-slate-300 hover:border-slate-400 cursor-pointer transition-all">
+              <div 
+                className="aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 cursor-pointer transition-all"
+                style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+              >
                 <Plus className="w-6 h-6" />
                 <span className="text-[10px]">创建</span>
               </div>

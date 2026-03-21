@@ -109,7 +109,13 @@ const ResourceSidebar: React.FC<ResourceSidebarProps> = ({
   const goBack = () => setView({ mode: 'list' });
 
   return (
-    <div className="w-72 flex flex-col bg-slate-900 border-l border-slate-700/50">
+    <div 
+      className="w-72 flex flex-col"
+      style={{ 
+        backgroundColor: 'var(--bg-body)', 
+        borderLeft: '1px solid var(--border-color)' 
+      }}
+    >
       {view.mode === 'list' && (
         <ResourceListView
           dbCharacters={dbCharacters}

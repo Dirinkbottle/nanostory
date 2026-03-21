@@ -35,7 +35,9 @@ const {
   handleBatchStoryboardGeneration,
   handleSketchPreprocess,
   handleSketchToImage,
-  handleBatchSketchFrameGeneration
+  handleBatchSketchFrameGeneration,
+  handlePropPromptGeneration,
+  handlePropImageGeneration
 } = require('./tasks');
 
 // 独立帧生成模块（支持并发）
@@ -463,6 +465,59 @@ const WORKFLOW_DEFINITIONS = {
         ])
       }
     ]
+  },
+
+  /**
+   * 道具图片生成
+   * 
+   * 流程：
+   *   1. prop_prompt_generation - AI 生成道具描述提示词
+   *   2. prop_image_generation  - 调用图像模型生成道具图片
+   */
+  prop_image_generation: {
+    name: '道具图片生成',
+    steps: [
+      {
+        type: 'prop_prompt_generation',
+        targetType: 'prop',
+        handler: handlePropPromptGeneration,
+        buildInput: createBuildInput([
+          'propId', 'propName', 'propDescription', 'propCategory',
+          'propStyleConfig', 'textModel'
+        ])
+      },
+      {
+        type: 'prop_image_generation',
+        targetType: 'prop',
+        handler: handlePropImageGeneration,
+        dependencies: [0],  // 依赖第一步的提示词
+        buildInput: createBuildInput([
+          'propId', 'imageModel', 'aspectRatio'
+        ]),
+        // 从上一步获取 prompt
+        injectFromPrevious: {
+          prompt: { stepIndex: 0, key: 'prompt' }
+        }
+      }
+    ],
+    onComplete: async (job, results, { queryOne, execute }) => {
+      // 更新 props 表的 image_url 和 generation_status
+      const propId = job.input_params.propId;
+      const imageResult = results[1];  // 第二步的结果
+      const promptResult = results[0]; // 第一步的结果
+      
+      if (imageResult && imageResult.imageUrl) {
+        await execute(
+          `UPDATE props SET 
+            image_url = ?, 
+            generation_status = 'completed',
+            generation_prompt = ?
+          WHERE id = ?`,
+          [imageResult.imageUrl, promptResult?.prompt || '', propId]
+        );
+        console.log('[PropGen] 道具图片已保存, propId:', propId);
+      }
+    }
   }
 };
 

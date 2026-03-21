@@ -109,7 +109,10 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
   return (
     <>
     <tr
-      className={`border-b border-slate-700/50 hover:bg-slate-800/40 transition-colors group ${isDragOver ? 'bg-cyan-900/20' : ''}`}
+      className={`group transition-colors ${isDragOver ? 'bg-blue-100 dark:bg-cyan-900/20' : ''}`}
+      style={{
+        borderBottom: '1px solid var(--border-color)',
+      }}
       draggable={draggable}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -117,15 +120,21 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
       onDrop={onDrop}
       onDragEnd={onDragEnd}
     >
-      {/* 序号 + 锁定 */}
       <td className="px-3 py-3 w-16 text-center">
         <div className="flex flex-col items-center gap-1">
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-700 text-cyan-400 text-sm font-bold">
+          <span 
+            className="inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold"
+            style={{ 
+              backgroundColor: 'var(--bg-input)', 
+              color: 'var(--accent-primary)' 
+            }}
+          >
             {index + 1}
           </span>
           <button
             onClick={() => setLocked(!locked)}
-            className="text-slate-500 hover:text-slate-300 transition-colors"
+            className="transition-colors"
+            style={{ color: 'var(--text-muted)' }}
             title={locked ? '解锁' : '锁定'}
           >
             {locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3 opacity-0 group-hover:opacity-100" />}
@@ -143,29 +152,35 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
               minRows={2}
               maxRows={5}
               classNames={{
-                input: 'text-xs text-slate-200 bg-transparent',
-                inputWrapper: 'bg-slate-800 border border-cyan-500/30 min-h-0',
+                input: 'text-xs',
+                inputWrapper: 'min-h-0',
+              }}
+              style={{ 
+                color: 'var(--text-primary)',
+                backgroundColor: 'var(--bg-input)',
               }}
             />
             <button
               onClick={save}
               disabled={isSaving}
-              className="px-2 py-0.5 bg-cyan-600 text-white text-[10px] rounded flex items-center gap-1 hover:bg-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-2 py-0.5 text-white text-[10px] rounded flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ backgroundColor: 'var(--accent-primary)' }}
             >
               <Check className="w-3 h-3" /> {isSaving ? '保存中...' : '保存'}
             </button>
           </div>
         ) : (
           <div className="relative group/desc">
-            <p className="text-xs text-slate-300 leading-relaxed line-clamp-4">
+            <p className="text-xs leading-relaxed line-clamp-4" style={{ color: 'var(--text-primary)' }}>
               {scene.description || '暂无描述'}
             </p>
             {scene.dialogue && (
-              <p className="text-[10px] text-slate-500 mt-1 italic truncate">💬 {scene.dialogue}</p>
+              <p className="text-[10px] mt-1 italic truncate" style={{ color: 'var(--text-muted)' }}>💬 {scene.dialogue}</p>
             )}
             <button
               onClick={() => { setDraft(scene.description); setEditing(true); }}
-              className="absolute top-0 right-0 p-1 text-slate-500 hover:text-cyan-400 opacity-0 group-hover/desc:opacity-100 transition-opacity"
+              className="absolute top-0 right-0 p-1 opacity-0 group-hover/desc:opacity-100 transition-opacity"
+              style={{ color: 'var(--text-muted)' }}
             >
               <Edit2 className="w-3 h-3" />
             </button>
@@ -178,25 +193,26 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
         <div className="flex gap-1.5">
           {scene.startFrame ? (
             <div className="relative">
-              <img src={scene.startFrame} alt="首帧" className="w-16 h-10 object-cover rounded border border-slate-600" />
+              <img src={scene.startFrame} alt="首帧" className="w-16 h-10 object-cover rounded" style={{ border: '1px solid var(--border-color)' }} />
               <span className="absolute bottom-0 left-0 bg-emerald-600/80 text-[8px] text-white px-1 rounded-tr">首</span>
             </div>
           ) : (
-            <div className="w-16 h-10 rounded border border-dashed border-slate-600 flex items-center justify-center text-slate-600 text-[10px]">首帧</div>
+            <div className="w-16 h-10 rounded border-dashed flex items-center justify-center text-[10px]" style={{ borderWidth: '1px', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>首帧</div>
           )}
           {scene.endFrame ? (
             <div className="relative">
-              <img src={scene.endFrame} alt="尾帧" className="w-16 h-10 object-cover rounded border border-slate-600" />
+              <img src={scene.endFrame} alt="尾帧" className="w-16 h-10 object-cover rounded" style={{ border: '1px solid var(--border-color)' }} />
               <span className="absolute bottom-0 left-0 bg-rose-600/80 text-[8px] text-white px-1 rounded-tr">尾</span>
             </div>
           ) : (
-            <div className="w-16 h-10 rounded border border-dashed border-slate-600 flex items-center justify-center text-slate-600 text-[10px]">尾帧</div>
+            <div className="w-16 h-10 rounded border-dashed flex items-center justify-center text-[10px]" style={{ borderWidth: '1px', borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}>尾帧</div>
           )}
           {!scene.startFrame && !scene.endFrame && (
             <button
               onClick={() => onGenerateImage(scene.id)}
               disabled={isGeneratingImage}
-              className="w-8 h-10 rounded border border-dashed border-cyan-500/30 flex items-center justify-center text-cyan-500 hover:bg-cyan-900/20 transition-all disabled:opacity-40"
+              className="w-8 h-10 rounded border-dashed flex items-center justify-center transition-all disabled:opacity-40"
+              style={{ borderWidth: '1px', borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)' }}
               title="生成首尾帧"
             >
               {isGeneratingImage ? <span className="text-[10px]">...</span> : <Image className="w-3.5 h-3.5" />}
@@ -234,7 +250,7 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
               <AvatarSlot key={i} type="prop" name={p} onClick={() => onPropClick(p)} />
             ))
           ) : (
-            <span className="text-[10px] text-slate-600">—</span>
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>—</span>
           )}
         </div>
       </td>
@@ -242,17 +258,21 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
       {/* 配音 */}
       <td className="px-3 py-3 w-16 text-center">
         <div className="flex flex-col gap-1 items-center">
-          <button className="p-2 rounded-lg bg-slate-700/60 text-slate-400 hover:text-purple-400 hover:bg-slate-700 transition-all" title="配音">
+          <button 
+            className="p-2 rounded-lg transition-all" 
+            style={{ backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}
+            title="配音"
+          >
             <Mic className="w-4 h-4" />
           </button>
           <Tooltip content={hasDirectorParams ? '编辑导演参数' : '添加导演参数'}>
             <button
               onClick={() => setShowDirectorAssistant(true)}
-              className={`p-2 rounded-lg transition-all ${
-                hasDirectorParams 
-                  ? 'bg-amber-900/40 text-amber-400 hover:bg-amber-800/50' 
-                  : 'bg-slate-700/60 text-slate-400 hover:text-amber-400 hover:bg-slate-700'
-              }`}
+              className="p-2 rounded-lg transition-all"
+              style={{
+                backgroundColor: hasDirectorParams ? 'rgba(217, 119, 6, 0.2)' : 'var(--bg-input)',
+                color: hasDirectorParams ? '#d97706' : 'var(--text-muted)',
+              }}
               title="导演助手"
             >
               <Clapperboard className="w-4 h-4" />
@@ -264,14 +284,20 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
       {/* 视频 */}
       <td className="px-3 py-3 w-20 text-center">
         {scene.videoUrl ? (
-          <button onClick={() => setShowVideoPreview(true)} className="inline-flex p-2 rounded-lg bg-emerald-900/40 text-emerald-400 hover:bg-emerald-800/50 transition-all" title="播放视频">
+          <button 
+            onClick={() => setShowVideoPreview(true)} 
+            className="inline-flex p-2 rounded-lg transition-all" 
+            style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}
+            title="播放视频"
+          >
             <Play className="w-4 h-4" />
           </button>
         ) : (
           <button
             onClick={() => onGenerateVideo(scene.id)}
             disabled={isGeneratingVideo}
-            className="px-2 py-1.5 text-[10px] rounded-lg bg-slate-700/60 text-slate-400 hover:text-orange-400 hover:bg-slate-700 transition-all disabled:opacity-40"
+            className="px-2 py-1.5 text-[10px] rounded-lg transition-all disabled:opacity-40"
+            style={{ backgroundColor: 'var(--bg-input)', color: 'var(--text-muted)' }}
             title="生成视频"
           >
             {isGeneratingVideo ? '...' : '生成'}
@@ -283,7 +309,8 @@ const StoryboardRow: React.FC<StoryboardRowProps> = ({
       <td className="px-3 py-3 w-12 text-center">
         <button
           onClick={() => setShowDeleteConfirm(true)}
-          className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded transition-all opacity-0 group-hover:opacity-100"
+          className="p-1.5 hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-all opacity-0 group-hover:opacity-100"
+          style={{ color: 'var(--text-muted)' }}
           title="删除分镜"
         >
           <Trash2 className="w-3.5 h-3.5" />

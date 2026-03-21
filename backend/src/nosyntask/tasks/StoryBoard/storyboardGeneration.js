@@ -419,21 +419,26 @@ ${scriptContent}
    - characters 数组必须包含 description 中提到的所有角色名
    - 空镜头（无角色）的 characters 为空数组 []
 
-3. **场景转换**：
+3. **道具识别**：
+   - 识别画面中的重要道具（如手机、书本、传单、钥匙等）
+   - props 数组记录画面中出现的道具名称
+   - 只记录剧情相关的重要道具，忽略背景装饰
+
+4. **场景转换**：
    - 切换到新场景时，先用远景/全景建立环境
    - 明确记录 location 字段
 
-4. **表情与动作**：
+5. **表情与动作**：
    - 用简单自然的语言描述角色的微表情和细微动作
    - 例如：「眉头微皱」「嘴角上扬」「眉头轻轻一挑」
    - 有动作的镜头 hasAction=true，并填写 startFrame 和 endFrame
 
-5. **画面描述**：
+6. **画面描述**：
    - description 简洁描述画面内容，包含角色位置和动作
    - 不需要复杂的光影、色调、景深等艺术描述
    - 保持朴实简单的风格
 
-6. **endState 记录**：
+7. **endState 记录**：
    - 简要记录镜头结束时角色的位置、姿势、表情
    - 确保相邻镜头状态连贯
 
@@ -449,15 +454,16 @@ ${scriptContent}
 - dialogue: 对白内容（没有则留空）
 - duration: 时长（秒，一般2-4秒）
 - characters: 出场角色数组（【重要】必须包含 description 中的所有角色名）
+- props: 画面中的重要道具数组（如 ["手机", "传单", "书本"]）
 - location: 场景地点
 - emotion: 情绪氛围
 - cameraMovement: 镜头运动（"static"/"push_in"/"pull_out"/"pan_left"/"pan_right"）
 
-【示例】
+[示例】
 [
-  {"order": 1, "shotType": "全景", "description": "早晨的客厅，阳光从窗帘缝隙透入，小明坐在沙发上看手机", "hasAction": false, "endState": "小明坐在沙发上，手持手机，表情平静", "dialogue": "", "duration": 2, "characters": ["小明"], "location": "客厅", "emotion": "平静", "cameraMovement": "static"},
-  {"order": 2, "shotType": "近景", "description": "小明抬头看向门口，眉头微皱", "hasAction": true, "startFrame": "小明低头看手机", "endFrame": "小明抬头，眉头微皱，望向门口", "endState": "小明坐在沙发上，抬头望向门口，眉头微皱", "dialogue": "", "duration": 2, "characters": ["小明"], "location": "客厅", "emotion": "疑惑", "cameraMovement": "static"},
-  {"order": 3, "shotType": "近景", "description": "小明开口说话", "hasAction": false, "endState": "小明坐在沙发上，面向门口", "dialogue": "谁在门外？", "duration": 2, "characters": ["小明"], "location": "客厅", "emotion": "疑惑", "cameraMovement": "static"}
+  {"order": 1, "shotType": "全景", "description": "早晨的客厅，阳光从窗帘缝隙透入，小明坐在沙发上看手机", "hasAction": false, "endState": "小明坐在沙发上，手持手机，表情平静", "dialogue": "", "duration": 2, "characters": ["小明"], "props": ["手机"], "location": "客厅", "emotion": "平静", "cameraMovement": "static"},
+  {"order": 2, "shotType": "近景", "description": "小明抬头看向门口，眉头微皱", "hasAction": true, "startFrame": "小明低头看手机", "endFrame": "小明抬头，眉头微皱，望向门口", "endState": "小明坐在沙发上，抬头望向门口，眉头微皱", "dialogue": "", "duration": 2, "characters": ["小明"], "props": [], "location": "客厅", "emotion": "疑惑", "cameraMovement": "static"},
+  {"order": 3, "shotType": "近景", "description": "小明开口说话", "hasAction": false, "endState": "小明坐在沙发上，面向门口", "dialogue": "谁在门外？", "duration": 2, "characters": ["小明"], "props": [], "location": "客厅", "emotion": "疑惑", "cameraMovement": "static"}
 ]
 
 只输出 JSON 数组，不要其他内容。`;
@@ -541,16 +547,18 @@ ${scriptContent}
 
   if (onProgress) onProgress(100);
 
-  // 收集所有角色和场景
+  // 收集所有角色、场景和道具
   const allCharacters = [...new Set(scenes.flatMap(s => s.characters || []))];
   const allLocations = [...new Set(scenes.map(s => s.location).filter(Boolean))];
+  const allProps = [...new Set(scenes.flatMap(s => s.props || []))];
 
-  console.log('[StoryboardGen] 最终统计 - 分镜:', scenes.length, '角色:', allCharacters.length, '场景:', allLocations.length, '总时长:', totalDuration, '秒');
+  console.log('[StoryboardGen] 最终统计 - 分镜:', scenes.length, '角色:', allCharacters.length, '场景:', allLocations.length, '道具:', allProps.length, '总时长:', totalDuration, '秒');
 
   return {
     scenes,
     characters: allCharacters,
     locations: allLocations,
+    props: allProps,
     count: scenes.length,
     totalDuration,
     tokens: result.tokens || 0,

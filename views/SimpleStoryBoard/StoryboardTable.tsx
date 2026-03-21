@@ -85,9 +85,15 @@ const StoryboardTable: React.FC<StoryboardTableProps> = ({
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* 工具栏 */}
-      <div className="px-4 py-2.5 border-b border-slate-700/50 flex items-center justify-between bg-slate-900/60">
-        <span className="text-sm text-slate-400">
-          共 <span className="text-cyan-400 font-semibold">{scenes.length}</span> 个分镜
+      <div 
+        className="px-4 py-2.5 border-b flex items-center justify-between"
+        style={{ 
+          backgroundColor: 'var(--bg-card)', 
+          borderColor: 'var(--border-color)' 
+        }}
+      >
+        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          共 <span className="font-semibold" style={{ color: 'var(--accent-primary)' }}>{scenes.length}</span> 个分镜
         </span>
         <div className="flex items-center gap-2">
           {onAutoGenerate && (
@@ -104,7 +110,12 @@ const StoryboardTable: React.FC<StoryboardTableProps> = ({
           )}
           <Button
             size="sm"
-            className="bg-slate-700 text-slate-200 text-xs font-medium hover:bg-slate-600"
+            className="text-xs font-medium"
+            style={{
+              backgroundColor: 'var(--bg-input)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-color)',
+            }}
             startContent={<Plus className="w-3.5 h-3.5" />}
             onPress={onAddScene}
           >
@@ -117,9 +128,9 @@ const StoryboardTable: React.FC<StoryboardTableProps> = ({
       <div className="flex-1 overflow-auto">
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-slate-800/90 backdrop-blur-sm border-b border-slate-700">
+            <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)' }}>
               {COLUMNS.map(col => (
-                <th key={col.key} className={`px-3 py-2.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider ${col.width}`}>
+                <th key={col.key} className={`px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider ${col.width}`} style={{ color: 'var(--text-muted)' }}>
                   {col.label}
                 </th>
               ))}
@@ -128,10 +139,10 @@ const StoryboardTable: React.FC<StoryboardTableProps> = ({
           <tbody>
             {scenes.length === 0 ? (
               <tr>
-                <td colSpan={COLUMNS.length} className="text-center py-20 text-slate-500">
-                  <Wand2 className="w-10 h-10 mx-auto mb-3 text-slate-600" />
+                <td colSpan={COLUMNS.length} className="text-center py-20" style={{ color: 'var(--text-muted)' }}>
+                  <Wand2 className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
                   <p className="text-sm">暂无分镜</p>
-                  <p className="text-xs mt-1 text-slate-600">点击「智能生成」自动创建，或手动添加</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>点击「智能生成」自动创建，或手动添加</p>
                 </td>
               </tr>
             ) : (

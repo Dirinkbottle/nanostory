@@ -2,10 +2,10 @@
  * 共享候选参考图收集模块
  * 
  * 被 frameGeneration.js 和 singleFrameGeneration.js 共同使用。
- * 负责：查询角色三视图 + 场景图 + 更新版空镜 + 上一镜头尾帧，构建完整候选列表。
+ * 负责：查询角色三视图 + 用户上传参考图 + 场景图 + 更新版空镜 + 上一镜头尾帧，构建完整候选列表。
  */
 
-const { queryOne } = require('../../../dbHelper');
+const { queryOne, queryAll } = require('../../../dbHelper');
 const { queryActiveSceneUrl } = require('./sceneRefUtils');
 const { traced, trace } = require('../../engine/generationTrace');
 
@@ -39,7 +39,7 @@ const collectCandidateImages = traced('收集候选参考图', async function _c
     // 查询所有角色
     for (const charName of characterNames) {
       const linkedChar = await queryOne(
-        `SELECT c.name, c.description, c.appearance, c.personality,
+        `SELECT c.id, c.name, c.description, c.appearance, c.personality,
                 c.image_url, c.front_view_url, c.side_view_url, c.back_view_url
          FROM storyboard_characters sc
          JOIN characters c ON sc.character_id = c.id
@@ -89,6 +89,49 @@ const collectCandidateImages = traced('收集候选参考图', async function _c
       }
 
       console.log(`[CandidateImages] 角色「${charName}」三视图: 正面=${!!frontUrl}, 侧面=${!!linkedChar.side_view_url}, 背面=${!!linkedChar.back_view_url}`);
+
+      // 查询用户上传的参考图（三视图 + 其他参考）
+      const charId = linkedChar.id;
+
+      if (charId) {
+        const userRefImages = await queryAll(
+          `SELECT image_url, description, view_type FROM asset_reference_images
+           WHERE asset_type = 'character' AND asset_id = ?
+           ORDER BY sort_order ASC`,
+          [charId]
+        );
+
+        // 视角类型映射
+        const viewTypeLabels = {
+          front: '用户上传正面参考图',
+          side: '用户上传侧面参考图',
+          back: '用户上传背面参考图',
+          other: '用户上传参考图'
+        };
+        const viewTypeDescs = {
+          front: '用户上传的角色正面参考图，适用于正面、面部特写镜头',
+          side: '用户上传的角色侧面参考图，适用于侧面、过肩镜头',
+          back: '用户上传的角色背面参考图，适用于背影镜头',
+          other: '用户上传的其他角色参考图，用于补充角色细节'
+        };
+
+        for (let i = 0; i < userRefImages.length; i++) {
+          const refImg = userRefImages[i];
+          const vt = refImg.view_type || 'other';
+          const label = `${viewTypeLabels[vt]}（${charName}）`;
+          const desc = refImg.description || viewTypeDescs[vt];
+          candidateImages.push({
+            id: `char_${charName}_user_${vt}_${i}`,
+            label: label,
+            url: refImg.image_url,
+            description: desc
+          });
+        }
+
+        if (userRefImages.length > 0) {
+          console.log(`[CandidateImages] 角色「${charName}」用户上传参考图: ${userRefImages.length} 张`);
+        }
+      }
     }
 
     // 兼容旧逻辑：单角色时保留 characterName 和 characterInfo

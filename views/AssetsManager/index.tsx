@@ -156,10 +156,15 @@ const TagGroupManager: React.FC<TagGroupManagerProps> = ({ isOpen, onOpenChange,
                         <button
                           key={color}
                           onClick={() => setNewColor(color)}
-                          className={`w-6 h-6 rounded-full transition-all ${
-                            newColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : ''
-                          }`}
-                          style={{ backgroundColor: color }}
+                          className="w-7 h-7 rounded-full transition-all"
+                          style={{
+                            backgroundColor: color,
+                            boxShadow: newColor === color 
+                              ? `0 0 0 2px #1e293b, 0 0 0 4px ${color}` 
+                              : `0 0 0 1px rgba(255,255,255,0.15)`,
+                            transform: newColor === color ? 'scale(1.15)' : 'scale(1)',
+                          }}
+                          title={color}
                         />
                       ))}
                     </div>
@@ -203,10 +208,15 @@ const TagGroupManager: React.FC<TagGroupManagerProps> = ({ isOpen, onOpenChange,
                                   <button
                                     key={color}
                                     onClick={() => setEditColor(color)}
-                                    className={`w-6 h-6 rounded-full transition-all ${
-                                      editColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : ''
-                                    }`}
-                                    style={{ backgroundColor: color }}
+                                    className="w-7 h-7 rounded-full transition-all"
+                                    style={{
+                                      backgroundColor: color,
+                                      boxShadow: editColor === color 
+                                        ? `0 0 0 2px #1e293b, 0 0 0 4px ${color}` 
+                                        : `0 0 0 1px rgba(255,255,255,0.15)`,
+                                      transform: editColor === color ? 'scale(1.15)' : 'scale(1)',
+                                    }}
+                                    title={color}
                                   />
                                 ))}
                               </div>
@@ -232,8 +242,11 @@ const TagGroupManager: React.FC<TagGroupManagerProps> = ({ isOpen, onOpenChange,
                       ) : (
                         <>
                           <span
-                            className="w-4 h-4 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: group.color }}
+                            className="w-5 h-5 rounded-full flex-shrink-0"
+                            style={{ 
+                              backgroundColor: group.color,
+                              boxShadow: `0 0 0 2px ${group.color}30`,
+                            }}
                           />
                           <span className="flex-1 text-slate-200">{group.name}</span>
                           <Button
@@ -697,8 +710,11 @@ const AssetsManager: React.FC = () => {
                         <ChevronRight className="w-3 h-3" />
                       )}
                       <span
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: color }}
+                        className="w-3 h-3 rounded-full"
+                        style={{ 
+                          backgroundColor: color,
+                          boxShadow: `0 0 0 2px ${color}30`,
+                        }}
                       />
                       <span>{groupName}</span>
                       <span className="text-xs text-[var(--text-muted)]">({tags.size})</span>
@@ -711,15 +727,16 @@ const AssetsManager: React.FC = () => {
                             <button
                               key={tag}
                               onClick={() => setActiveGroupFilter(isActive ? null : { groupId, tag })}
-                              className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all border ${
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                                 isActive
                                   ? 'shadow-sm'
-                                  : 'hover:opacity-80'
+                                  : 'hover:opacity-90'
                               }`}
                               style={{
-                                backgroundColor: isActive ? `${color}30` : `${color}10`,
+                                backgroundColor: isActive ? `${color}35` : `${color}20`,
                                 color: color,
-                                borderColor: isActive ? color : `${color}30`
+                                border: `1.5px solid ${isActive ? color : `${color}45`}`,
+                                boxShadow: isActive ? `0 2px 4px ${color}20` : 'none',
                               }}
                             >
                               {tag}

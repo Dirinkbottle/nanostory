@@ -407,7 +407,7 @@ async function handleBatchStoryboardGeneration(inputParams, onProgress) {
   console.log(`[BatchStoryboard] 所有场景处理完成，共 ${allStoryboards.length} 个分镜`);
   if (onProgress) onProgress(92);
 
-  // 5. 保存所有分镜到数据库
+  // 5. 批量保存所有分镜到数据库（性能优化：使用批量插入替代循环单条插入）
   let idxOffset = 0;
   if (!clearExisting) {
     const maxIdxRow = await queryOne(
@@ -417,26 +417,27 @@ async function handleBatchStoryboardGeneration(inputParams, onProgress) {
     idxOffset = (maxIdxRow?.maxIdx ?? -1) + 1;
   }
 
-  for (let i = 0; i < allStoryboards.length; i++) {
-    const shot = allStoryboards[i];
-    const actualIdx = idxOffset + i;
+  // 构建批量插入的值数组
+  const batchValues = allStoryboards.map((shot, i) => [
+    projectId,
+    scriptId,
+    idxOffset + i,
+    shot.description || '',
+    JSON.stringify(shot)
+  ]);
+
+  // 执行批量插入（单次网络往返替代 N 次）
+  if (batchValues.length > 0) {
     await execute(
-      `INSERT INTO storyboards (project_id, script_id, idx, prompt_template, variables_json) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [
-        projectId,
-        scriptId,
-        actualIdx,
-        shot.description || '',
-        JSON.stringify(shot)
-      ]
+      `INSERT INTO storyboards (project_id, script_id, idx, prompt_template, variables_json) VALUES ?`,
+      [batchValues]
     );
   }
 
-  console.log(`[BatchStoryboard] 已保存 ${allStoryboards.length} 个分镜到数据库`);
+  console.log(`[BatchStoryboard] 已批量保存 ${allStoryboards.length} 个分镜到数据库`);
   if (onProgress) onProgress(96);
 
-  // 6. 提取场景信息并保存
+  // 6. 提取场景信息并批量保存（性能优化：使用 INSERT ON DUPLICATE KEY UPDATE）
   let scenesExtracted = 0;
   if (userId) {
     const locationMap = new Map();
@@ -456,40 +457,34 @@ async function handleBatchStoryboardGeneration(inputParams, onProgress) {
       if (shot.emotion) data.emotions.add(shot.emotion);
     }
 
+    // 构建批量 upsert 的值数组
+    const sceneValues = [];
     for (const [locName, data] of locationMap.entries()) {
+      const envDescription = data.descriptions[0] || '';
+      const mood = Array.from(data.emotions).join(', ') || '';
+      const environment = `${locName}场景`;
+      const lighting = '自然光';
+      sceneValues.push([userId, projectId, scriptId, locName, envDescription, mood, environment, lighting, 'auto_extracted']);
+    }
+
+    // 执行批量 upsert（单次网络往返替代 2N 次）
+    if (sceneValues.length > 0) {
       try {
-        const existing = await queryOne(
-          'SELECT id FROM scenes WHERE project_id = ? AND name = ? AND user_id = ?',
-          [projectId, locName, userId]
+        await execute(
+          `INSERT INTO scenes (user_id, project_id, script_id, name, description, mood, environment, lighting, source)
+           VALUES ?
+           ON DUPLICATE KEY UPDATE
+             description = COALESCE(NULLIF(description, ''), VALUES(description)),
+             mood = COALESCE(NULLIF(mood, ''), VALUES(mood)),
+             environment = COALESCE(NULLIF(environment, ''), VALUES(environment)),
+             lighting = COALESCE(NULLIF(lighting, ''), VALUES(lighting)),
+             script_id = VALUES(script_id),
+             updated_at = CURRENT_TIMESTAMP`,
+          [sceneValues]
         );
-
-        const envDescription = data.descriptions[0] || '';
-        const mood = Array.from(data.emotions).join(', ') || '';
-        const environment = `${locName}场景`;
-        const lighting = '自然光';
-
-        if (existing) {
-          await execute(
-            `UPDATE scenes 
-             SET description = COALESCE(NULLIF(description, ''), ?),
-                 mood = COALESCE(NULLIF(mood, ''), ?),
-                 environment = COALESCE(NULLIF(environment, ''), ?),
-                 lighting = COALESCE(NULLIF(lighting, ''), ?),
-                 script_id = ?,
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = ?`,
-            [envDescription, mood, environment, lighting, scriptId, existing.id]
-          );
-        } else {
-          await execute(
-            `INSERT INTO scenes (user_id, project_id, script_id, name, description, mood, environment, lighting, source)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'auto_extracted')`,
-            [userId, projectId, scriptId, locName, envDescription, mood, environment, lighting]
-          );
-        }
-        scenesExtracted++;
+        scenesExtracted = sceneValues.length;
       } catch (dbError) {
-        console.error('[BatchStoryboard] 保存场景失败:', locName, dbError.message);
+        console.error('[BatchStoryboard] 批量保存场景失败:', dbError.message);
       }
     }
   }

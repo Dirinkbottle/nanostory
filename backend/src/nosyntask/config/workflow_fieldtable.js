@@ -376,5 +376,45 @@ module.exports = {
     defaultValue: null,
     description: '预处理后的草图 URL（由预处理步骤输出）',
     category: 'sketch'
+  },
+
+  // ================================================================
+  //  道具相关 (Prop)
+  // ================================================================
+  propId: {
+    from: 'propId',
+    defaultValue: null,
+    description: '道具 ID',
+    category: 'prop'
+  },
+  propName: {
+    from: 'propName',
+    defaultValue: null,
+    description: '道具名称',
+    category: 'prop'
+  },
+  propDescription: {
+    from: 'propDescription',
+    defaultValue: null,
+    description: '道具描述',
+    category: 'prop'
+  },
+  propCategory: {
+    from: 'propCategory',
+    defaultValue: null,
+    description: '道具分类',
+    category: 'prop'
+  },
+  propStyleConfig: {
+    from: 'propStyleConfig',
+    defaultValue: {},
+    description: '道具样式配置（材质、颜色、尺寸等）',
+    category: 'prop'
+  },
+  propImageUrl: {
+    from: 'propImageUrl',
+    defaultValue: null,
+    description: '道具图片 URL',
+    category: 'prop'
   }
 };

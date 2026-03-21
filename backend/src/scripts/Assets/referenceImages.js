@@ -77,7 +77,7 @@ module.exports = (router) => {
   // POST /api/reference-images - 上传参考图
   router.post('/reference-images', authMiddleware, async (req, res) => {
     const userId = req.user.id;
-    const { asset_type, asset_id, image_url, description, sort_order } = req.body;
+    const { asset_type, asset_id, image_url, description, sort_order, view_type } = req.body;
 
     if (!asset_type || !asset_id || !image_url) {
       return res.status(400).json({ message: '缺少必要参数' });
@@ -87,6 +87,10 @@ module.exports = (router) => {
     if (!validTypes.includes(asset_type)) {
       return res.status(400).json({ message: '无效的asset_type' });
     }
+
+    // 验证 view_type
+    const validViewTypes = ['front', 'side', 'back', 'other'];
+    const finalViewType = view_type && validViewTypes.includes(view_type) ? view_type : 'other';
 
     try {
       // 验证资产所有权
@@ -103,9 +107,9 @@ module.exports = (router) => {
       const newSortOrder = sort_order !== undefined ? sort_order : (maxOrder?.max_order || 0) + 1;
 
       const result = await execute(
-        `INSERT INTO asset_reference_images (asset_type, asset_id, image_url, description, sort_order)
-         VALUES (?, ?, ?, ?, ?)`,
-        [asset_type, parseInt(asset_id), image_url, description || null, newSortOrder]
+        `INSERT INTO asset_reference_images (asset_type, asset_id, image_url, description, view_type, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [asset_type, parseInt(asset_id), image_url, description || null, finalViewType, newSortOrder]
       );
 
       const image = await queryOne('SELECT * FROM asset_reference_images WHERE id = ?', [result.insertId]);
@@ -120,7 +124,7 @@ module.exports = (router) => {
   router.put('/reference-images/:id', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
-    const { image_url, description, sort_order } = req.body;
+    const { image_url, description, sort_order, view_type } = req.body;
 
     try {
       // 获取参考图信息
@@ -143,13 +147,20 @@ module.exports = (router) => {
         return res.status(403).json({ message: '无权访问该资产' });
       }
 
+      // 验证 view_type
+      const validViewTypes = ['front', 'side', 'back', 'other'];
+      const finalViewType = view_type !== undefined 
+        ? (validViewTypes.includes(view_type) ? view_type : existingImage.view_type)
+        : existingImage.view_type;
+
       await execute(
         `UPDATE asset_reference_images 
-         SET image_url = ?, description = ?, sort_order = ?
+         SET image_url = ?, description = ?, view_type = ?, sort_order = ?
          WHERE id = ?`,
         [
           image_url !== undefined ? image_url : existingImage.image_url,
           description !== undefined ? description : existingImage.description,
+          finalViewType,
           sort_order !== undefined ? sort_order : existingImage.sort_order,
           id
         ]

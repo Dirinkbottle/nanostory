@@ -16,6 +16,7 @@
 const { callAIModel, queryAIModel } = require('../../aiModelService');
 const { queryOne } = require('../../dbHelper');
 const { mapResponse } = require('../../utils/templateRenderer');
+const { withRateLimit } = require('../utils/aiRateLimiter');
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -265,11 +266,49 @@ async function submitAndPoll(modelName, submitParams, options = {}) {
     logTag = 'PollUtils',
     adaptiveInterval = true, // 启用自适应轮询间隔
     intervalMultiplier = 1.3, // 每次轮询间隔增长系数
-    maxIntervalMs = 10000 // 最大轮询间隔
+    maxIntervalMs = 10000, // 最大轮询间隔
+    enableRateLimit = true // 新增：是否启用全局限流
   } = options;
 
-  // === 1. 提交请求 ===
-  const submitResult = await callAIModel(modelName, submitParams);
+  // === 1. 提交请求（带全局限流 + 429 重试） ===
+  const maxRetries = options.maxRetries || 3;
+  const retryDelayMs = options.retryDelayMs || 60000; // 默认 60 秒
+  
+  let submitResult;
+  let lastError;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const submitFn = async () => {
+        return await callAIModel(modelName, submitParams);
+      };
+      
+      submitResult = enableRateLimit 
+        ? await withRateLimit(modelName, submitFn, { logTag })
+        : await submitFn();
+      
+      break; // 成功则退出重试循环
+    } catch (err) {
+      lastError = err;
+      const isRateLimited = err.message?.includes('429') || 
+                           err.message?.includes('rate limit') || 
+                           err.message?.includes('too many') ||
+                           err.message?.includes('频率限制');
+      
+      if (isRateLimited && attempt < maxRetries - 1) {
+        const delay = retryDelayMs * (attempt + 1); // 递增延迟
+        console.warn(`[${logTag}] API 限流 (429)，第 ${attempt + 1} 次重试，等待 ${delay / 1000} 秒...`);
+        await sleep(delay);
+        continue;
+      }
+      throw err; // 非限流错误或重试次数耗尽，直接抛出
+    }
+  }
+  
+  if (!submitResult) {
+    throw lastError || new Error('AI 调用失败');
+  }
+  
   console.log(`[${logTag}] 提交接口原始响应体:`, stringifyForLog(submitResult?._raw || submitResult));
 
   // === 2. 加载模型的查询配置 ===

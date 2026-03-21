@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronRight, LogOut, Settings, Users, Cpu, LayoutDashboard, Server, BarChart3 } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogOut, Settings, Users, Cpu, LayoutDashboard, Server, BarChart3, Gauge } from 'lucide-react';
 import { getAuthUser, logout } from '../../services/auth';
 
 interface MenuItem {
@@ -53,6 +53,12 @@ const AdminLayout: React.FC = () => {
           label: '用户管理',
           icon: <Users className="w-4 h-4" />,
           path: '/admin/users'
+        },
+        {
+          id: 'rate-limits',
+          label: 'AI 限流配置',
+          icon: <Gauge className="w-4 h-4" />,
+          path: '/admin/rate-limits'
         }
       ]
     }

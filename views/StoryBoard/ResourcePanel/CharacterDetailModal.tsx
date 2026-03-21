@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Chip, Select, SelectItem } from '@heroui/react';
-import { User, Wand2, Layers } from 'lucide-react';
+import { User, Wand2, Layers, Volume2 } from 'lucide-react';
 import { Character, CharacterState } from './types';
 import { fetchCharacterStates } from '../../../services/assets';
+import { getAuthToken } from '../../../services/auth';
+import CharacterVoiceModal, { VoiceConfig } from './CharacterVoiceModal';
 
 interface CharacterDetailModalProps {
   isOpen: boolean;
@@ -21,6 +23,8 @@ const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
 }) => {
   const [states, setStates] = useState<CharacterState[]>([]);
   const [selectedStateId, setSelectedStateId] = useState<number | null>(null);
+  const [voiceConfig, setVoiceConfig] = useState<VoiceConfig | null>(null);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
 
   // 加载角色状态
   useEffect(() => {
@@ -28,11 +32,31 @@ const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
       fetchCharacterStates(character.id)
         .then(setStates)
         .catch(err => console.error('加载角色状态失败:', err));
+      
+      // 加载声音配置
+      fetchVoiceConfig(character.id);
     } else {
       setStates([]);
       setSelectedStateId(null);
+      setVoiceConfig(null);
     }
   }, [character?.id, isOpen]);
+
+  // 获取声音配置
+  const fetchVoiceConfig = async (characterId: number) => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/characters/${characterId}/voice`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVoiceConfig(data.voiceConfig);
+      }
+    } catch (err) {
+      console.error('加载声音配置失败:', err);
+    }
+  };
 
   // 获取当前显示的状态
   const currentState = selectedStateId 
@@ -197,6 +221,38 @@ const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
                   </div>
                 )}
 
+                {/* 声音配置 */}
+                <div className="bg-purple-500/5 rounded-lg p-4 border border-purple-500/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                      <span className="w-1 h-4 bg-purple-500 rounded"></span>
+                      角色声音
+                    </h4>
+                    <Button
+                      size="sm"
+                      variant="flat"
+                      className="bg-purple-500/20 text-purple-400"
+                      startContent={<Volume2 className="w-3 h-3" />}
+                      onPress={() => setShowVoiceModal(true)}
+                    >
+                      {voiceConfig ? '修改' : '设置'}
+                    </Button>
+                  </div>
+                  {voiceConfig ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
+                        <Volume2 className="w-4 h-4 text-purple-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-300">{voiceConfig.voiceName}</p>
+                        <p className="text-xs text-slate-400">{voiceConfig.description}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400">未设置声音，点击上方按钮配置角色专属声音</p>
+                  )}
+                </div>
+
                 {/* 外貌描述 */}
                 {character.appearance && (
                   <div className="bg-blue-500/5 rounded-lg p-4 border border-blue-500/20">
@@ -261,6 +317,17 @@ const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
                 </Button>
               )}
             </ModalFooter>
+
+            {/* 声音设置弹窗 */}
+            <CharacterVoiceModal
+              isOpen={showVoiceModal}
+              onClose={() => setShowVoiceModal(false)}
+              characterId={character.id}
+              characterName={character.name}
+              characterImageUrl={character.imageUrl}
+              initialVoiceConfig={voiceConfig}
+              onSave={(newConfig) => setVoiceConfig(newConfig)}
+            />
           </>
         )}
       </ModalContent>

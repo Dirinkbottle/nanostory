@@ -1,6 +1,6 @@
 import React from 'react';
 import { Spinner } from '@heroui/react';
-import { Mic, Wand2, Film } from 'lucide-react';
+import { Wand2, Film } from 'lucide-react';
 import { StoryboardScene } from '../useSceneManager';
 
 interface SceneCardActionsProps {
@@ -16,10 +16,6 @@ const SceneCardActions: React.FC<SceneCardActionsProps> = ({
 }) => {
   return (
     <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/30">
-      <button className="px-3 py-1.5 text-xs bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 rounded-lg flex items-center gap-1 transition-all shadow-sm hover:shadow">
-        <Mic className="w-3 h-3" />
-        配音
-      </button>
       <button className="px-3 py-1.5 text-xs bg-gradient-to-r from-pink-500 to-pink-600 text-white hover:from-pink-600 hover:to-pink-700 rounded-lg flex items-center gap-1 transition-all shadow-sm hover:shadow">
         <Wand2 className="w-3 h-3" />
         特效

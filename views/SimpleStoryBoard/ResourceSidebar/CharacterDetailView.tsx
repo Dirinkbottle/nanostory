@@ -56,23 +56,26 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
   return (
     <div className="flex flex-col h-full">
       {/* 顶部导航 */}
-      <div className="px-4 py-3 border-b border-slate-700/50 flex items-center gap-2">
-        <button onClick={onBack} className="p-1 text-slate-400 hover:text-slate-200 transition-colors">
+      <div 
+        className="px-4 py-3 flex items-center gap-2"
+        style={{ borderBottom: '1px solid var(--border-color)' }}
+      >
+        <button onClick={onBack} className="p-1 transition-colors" style={{ color: 'var(--text-muted)' }}>
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <span className="text-xs text-slate-500">返回角色列表</span>
-        <span className="ml-auto text-sm font-semibold text-cyan-400">角色详情</span>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>返回角色列表</span>
+        <span className="ml-auto text-sm font-semibold" style={{ color: 'var(--accent-primary)' }}>角色详情</span>
       </div>
 
       {/* 内容 */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* 状态选择器 */}
         {states.length > 0 && (
-          <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/20">
+          <div className="rounded-lg p-3" style={{ backgroundColor: 'rgba(147, 51, 234, 0.1)', border: '1px solid rgba(147, 51, 234, 0.2)' }}>
             <div className="flex items-center gap-2 mb-2">
-              <Layers className="w-3 h-3 text-purple-400" />
-              <span className="text-xs font-medium text-slate-300">角色状态</span>
-              <span className="text-[10px] text-purple-400">{states.length}</span>
+              <Layers className="w-3 h-3" style={{ color: '#a855f7' }} />
+              <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>角色状态</span>
+              <span className="text-[10px]" style={{ color: '#a855f7' }}>{states.length}</span>
             </div>
             <Select
               size="sm"
@@ -83,8 +86,8 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
                 setSelectedStateId(key ? parseInt(key) : null);
               }}
               classNames={{
-                trigger: "bg-slate-800/60 border border-slate-700/50 h-8",
-                value: "text-slate-100 text-xs"
+                trigger: "h-8",
+                value: "text-xs"
               }}
             >
               {[
@@ -103,7 +106,11 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
 
         {/* 角色图片 */}
         <div
-          className="rounded-xl border-2 border-dashed border-slate-600 overflow-hidden bg-slate-800/50 aspect-square flex items-center justify-center group relative cursor-pointer"
+          className="rounded-xl border-2 border-dashed overflow-hidden aspect-square flex items-center justify-center group relative cursor-pointer"
+          style={{ 
+            borderColor: 'var(--border-color)', 
+            backgroundColor: 'var(--bg-input)' 
+          }}
           onClick={() => {
             if (mainImage) {
               const { slides, index } = buildViewSlides(0);
@@ -123,12 +130,12 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center gap-2 text-slate-500">
-              <div className="w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--bg-input)' }}>
                 <span className="text-3xl">👤</span>
               </div>
               <p className="text-xs">暂无角色图片</p>
-              <p className="text-[10px] text-slate-600">编辑下方描述后点击生成</p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>编辑下方描述后点击生成</p>
             </div>
           )}
         </div>
@@ -136,7 +143,7 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
         {/* 三视图预览 */}
         {hasThreeViews && (
           <div>
-            <p className="text-xs font-semibold text-slate-400 mb-2">三视图</p>
+            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>三视图</p>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { url: character.frontViewUrl, label: '正面', idx: 0 },
@@ -144,10 +151,11 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
                 { url: character.backViewUrl, label: '背面', idx: 2 },
               ].map(view => (
                 <div key={view.label} className="relative group">
-                  <p className="text-[10px] text-slate-500 mb-1 text-center">{view.label}</p>
+                  <p className="text-[10px] mb-1 text-center" style={{ color: 'var(--text-muted)' }}>{view.label}</p>
                   {view.url ? (
                     <div
-                      className="aspect-[3/4] rounded-lg overflow-hidden border border-slate-700/50 cursor-pointer"
+                      className="aspect-[3/4] rounded-lg overflow-hidden cursor-pointer"
+                      style={{ border: '1px solid var(--border-color)' }}
                       onClick={() => {
                         const { slides, index } = buildViewSlides(view.idx);
                         openPreview(slides, index);
@@ -159,8 +167,11 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
                       </div>
                     </div>
                   ) : (
-                    <div className="aspect-[3/4] rounded-lg bg-slate-800/60 border border-slate-700/50 flex items-center justify-center">
-                      <span className="text-[10px] text-slate-600">未生成</span>
+                    <div 
+                      className="aspect-[3/4] rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}
+                    >
+                      <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>未生成</span>
                     </div>
                   )}
                 </div>
@@ -171,20 +182,34 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
 
         {/* 名字 + 语音 + 本地图 */}
         <div className="flex items-center gap-2">
-          <div className="flex-1 px-3 py-2 bg-slate-800 rounded-lg border border-slate-700">
-            <span className="text-sm font-semibold text-slate-200">{character.name}</span>
+          <div 
+            className="flex-1 px-3 py-2 rounded-lg"
+            style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)' }}
+          >
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{character.name}</span>
           </div>
-          <button className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors" title="语音">
+          <button 
+            className="p-2 rounded-lg transition-colors" 
+            style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+            title="语音"
+          >
             <Mic className="w-4 h-4" />
           </button>
-          <button className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200 text-xs transition-colors" title="上传本地图片">
+          <button 
+            className="px-3 py-2 rounded-lg text-xs transition-colors" 
+            style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+            title="上传本地图片"
+          >
             <Upload className="w-4 h-4" />
           </button>
         </div>
 
         {/* 参考图上传 */}
         <div className="flex items-center gap-3">
-          <button className="flex flex-col items-center gap-1 p-3 rounded-lg border border-dashed border-slate-600 text-slate-500 hover:text-slate-300 hover:border-slate-400 transition-all w-20">
+          <button 
+            className="flex flex-col items-center gap-1 p-3 rounded-lg border border-dashed transition-all w-20"
+            style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+          >
             <Upload className="w-5 h-5" />
             <span className="text-[10px]">上传AI</span>
             <span className="text-[10px]">参考图</span>
@@ -197,8 +222,8 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
               maxRows={10}
               placeholder="角色外貌、性格、服装等描述..."
               classNames={{
-                input: 'text-xs text-slate-300 bg-transparent',
-                inputWrapper: 'bg-slate-800 border border-slate-700 hover:border-slate-500',
+                input: 'text-xs',
+                inputWrapper: '',
               }}
             />
           </div>
@@ -206,8 +231,15 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
       </div>
 
       {/* 底部操作栏 */}
-      <div className="px-4 py-3 border-t border-slate-700/50 flex items-center gap-2">
-        <button className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-slate-200" title="设置">
+      <div 
+        className="px-4 py-3 flex items-center gap-2"
+        style={{ borderTop: '1px solid var(--border-color)' }}
+      >
+        <button 
+          className="p-2 rounded-lg" 
+          style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+          title="设置"
+        >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
         </button>
         <Button

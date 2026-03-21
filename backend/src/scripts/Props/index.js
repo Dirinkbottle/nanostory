@@ -1,8 +1,15 @@
 const express = require('express');
 const { queryOne, queryAll, execute } = require('../../dbHelper');
 const { authMiddleware } = require('../../middleware');
+const generateImage = require('./generateImage');
+const states = require('./states');
 
 const router = express.Router();
+
+// 注册道具图片生成路由
+generateImage(router);
+// 注册道具状态管理路由
+states(router);
 
 // 获取当前用户的所有道具
 router.get('/', authMiddleware, async (req, res) => {

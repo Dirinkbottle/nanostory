@@ -1,22 +1,13 @@
 /**
- * 镜头语言参数编辑器
- * 专业影视镜头参数的可视化编辑组件
+ * 镜头参数编辑器
+ * 简洁易用的镜头参数设置组件
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Select, SelectItem, Input, Tooltip, Tabs, Tab, Card, CardBody } from '@heroui/react';
-import { 
-  Camera, Move, Sun, Grid3X3, Focus, Clock, ArrowRightLeft, 
-  Wand2, Save, RotateCcw 
-} from 'lucide-react';
+import { Button, Select, SelectItem, Input, Card, CardBody, Slider } from '@heroui/react';
+import { Camera, Wand2, Save, RotateCcw, Clock } from 'lucide-react';
 import { useToast } from '../../../contexts/ToastContext';
-import { 
-  ShotLanguage, 
-  ShotLanguageOptions, 
-  ShotPreset, 
-  DEFAULT_SHOT_PRESETS,
-  getShotSizeVisual,
-} from '../../../types/shotLanguage';
+import { ShotLanguage, ShotPreset, DEFAULT_SHOT_PRESETS } from '../../../types/shotLanguage';
 import { getAuthToken } from '../../../services/auth';
 
 interface ShotLanguageEditorProps {
@@ -27,6 +18,49 @@ interface ShotLanguageEditorProps {
   compact?: boolean;
 }
 
+// 简化的选项定义
+const SIMPLE_OPTIONS = {
+  shotSize: [
+    { value: 'extreme_close_up', label: '超近景', desc: '聚焦细节，如眼睛、手指' },
+    { value: 'close_up', label: '近景', desc: '面部表情，情感表达' },
+    { value: 'medium_close_up', label: '中近景', desc: '头部和肩部' },
+    { value: 'medium', label: '中景', desc: '上半身，常用对话镜头' },
+    { value: 'medium_long', label: '中远景', desc: '大部分身体' },
+    { value: 'full', label: '全景', desc: '完整人物' },
+    { value: 'long', label: '远景', desc: '人物与环境' },
+    { value: 'extreme_long', label: '超远景', desc: '宏大场面' },
+  ],
+  cameraAngle: [
+    { value: 'eye_level', label: '平视', desc: '自然、平等的视角' },
+    { value: 'low', label: '仰视', desc: '使人物显得高大、威严' },
+    { value: 'high', label: '俯视', desc: '使人物显得渺小、脆弱' },
+    { value: 'birds_eye', label: '鸟瞰', desc: '从上方俯瞰全局' },
+  ],
+  movement: [
+    { value: 'static', label: '固定', desc: '镜头保持不动' },
+    { value: 'pan', label: '横摇', desc: '镜头左右转动' },
+    { value: 'tilt', label: '纵摇', desc: '镜头上下转动' },
+    { value: 'zoom_in', label: '推近', desc: '逐渐放大' },
+    { value: 'zoom_out', label: '拉远', desc: '逐渐缩小' },
+    { value: 'dolly', label: '推拉', desc: '镜头前后移动' },
+    { value: 'tracking', label: '跟踪', desc: '跟随人物移动' },
+  ],
+  mood: [
+    { value: 'bright', label: '明亮', desc: '阳光、温暖、积极' },
+    { value: 'dark', label: '暗调', desc: '神秘、压抑、紧张' },
+    { value: 'warm', label: '暖色', desc: '温馨、浪漫' },
+    { value: 'cool', label: '冷色', desc: '冷静、疏离' },
+    { value: 'dramatic', label: '戏剧性', desc: '强烈明暗对比' },
+    { value: 'soft', label: '柔和', desc: '均匀柔光' },
+  ],
+  transition: [
+    { value: 'cut', label: '硬切', desc: '直接切换' },
+    { value: 'fade', label: '淡入淡出', desc: '渐隐渐显' },
+    { value: 'dissolve', label: '叠化', desc: '两镜头渐变' },
+    { value: 'wipe', label: '划变', desc: '新画面推入' },
+  ],
+};
+
 const ShotLanguageEditor: React.FC<ShotLanguageEditorProps> = ({
   storyboardId,
   initialValues = {},
@@ -36,29 +70,8 @@ const ShotLanguageEditor: React.FC<ShotLanguageEditorProps> = ({
 }) => {
   const { showToast } = useToast();
   const [values, setValues] = useState<ShotLanguage>(initialValues);
-  const [options, setOptions] = useState<ShotLanguageOptions | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState('basic');
   const [showPresets, setShowPresets] = useState(false);
-
-  // 加载选项配置
-  useEffect(() => {
-    const loadOptions = async () => {
-      try {
-        const token = getAuthToken();
-        const res = await fetch('/api/storyboards/shot-language-options', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        const data = await res.json();
-        if (data.success) {
-          setOptions(data.options);
-        }
-      } catch (error) {
-        console.error('加载镜头语言选项失败:', error);
-      }
-    };
-    loadOptions();
-  }, []);
 
   // 同步外部初始值
   useEffect(() => {
@@ -66,7 +79,7 @@ const ShotLanguageEditor: React.FC<ShotLanguageEditorProps> = ({
   }, [initialValues]);
 
   const handleChange = useCallback((field: keyof ShotLanguage, value: string | number | undefined) => {
-    const newValues = { ...values, [field]: value };
+    const newValues = { ...values, [field]: value || undefined };
     setValues(newValues);
     onChange?.(newValues);
   }, [values, onChange]);
@@ -110,65 +123,42 @@ const ShotLanguageEditor: React.FC<ShotLanguageEditorProps> = ({
     onChange?.({});
   };
 
-  if (!options) {
-    return <div className="p-4 text-slate-400">加载中...</div>;
-  }
-
   // 紧凑模式 - 仅显示关键参数
   if (compact) {
     return (
       <div className="flex items-center gap-2 flex-wrap">
-        {/* 景别快速选择 */}
         <Select
           size="sm"
-          placeholder="景别"
+          placeholder="画面大小"
           selectedKeys={values.shotSize ? [values.shotSize] : []}
           onChange={(e) => handleChange('shotSize', e.target.value)}
           classNames={{ trigger: 'bg-slate-800 border-slate-700 w-24' }}
-          startContent={<span className="text-xs">{getShotSizeVisual(values.shotSize)}</span>}
         >
-          {options.shotSize.map((opt) => (
-            <SelectItem key={opt.value}>
-              {opt.icon} {opt.label}
-            </SelectItem>
+          {SIMPLE_OPTIONS.shotSize.map((opt) => (
+            <SelectItem key={opt.value}>{opt.label}</SelectItem>
           ))}
         </Select>
 
-        {/* 机位高度 */}
         <Select
           size="sm"
-          placeholder="机位"
+          placeholder="视角"
           selectedKeys={values.cameraHeight ? [values.cameraHeight] : []}
           onChange={(e) => handleChange('cameraHeight', e.target.value)}
-          classNames={{ trigger: 'bg-slate-800 border-slate-700 w-24' }}
+          classNames={{ trigger: 'bg-slate-800 border-slate-700 w-20' }}
         >
-          {options.cameraHeight.map((opt) => (
+          {SIMPLE_OPTIONS.cameraAngle.map((opt) => (
             <SelectItem key={opt.value}>{opt.label}</SelectItem>
           ))}
         </Select>
 
-        {/* 运动 */}
-        <Select
-          size="sm"
-          placeholder="运动"
-          selectedKeys={values.cameraMovement ? [values.cameraMovement] : []}
-          onChange={(e) => handleChange('cameraMovement', e.target.value)}
-          classNames={{ trigger: 'bg-slate-800 border-slate-700 w-24' }}
-        >
-          {options.cameraMovement.map((opt) => (
-            <SelectItem key={opt.value}>{opt.label}</SelectItem>
-          ))}
-        </Select>
-
-        {/* 时长 */}
         <Input
           type="number"
           size="sm"
-          placeholder="秒"
+          placeholder="时长"
           value={values.shotDuration?.toString() || ''}
           onChange={(e) => handleChange('shotDuration', parseFloat(e.target.value) || undefined)}
           classNames={{ input: 'bg-slate-800 border-slate-700 w-16' }}
-          endContent={<span className="text-xs text-slate-500">s</span>}
+          endContent={<span className="text-xs text-slate-500">秒</span>}
         />
       </div>
     );
@@ -180,7 +170,7 @@ const ShotLanguageEditor: React.FC<ShotLanguageEditorProps> = ({
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
           <Camera className="w-4 h-4" />
-          镜头语言参数
+          镜头设置
         </h3>
         <div className="flex items-center gap-2">
           <Button
@@ -190,7 +180,7 @@ const ShotLanguageEditor: React.FC<ShotLanguageEditorProps> = ({
             startContent={<Wand2 className="w-3 h-3" />}
             onPress={() => setShowPresets(!showPresets)}
           >
-            预设
+            快速预设
           </Button>
           <Button
             size="sm"
@@ -199,7 +189,7 @@ const ShotLanguageEditor: React.FC<ShotLanguageEditorProps> = ({
             startContent={<RotateCcw className="w-3 h-3" />}
             onPress={resetValues}
           >
-            重置
+            清空
           </Button>
           <Button
             size="sm"
@@ -217,6 +207,7 @@ const ShotLanguageEditor: React.FC<ShotLanguageEditorProps> = ({
       {showPresets && (
         <Card className="bg-slate-800/50 border-slate-700">
           <CardBody className="p-3">
+            <p className="text-xs text-slate-400 mb-2">选择一个场景类型，快速应用推荐设置：</p>
             <div className="grid grid-cols-2 gap-2">
               {DEFAULT_SHOT_PRESETS.map((preset) => (
                 <button
@@ -233,216 +224,140 @@ const ShotLanguageEditor: React.FC<ShotLanguageEditorProps> = ({
         </Card>
       )}
 
-      {/* 参数标签页 */}
-      <Tabs 
-        selectedKey={activeTab} 
-        onSelectionChange={(key) => setActiveTab(key as string)}
-        size="sm"
-        classNames={{
-          tabList: 'bg-slate-800/50',
-          cursor: 'bg-blue-600',
-        }}
-      >
-        <Tab 
-          key="basic" 
-          title={<span className="flex items-center gap-1"><Camera className="w-3 h-3" /> 基础</span>}
-        >
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            {/* 景别 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400">景别</label>
-              <Select
-                selectedKeys={values.shotSize ? [values.shotSize] : []}
-                onChange={(e) => handleChange('shotSize', e.target.value)}
-                classNames={{ trigger: 'bg-slate-800 border-slate-700' }}
-                startContent={values.shotSize && <span>{getShotSizeVisual(values.shotSize)}</span>}
+      {/* 简洁参数设置 */}
+      <div className="space-y-4">
+        {/* 画面大小 */}
+        <div className="space-y-2">
+          <label className="text-xs text-slate-300 font-medium">画面大小（人物占画面比例）</label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {SIMPLE_OPTIONS.shotSize.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handleChange('shotSize', opt.value)}
+                className={`p-2 rounded text-center transition-colors ${
+                  values.shotSize === opt.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                }`}
               >
-                {options.shotSize.map((opt) => (
-                  <SelectItem key={opt.value}>
-                    {opt.icon} {opt.label} - {opt.description}
-                  </SelectItem>
-                ))}
-              </Select>
-            </div>
-
-            {/* 机位高度 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400">机位高度</label>
-              <Select
-                selectedKeys={values.cameraHeight ? [values.cameraHeight] : []}
-                onChange={(e) => handleChange('cameraHeight', e.target.value)}
-                classNames={{ trigger: 'bg-slate-800 border-slate-700' }}
-              >
-                {options.cameraHeight.map((opt) => (
-                  <SelectItem key={opt.value}>{opt.icon} {opt.label} - {opt.description}</SelectItem>
-                ))}
-              </Select>
-            </div>
-
-            {/* 镜头运动 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400">镜头运动</label>
-              <Select
-                selectedKeys={values.cameraMovement ? [values.cameraMovement] : []}
-                onChange={(e) => handleChange('cameraMovement', e.target.value)}
-                classNames={{ trigger: 'bg-slate-800 border-slate-700' }}
-              >
-                {options.cameraMovement.map((opt) => (
-                  <SelectItem key={opt.value}>{opt.icon} {opt.label} - {opt.description}</SelectItem>
-                ))}
-              </Select>
-            </div>
-
-            {/* 镜头类型 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400">镜头类型</label>
-              <Select
-                selectedKeys={values.lensType ? [values.lensType] : []}
-                onChange={(e) => handleChange('lensType', e.target.value)}
-                classNames={{ trigger: 'bg-slate-800 border-slate-700' }}
-              >
-                {options.lensType.map((opt) => (
-                  <SelectItem key={opt.value}>{opt.icon} {opt.label} - {opt.description}</SelectItem>
-                ))}
-              </Select>
-            </div>
+                <div className="text-xs font-medium">{opt.label}</div>
+              </button>
+            ))}
           </div>
-        </Tab>
+        </div>
 
-        <Tab 
-          key="composition" 
-          title={<span className="flex items-center gap-1"><Grid3X3 className="w-3 h-3" /> 构图</span>}
-        >
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            {/* 构图法则 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400">构图法则</label>
-              <Select
-                selectedKeys={values.compositionRule ? [values.compositionRule] : []}
-                onChange={(e) => handleChange('compositionRule', e.target.value)}
-                classNames={{ trigger: 'bg-slate-800 border-slate-700' }}
+        {/* 视角 */}
+        <div className="space-y-2">
+          <label className="text-xs text-slate-300 font-medium">视角（摄像机高度）</label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {SIMPLE_OPTIONS.cameraAngle.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handleChange('cameraHeight', opt.value)}
+                className={`p-2 rounded text-center transition-colors ${
+                  values.cameraHeight === opt.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                }`}
               >
-                {options.compositionRule.map((opt) => (
-                  <SelectItem key={opt.value}>{opt.icon} {opt.label} - {opt.description}</SelectItem>
-                ))}
-              </Select>
-            </div>
-
-            {/* 景深 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400">景深</label>
-              <Select
-                selectedKeys={values.depthOfField ? [values.depthOfField] : []}
-                onChange={(e) => handleChange('depthOfField', e.target.value)}
-                classNames={{ trigger: 'bg-slate-800 border-slate-700' }}
-              >
-                {options.depthOfField.map((opt) => (
-                  <SelectItem key={opt.value}>{opt.icon} {opt.label} - {opt.description}</SelectItem>
-                ))}
-              </Select>
-            </div>
-
-            {/* 焦点位置 */}
-            <div className="space-y-1 col-span-2">
-              <label className="text-xs text-slate-400 flex items-center gap-1">
-                <Focus className="w-3 h-3" /> 焦点位置
-              </label>
-              <Input
-                placeholder="描述焦点在画面中的位置"
-                value={values.focusPoint || ''}
-                onChange={(e) => handleChange('focusPoint', e.target.value)}
-                classNames={{ input: 'bg-slate-800 border-slate-700' }}
-              />
-            </div>
+                <div className="text-xs font-medium">{opt.label}</div>
+                <div className="text-[10px] text-slate-400">{opt.desc}</div>
+              </button>
+            ))}
           </div>
-        </Tab>
+        </div>
 
-        <Tab 
-          key="lighting" 
-          title={<span className="flex items-center gap-1"><Sun className="w-3 h-3" /> 光影</span>}
-        >
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            {/* 光影氛围 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400">光影氛围</label>
-              <Select
-                selectedKeys={values.lightingMood ? [values.lightingMood] : []}
-                onChange={(e) => handleChange('lightingMood', e.target.value)}
-                classNames={{ trigger: 'bg-slate-800 border-slate-700' }}
+        {/* 镜头运动 */}
+        <div className="space-y-2">
+          <label className="text-xs text-slate-300 font-medium">镜头运动</label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {SIMPLE_OPTIONS.movement.slice(0, 4).map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handleChange('cameraMovement', opt.value)}
+                className={`p-2 rounded text-center transition-colors ${
+                  values.cameraMovement === opt.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                }`}
               >
-                {options.lightingMood.map((opt) => (
-                  <SelectItem key={opt.value}>{opt.icon} {opt.label} - {opt.description}</SelectItem>
-                ))}
-              </Select>
-            </div>
-
-            {/* 时长 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400 flex items-center gap-1">
-                <Clock className="w-3 h-3" /> 镜头时长
-              </label>
-              <Input
-                type="number"
-                step="0.5"
-                placeholder="秒"
-                value={values.shotDuration?.toString() || ''}
-                onChange={(e) => handleChange('shotDuration', parseFloat(e.target.value) || undefined)}
-                classNames={{ input: 'bg-slate-800 border-slate-700' }}
-                endContent={<span className="text-xs text-slate-500">秒</span>}
-              />
-            </div>
+                <div className="text-xs font-medium">{opt.label}</div>
+              </button>
+            ))}
           </div>
-        </Tab>
-
-        <Tab 
-          key="axis" 
-          title={<span className="flex items-center gap-1"><ArrowRightLeft className="w-3 h-3" /> 轴线</span>}
-        >
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            {/* 轴线位置 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400">轴线位置</label>
-              <Select
-                selectedKeys={values.axisPosition ? [values.axisPosition] : []}
-                onChange={(e) => handleChange('axisPosition', e.target.value)}
-                classNames={{ trigger: 'bg-slate-800 border-slate-700' }}
+          <div className="grid grid-cols-3 gap-1.5">
+            {SIMPLE_OPTIONS.movement.slice(4).map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handleChange('cameraMovement', opt.value)}
+                className={`p-2 rounded text-center transition-colors ${
+                  values.cameraMovement === opt.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                }`}
               >
-                {options.axisPosition.map((opt) => (
-                  <SelectItem key={opt.value}>{opt.icon} {opt.label} - {opt.description}</SelectItem>
-                ))}
-              </Select>
-            </div>
-
-            {/* 屏幕方向 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400">屏幕方向</label>
-              <Select
-                selectedKeys={values.screenDirection ? [values.screenDirection] : []}
-                onChange={(e) => handleChange('screenDirection', e.target.value)}
-                classNames={{ trigger: 'bg-slate-800 border-slate-700' }}
-              >
-                {options.screenDirection.map((opt) => (
-                  <SelectItem key={opt.value}>{opt.icon} {opt.label}</SelectItem>
-                ))}
-              </Select>
-            </div>
-
-            {/* 转场类型 */}
-            <div className="space-y-1">
-              <label className="text-xs text-slate-400">转场类型</label>
-              <Select
-                selectedKeys={values.transitionType ? [values.transitionType] : []}
-                onChange={(e) => handleChange('transitionType', e.target.value)}
-                classNames={{ trigger: 'bg-slate-800 border-slate-700' }}
-              >
-                {options.transitionType.map((opt) => (
-                  <SelectItem key={opt.value}>{opt.icon} {opt.label} - {opt.description}</SelectItem>
-                ))}
-              </Select>
-            </div>
+                <div className="text-xs font-medium">{opt.label}</div>
+              </button>
+            ))}
           </div>
-        </Tab>
-      </Tabs>
+        </div>
+
+        {/* 氛围与时长 */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-xs text-slate-300 font-medium">画面氛围</label>
+            <Select
+              size="sm"
+              placeholder="选择氛围..."
+              selectedKeys={values.lightingMood ? [values.lightingMood] : []}
+              onChange={(e) => handleChange('lightingMood', e.target.value)}
+              classNames={{ trigger: 'bg-slate-800 border-slate-700' }}
+            >
+              {SIMPLE_OPTIONS.mood.map((opt) => (
+                <SelectItem key={opt.value}>{opt.label} - {opt.desc}</SelectItem>
+              ))}
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs text-slate-300 font-medium flex items-center gap-1">
+              <Clock className="w-3 h-3" /> 时长
+            </label>
+            <Input
+              type="number"
+              size="sm"
+              step="0.5"
+              min="0.5"
+              max="30"
+              placeholder="秒"
+              value={values.shotDuration?.toString() || ''}
+              onChange={(e) => handleChange('shotDuration', parseFloat(e.target.value) || undefined)}
+              classNames={{ inputWrapper: 'bg-slate-800 border-slate-700' }}
+              endContent={<span className="text-xs text-slate-500">秒</span>}
+            />
+          </div>
+        </div>
+
+        {/* 转场 */}
+        <div className="space-y-2">
+          <label className="text-xs text-slate-300 font-medium">转场效果</label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {SIMPLE_OPTIONS.transition.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handleChange('transitionType', opt.value)}
+                className={`p-2 rounded text-center transition-colors ${
+                  values.transitionType === opt.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <div className="text-xs font-medium">{opt.label}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

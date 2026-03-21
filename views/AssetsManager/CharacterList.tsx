@@ -130,11 +130,12 @@ const CharacterList: React.FC<CharacterListProps> = ({ characters, tagGroups, on
                         size="sm" 
                         variant="flat" 
                         style={{
-                          backgroundColor: `${color}15`,
+                          backgroundColor: `${color}25`,
                           color: color,
-                          borderColor: `${color}30`
+                          borderColor: `${color}50`,
+                          boxShadow: `0 1px 2px ${color}15`,
                         }}
-                        className="font-medium border"
+                        className="font-medium border-1.5"
                       >
                         {tag}
                       </Chip>

@@ -13,12 +13,6 @@ interface AvatarSlotProps {
 
 const iconMap = { character: User, scene: MapPin, prop: Package };
 
-const borderColors = {
-  character: 'border-cyan-500/40 hover:border-cyan-400',
-  scene: 'border-emerald-500/40 hover:border-emerald-400',
-  prop: 'border-amber-500/40 hover:border-amber-400',
-};
-
 const sizes = {
   sm: { box: 'w-10 h-10', icon: 'w-4 h-4', font: 'text-[10px]', maxW: 'max-w-[48px]' },
   md: { box: 'w-14 h-14', icon: 'w-5 h-5', font: 'text-xs', maxW: 'max-w-[64px]' },
@@ -28,24 +22,39 @@ const AvatarSlot: React.FC<AvatarSlotProps> = ({ type, name, imageUrl, size = 's
   const Icon = iconMap[type];
   const s = sizes[size];
 
+  const borderColorMap = {
+    character: 'rgba(6, 182, 212, 0.4)',
+    scene: 'rgba(16, 185, 129, 0.4)',
+    prop: 'rgba(245, 158, 11, 0.4)',
+  };
+
   return (
     <button
       onClick={onClick}
       className={`flex flex-col items-center gap-0.5 group cursor-pointer`}
       title={name}
     >
-      <div className={`${s.box} rounded-lg border ${borderColors[type]} bg-slate-800/60 overflow-hidden flex items-center justify-center transition-all relative`}>
+      <div 
+        className={`${s.box} rounded-lg overflow-hidden flex items-center justify-center transition-all relative`}
+        style={{
+          backgroundColor: 'var(--bg-input)',
+          border: `1px solid ${borderColorMap[type]}`,
+        }}
+      >
         {imageUrl ? (
           <>
             <img src={imageUrl} alt={name} className={`${s.box} object-cover`} />
             <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-400" />
           </>
         ) : (
-          <Icon className={`${s.icon} text-slate-500`} />
+          <Icon className={`${s.icon}`} style={{ color: 'var(--text-muted)' }} />
         )}
       </div>
       {name && (
-        <span className={`${s.font} text-slate-400 truncate ${s.maxW} text-center leading-tight group-hover:text-slate-200 transition-colors`}>
+        <span 
+          className={`${s.font} truncate ${s.maxW} text-center leading-tight transition-colors`}
+          style={{ color: 'var(--text-muted)' }}
+        >
           {name}
         </span>
       )}
@@ -59,7 +68,11 @@ export const AddSlot: React.FC<{ type: SlotType; size?: 'sm' | 'md'; onClick?: (
   return (
     <button
       onClick={onClick}
-      className={`${s.box} rounded-lg border-2 border-dashed border-slate-600 flex items-center justify-center text-slate-500 hover:text-slate-300 hover:border-slate-400 transition-all cursor-pointer`}
+      className={`${s.box} rounded-lg border-2 border-dashed flex items-center justify-center transition-all cursor-pointer`}
+      style={{
+        borderColor: 'var(--border-color)',
+        color: 'var(--text-muted)',
+      }}
       title={`添加${label}`}
     >
       <Plus className={s.icon} />

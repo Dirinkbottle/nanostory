@@ -1,5 +1,5 @@
 /**
- * 导演助手Modal组件 - 可视化选择 + JSON编辑
+ * 导演助手Modal组件 - 可视化参数设置
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import {
@@ -14,7 +14,7 @@ import {
   Tab,
   Chip,
 } from '@heroui/react';
-import { Clapperboard, Code, Eye, RotateCcw, Copy, Check } from 'lucide-react';
+import { Clapperboard, Eye, RotateCcw, Copy, Check } from 'lucide-react';
 import DirectorParamSelector from './DirectorParamSelector';
 import {
   DirectorParams,
@@ -39,9 +39,7 @@ const DirectorAssistantModal: React.FC<DirectorAssistantModalProps> = ({
   sceneDescription,
 }) => {
   const [params, setParams] = useState<DirectorParams>(initialParams || DEFAULT_DIRECTOR_PARAMS);
-  const [jsonText, setJsonText] = useState('');
-  const [jsonError, setJsonError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'visual' | 'json' | 'preview'>('visual');
+  const [activeTab, setActiveTab] = useState<'visual' | 'preview'>('visual');
   const [copied, setCopied] = useState(false);
   const [customNotes, setCustomNotes] = useState(initialParams?.customNotes || '');
 
@@ -50,31 +48,9 @@ const DirectorAssistantModal: React.FC<DirectorAssistantModalProps> = ({
     if (isOpen) {
       const initParams = initialParams || DEFAULT_DIRECTOR_PARAMS;
       setParams(initParams);
-      setJsonText(JSON.stringify(initParams, null, 2));
       setCustomNotes(initParams.customNotes || '');
-      setJsonError(null);
     }
   }, [isOpen, initialParams]);
-
-  // 当params改变时更新JSON文本
-  useEffect(() => {
-    if (activeTab === 'visual') {
-      setJsonText(JSON.stringify({ ...params, customNotes }, null, 2));
-    }
-  }, [params, customNotes, activeTab]);
-
-  // JSON编辑处理
-  const handleJsonChange = (text: string) => {
-    setJsonText(text);
-    try {
-      const parsed = JSON.parse(text);
-      setParams(parsed);
-      setCustomNotes(parsed.customNotes || '');
-      setJsonError(null);
-    } catch (e) {
-      setJsonError('JSON格式错误');
-    }
-  };
 
   // 预览文本
   const previewText = useMemo(() => directorParamsToText({ ...params, customNotes }), [params, customNotes]);
@@ -91,8 +67,6 @@ const DirectorAssistantModal: React.FC<DirectorAssistantModalProps> = ({
   const handleReset = () => {
     setParams(DEFAULT_DIRECTOR_PARAMS);
     setCustomNotes('');
-    setJsonText(JSON.stringify(DEFAULT_DIRECTOR_PARAMS, null, 2));
-    setJsonError(null);
   };
 
   // 保存
@@ -108,10 +82,10 @@ const DirectorAssistantModal: React.FC<DirectorAssistantModalProps> = ({
       size="3xl"
       scrollBehavior="inside"
       classNames={{
-        base: 'bg-gray-900 border border-gray-700',
-        header: 'border-b border-gray-800',
+        base: 'bg-content1 border border-divider',
+        header: 'border-b border-divider',
         body: 'py-4',
-        footer: 'border-t border-gray-800',
+        footer: 'border-t border-divider',
       }}
     >
       <ModalContent>
@@ -128,7 +102,7 @@ const DirectorAssistantModal: React.FC<DirectorAssistantModalProps> = ({
         <ModalBody>
           <Tabs
             selectedKey={activeTab}
-            onSelectionChange={(key) => setActiveTab(key as 'visual' | 'json' | 'preview')}
+            onSelectionChange={(key) => setActiveTab(key as 'visual' | 'preview')}
             variant="underlined"
             classNames={{
               tabList: 'gap-4',
@@ -142,17 +116,7 @@ const DirectorAssistantModal: React.FC<DirectorAssistantModalProps> = ({
               title={
                 <div className="flex items-center gap-2">
                   <Eye className="w-4 h-4" />
-                  <span>可视化选择</span>
-                </div>
-              }
-            />
-            <Tab
-              key="json"
-              title={
-                <div className="flex items-center gap-2">
-                  <Code className="w-4 h-4" />
-                  <span>JSON编辑</span>
-                  {jsonError && <span className="text-red-500 text-xs">!</span>}
+                  <span>参数设置</span>
                 </div>
               }
             />
@@ -161,7 +125,7 @@ const DirectorAssistantModal: React.FC<DirectorAssistantModalProps> = ({
               title={
                 <div className="flex items-center gap-2">
                   <Eye className="w-4 h-4" />
-                  <span>预览</span>
+                  <span>效果预览</span>
                 </div>
               }
             />
@@ -173,46 +137,28 @@ const DirectorAssistantModal: React.FC<DirectorAssistantModalProps> = ({
                 <DirectorParamSelector params={params} onChange={setParams} />
                 
                 {/* 自定义备注 */}
-                <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-800">
-                  <label className="text-sm text-gray-400 mb-2 block">导演备注（自定义补充）</label>
+                <div className="bg-content2/50 rounded-lg p-3 border border-divider">
+                  <label className="text-sm text-foreground-500 mb-2 block">导演备注（自定义补充）</label>
                   <Textarea
                     value={customNotes}
                     onChange={(e) => setCustomNotes(e.target.value)}
                     placeholder="添加任何额外的导演指导说明..."
                     minRows={2}
                     classNames={{
-                      input: 'bg-gray-800 text-sm',
-                      inputWrapper: 'bg-gray-800 border-gray-700',
+                      input: 'bg-content2 text-sm',
+                      inputWrapper: 'bg-content2 border-divider',
                     }}
                   />
                 </div>
               </div>
             )}
 
-            {activeTab === 'json' && (
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-400">直接编辑JSON数据</span>
-                  {jsonError && <span className="text-red-500 text-sm">{jsonError}</span>}
-                </div>
-                <Textarea
-                  value={jsonText}
-                  onChange={(e) => handleJsonChange(e.target.value)}
-                  minRows={20}
-                  classNames={{
-                    input: 'bg-gray-800 font-mono text-sm',
-                    inputWrapper: `bg-gray-800 border ${jsonError ? 'border-red-500' : 'border-gray-700'}`,
-                  }}
-                />
-              </div>
-            )}
-
             {activeTab === 'preview' && (
               <div className="flex flex-col gap-4">
                 {/* 中文预览 */}
-                <div className="bg-gray-800 rounded-lg p-4">
+                <div className="bg-content2 rounded-lg p-4">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-300">参数摘要（中文）</span>
+                    <span className="text-sm font-medium text-foreground">参数摘要（中文）</span>
                     <Button
                       size="sm"
                       variant="flat"
@@ -222,13 +168,13 @@ const DirectorAssistantModal: React.FC<DirectorAssistantModalProps> = ({
                       {copied ? '已复制' : '复制'}
                     </Button>
                   </div>
-                  <pre className="text-sm text-gray-300 whitespace-pre-wrap font-sans">{previewText}</pre>
+                  <pre className="text-sm text-foreground whitespace-pre-wrap font-sans">{previewText}</pre>
                 </div>
 
                 {/* 英文提示词 */}
-                <div className="bg-gray-800 rounded-lg p-4">
+                <div className="bg-content2 rounded-lg p-4">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-300">生成提示词（英文）</span>
+                    <span className="text-sm font-medium text-foreground">生成提示词（英文）</span>
                     <Button
                       size="sm"
                       variant="flat"
@@ -260,7 +206,7 @@ const DirectorAssistantModal: React.FC<DirectorAssistantModalProps> = ({
           <Button
             color="warning"
             onClick={handleSave}
-            isDisabled={!!jsonError}
+
           >
             保存参数
           </Button>

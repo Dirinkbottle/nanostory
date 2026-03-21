@@ -24,6 +24,7 @@
 const { queryAll, execute } = require('../../../dbHelper');
 const handleFrameGeneration = require('./frameGeneration');
 const handleSingleFrameGeneration = require('./singleFrameGeneration');
+const { generateFramesParallel } = require('./independentFrameGeneration');
 
 /**
  * 获取分镜的"最终帧" URL
@@ -164,13 +165,34 @@ async function handleBatchFrameGeneration(inputParams, onProgress) {
         console.error(`[BatchFrameGen] 严格模式：链条中断，跳过剩余 ${total - i - 1} 个镜头`);
         break;
       } else {
-        // 容错模式：继续尝试后续镜头
-        console.warn(`[BatchFrameGen] 容错模式：继续处理后续镜头（后续镜头将使用默认参考图）`);
-        // 重置链式传递参数，让后续镜头使用默认参考图
-        prevEndFrameUrl = null;
-        prevDescription = null;
-        prevEndState = null;
-        // 继续循环
+        // 容错模式 + 链断裂优化：剩余任务切换到并行模式
+        const remainingIds = storyboards.slice(i + 1).map(s => s.id);
+        if (remainingIds.length > 0) {
+          console.warn(`[BatchFrameGen] 链断裂优化：剩余 ${remainingIds.length} 个镜头切换到并行模式处理...`);
+          try {
+            const parallelResult = await generateFramesParallel({
+              storyboardIds: remainingIds,
+              imageModel,
+              textModel,
+              aspectRatio,
+              maxConcurrency: 5
+            }, null);
+            
+            // 合并并行结果
+            completed += parallelResult.completed;
+            failed += parallelResult.failed;
+            results.push(...parallelResult.results);
+            console.log(`[BatchFrameGen] 并行模式完成：成功=${parallelResult.completed}, 失败=${parallelResult.failed}`);
+          } catch (parallelErr) {
+            console.error('[BatchFrameGen] 并行模式执行失败:', parallelErr.message);
+            // 标记剩余任务为失败
+            remainingIds.forEach(id => {
+              failed++;
+              results.push({ storyboardId: id, status: 'failed', error: '链断裂后并行处理失败' });
+            });
+          }
+        }
+        break; // 已处理完剩余任务，退出主循环
       }
     }
 

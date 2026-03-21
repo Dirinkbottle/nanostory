@@ -416,16 +416,22 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
 
 
   return (
-    <div className="h-full flex flex-col bg-slate-900 text-slate-200">
+    <div className="h-full flex flex-col" style={{ backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)' }}>
       {/* 顶部栏 */}
-      <div className="px-4 py-2.5 bg-slate-800/80 border-b border-slate-700/50 flex items-center gap-4">
-        <h2 className="text-sm font-bold text-slate-200">分镜设计</h2>
+      <div 
+        className="px-4 py-2.5 border-b flex items-center gap-4"
+        style={{ 
+          backgroundColor: 'var(--bg-card)', 
+          borderColor: 'var(--border-color)' 
+        }}
+      >
+        <h2 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>分镜设计</h2>
         <DarkEpisodeSelector
           scripts={scripts}
           currentEpisode={currentEpisode}
           onSelect={handleEpisodeSelect}
         />
-        {isLoading && <span className="text-xs text-slate-500">加载中...</span>}
+        {isLoading && <span className="text-xs" style={{ color: 'var(--text-muted)' }}>加载中...</span>}
         
         {/* 批量生成按钮 */}
         <div className="flex-1" />
@@ -476,10 +482,10 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
       {/* 无剧本提示 */}
       {!currentScriptId && (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-slate-500">
-            <Wand2 className="w-12 h-12 mx-auto mb-3 text-slate-600" />
+          <div className="text-center" style={{ color: 'var(--text-muted)' }}>
+            <Wand2 className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
             <p className="text-sm font-medium">请先生成剧本</p>
-            <p className="text-xs mt-1 text-slate-600">生成剧本后，可以自动将剧本转换为分镜</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>生成剧本后，可以自动将剧本转换为分镜</p>
           </div>
         </div>
       )}

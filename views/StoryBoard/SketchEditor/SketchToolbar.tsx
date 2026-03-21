@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button, Slider, Switch, Tooltip } from '@heroui/react';
-import { Save, X, Image, Eye, EyeOff } from 'lucide-react';
+import { Button, Slider, Tooltip } from '@heroui/react';
+import { Save, X, Eye, EyeOff, Undo, Redo, Trash2 } from 'lucide-react';
 import SketchTypeSelector from './SketchTypeSelector';
 import { SketchType, BackgroundType } from './useSketchEditor';
 
@@ -15,6 +15,7 @@ interface SketchToolbarProps {
   onBackgroundTypeChange: (type: BackgroundType) => void;
   onSave: () => void;
   onCancel: () => void;
+  onClear?: () => void;
   saving: boolean;
   hasBackgroundImage?: boolean;
 }
@@ -30,11 +31,12 @@ const SketchToolbar: React.FC<SketchToolbarProps> = ({
   onBackgroundTypeChange,
   onSave,
   onCancel,
+  onClear,
   saving,
   hasBackgroundImage = false
 }) => {
   return (
-    <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-card)] border-b border-[var(--border-color)]">
+    <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-card)] border-b border-[var(--border-color)] flex-wrap gap-2">
       {/* 左侧：草图类型 + 控制强度 */}
       <div className="flex items-center gap-6">
         <SketchTypeSelector
@@ -124,6 +126,22 @@ const SketchToolbar: React.FC<SketchToolbarProps> = ({
             </Tooltip>
           </div>
         </div>
+
+        {/* 分隔线 */}
+        <div className="w-px h-6 bg-[var(--border-color)]" />
+
+        {/* 清空画布按钮 */}
+        {onClear && (
+          <Tooltip content="清空画布">
+            <button
+              onClick={onClear}
+              className="flex items-center gap-1.5 px-2 py-1 rounded text-xs bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">清空</span>
+            </button>
+          </Tooltip>
+        )}
 
         {/* 分隔线 */}
         <div className="w-px h-6 bg-[var(--border-color)]" />

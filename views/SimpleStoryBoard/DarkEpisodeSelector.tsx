@@ -18,17 +18,22 @@ const DarkEpisodeSelector: React.FC<DarkEpisodeSelectorProps> = ({ scripts, curr
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-slate-500">集数</span>
+      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>集数</span>
       <div className="flex gap-1">
         {scripts.map((s) => (
           <button
             key={s.id}
             onClick={() => onSelect(s)}
-            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-              currentEpisode === s.episode_number
-                ? 'bg-cyan-600 text-white'
-                : 'bg-slate-700 text-slate-400 hover:bg-slate-600 hover:text-slate-200'
-            }`}
+            className="px-2.5 py-1 rounded-md text-xs font-medium transition-all"
+            style={{
+              backgroundColor: currentEpisode === s.episode_number 
+                ? 'var(--accent-primary)' 
+                : 'var(--bg-input)',
+              color: currentEpisode === s.episode_number 
+                ? 'white' 
+                : 'var(--text-secondary)',
+              border: `1px solid ${currentEpisode === s.episode_number ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+            }}
           >
             {s.episode_number}
           </button>

@@ -12,6 +12,7 @@ const deleteCharacter = require('./delete');
 const generateViews = require('./generateViews');
 const tagGroups = require('./tagGroups');
 const states = require('./states');
+const voiceConfig = require('./voiceConfig');
 
 // 注册路由（顺序很重要！具体路由在前，通用路由在后）
 tagGroups(router);  // 标签分组路由优先（/tag-groups）
@@ -20,6 +21,7 @@ getByProject(router);
 batchSave(router);
 generateViews(router);
 states(router);  // 角色状态路由（/:id/states）
+voiceConfig(router);  // 角色声音配置路由（/:id/voice）
 create(router);
 update(router);
 deleteCharacter(router);

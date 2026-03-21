@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { Card, CardBody, Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from '@heroui/react';
-import { Wallet, TrendingUp, FolderOpen, Clapperboard, Receipt, AlertTriangle, DollarSign } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Card, CardBody, Button, Chip, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Progress, Tooltip } from '@heroui/react';
+import { Wallet, TrendingUp, FolderOpen, FileText, Receipt, AlertTriangle, Sparkles, Clock, Zap, ChevronLeft, ChevronRight, User, Calendar, Activity, RefreshCw, ExternalLink } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getAuthToken, logout } from '../services/auth';
 
@@ -213,212 +213,318 @@ const UserCenter: React.FC = () => {
     return parts.join(' · ');
   };
 
+  // 计算消费比例
+  const spentPercentage = useMemo(() => {
+    if (!profile?.balance || !stats?.totalSpent) return 0;
+    const total = profile.balance + stats.totalSpent;
+    return Math.min(100, (stats.totalSpent / total) * 100);
+  }, [profile?.balance, stats?.totalSpent]);
+
+  // 格式化注册日期
+  const memberSince = useMemo(() => {
+    if (!profile?.created_at) return '';
+    return new Date(profile.created_at).toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }, [profile?.created_at]);
+
+  // 获取用户名首字母
+  const avatarInitial = useMemo(() => {
+    if (!profile?.email) return 'U';
+    return profile.email.charAt(0).toUpperCase();
+  }, [profile?.email]);
+
   if (loading && !profile) {
     return (
       <div className="h-full flex items-center justify-center bg-[var(--bg-app)]">
-        <div className="text-[var(--text-muted)]">加载中...</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+          <div className="text-[var(--text-muted)]">Loading...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-auto bg-[var(--bg-app)] p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
-            <CardBody className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-emerald-500/10 rounded-lg">
-                  <Wallet className="w-5 h-5 text-emerald-400" />
+    <div className="h-full overflow-auto bg-[var(--bg-app)]">
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
+        
+        {/* 用户信息头部 */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[var(--accent)]/20 via-purple-500/10 to-blue-500/10 border border-[var(--border-color)]">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.03%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50" />
+          
+          <div className="relative p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
+              {/* 头像 */}
+              <div className="relative">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-purple-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-[var(--accent)]/20">
+                  {avatarInitial}
                 </div>
-                <div className="text-sm text-slate-400 font-medium">账户余额</div>
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-[var(--bg-card)]">
+                  <Sparkles className="w-3 h-3 text-white" />
+                </div>
               </div>
-              <div className="text-3xl font-bold text-slate-100">{formatMoney(profile?.balance)}</div>
-              <div className="text-xs text-slate-500 mt-2">{profile?.email}</div>
-            </CardBody>
-          </Card>
+              
+              {/* 用户信息 */}
+              <div className="flex-1">
+                <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-1">欢迎回来</h1>
+                <p className="text-[var(--text-secondary)] flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  {profile?.email}
+                </p>
+                <div className="flex items-center gap-4 mt-3 text-sm text-[var(--text-muted)]">
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4" />
+                    {memberSince} 加入
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Activity className="w-4 h-4" />
+                    {formatInteger(stats?.totalRecords)} 次 API 调用
+                  </span>
+                </div>
+              </div>
+              
+              {/* 余额卡片 */}
+              <div className="bg-[var(--bg-card)]/80 backdrop-blur-sm rounded-xl p-4 border border-[var(--border-color)] min-w-[200px]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                    <Wallet className="w-4 h-4 text-emerald-400" />
+                    账户余额
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="light"
+                    className="text-[var(--accent)] min-w-0 px-2 h-7"
+                    onPress={() => window.open('https://example.com/recharge', '_blank')}
+                  >
+                    充值
+                    <ExternalLink className="w-3 h-3 ml-1" />
+                  </Button>
+                </div>
+                <div className="text-3xl font-bold text-emerald-400">{formatMoney(profile?.balance)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <Card className="bg-[var(--bg-card)] border border-orange-500/20 shadow-sm">
-            <CardBody className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-orange-500/10 rounded-lg">
+        {/* 统计卡片 */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* 累计消费 */}
+          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm hover:shadow-md transition-shadow">
+            <CardBody className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2.5 bg-orange-500/10 rounded-xl">
                   <TrendingUp className="w-5 h-5 text-orange-400" />
                 </div>
-                <div className="text-sm text-slate-400 font-medium">累计消费</div>
+                <Tooltip content="与余额的比例">
+                  <div className="text-xs text-[var(--text-muted)]">{spentPercentage.toFixed(1)}%</div>
+                </Tooltip>
               </div>
-              <div className="text-3xl font-bold text-slate-100">{formatMoney(stats?.totalSpent)}</div>
-              <div className="text-xs text-slate-500 mt-2">累计 Token {formatInteger(stats?.totalTokens)}</div>
+              <div className="text-2xl font-bold text-[var(--text-primary)] mb-1">{formatMoney(stats?.totalSpent)}</div>
+              <div className="text-xs text-[var(--text-muted)]">累计消费</div>
+              <Progress 
+                value={spentPercentage} 
+                size="sm" 
+                color="warning" 
+                className="mt-3"
+                classNames={{ track: 'bg-orange-500/10' }}
+              />
             </CardBody>
           </Card>
 
-          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
-            <CardBody className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <Receipt className="w-5 h-5 text-blue-400" />
+          {/* Token 用量 */}
+          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm hover:shadow-md transition-shadow">
+            <CardBody className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2.5 bg-blue-500/10 rounded-xl">
+                  <Zap className="w-5 h-5 text-blue-400" />
                 </div>
-                <div className="text-sm text-slate-400 font-medium">账单记录</div>
+                <Tooltip content="文本模型消耗的总Token数">
+                  <div className="text-xs text-[var(--text-muted)] cursor-help">?</div>
+                </Tooltip>
               </div>
-              <div className="text-3xl font-bold text-slate-100">{formatInteger(stats?.totalRecords)}</div>
-              <div className="text-xs text-slate-500 mt-2">项目 {formatInteger(stats?.projectCount)} · 剧本 {formatInteger(stats?.scriptCount)}</div>
+              <div className="text-2xl font-bold text-[var(--text-primary)] mb-1">{formatInteger(stats?.totalTokens)}</div>
+              <div className="text-xs text-[var(--text-muted)]">累计 Token</div>
             </CardBody>
           </Card>
 
-          <Card className="bg-[var(--bg-card)] border border-rose-500/20 shadow-sm">
-            <CardBody className="p-6">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-rose-500/10 rounded-lg">
+          {/* 项目/剧本 */}
+          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm hover:shadow-md transition-shadow">
+            <CardBody className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2.5 bg-purple-500/10 rounded-xl">
+                  <FolderOpen className="w-5 h-5 text-purple-400" />
+                </div>
+              </div>
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="text-2xl font-bold text-[var(--text-primary)]">{formatInteger(stats?.projectCount)}</span>
+                <span className="text-sm text-[var(--text-muted)]">项目</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                <FileText className="w-3.5 h-3.5" />
+                {formatInteger(stats?.scriptCount)} 个剧本
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* 失败请求 */}
+          <Card className="bg-[var(--bg-card)] border border-rose-500/20 shadow-sm hover:shadow-md transition-shadow">
+            <CardBody className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2.5 bg-rose-500/10 rounded-xl">
                   <AlertTriangle className="w-5 h-5 text-rose-400" />
                 </div>
-                <div className="text-sm text-slate-400 font-medium">失败请求</div>
+                {(stats?.failedRecords ?? 0) > 0 && (
+                  <Chip size="sm" className="bg-rose-500/10 text-rose-400 text-xs">需关注</Chip>
+                )}
               </div>
-              <div className="text-3xl font-bold text-slate-100">{formatInteger(stats?.failedRecords)}</div>
-              <div className="text-xs text-slate-500 mt-2">已计费视频请求 {formatInteger(stats?.videoCount)}</div>
+              <div className="text-2xl font-bold text-[var(--text-primary)] mb-1">{formatInteger(stats?.failedRecords)}</div>
+              <div className="text-xs text-[var(--text-muted)]">失败请求</div>
             </CardBody>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
-            <CardBody className="p-5 flex flex-row items-center gap-4">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
-                <FolderOpen className="w-6 h-6 text-blue-400" />
-              </div>
-              <div>
-                <div className="text-sm text-[var(--text-secondary)]">项目数</div>
-                <div className="text-2xl font-bold text-[var(--text-primary)]">{formatInteger(stats?.projectCount)}</div>
-              </div>
-            </CardBody>
-          </Card>
-
-          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
-            <CardBody className="p-5 flex flex-row items-center gap-4">
-              <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
-                <Receipt className="w-6 h-6 text-amber-400" />
-              </div>
-              <div>
-                <div className="text-sm text-[var(--text-secondary)]">剧本数</div>
-                <div className="text-2xl font-bold text-[var(--text-primary)]">{formatInteger(stats?.scriptCount)}</div>
-              </div>
-            </CardBody>
-          </Card>
-
-          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
-            <CardBody className="p-5 flex flex-row items-center gap-4">
-              <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
-                <Clapperboard className="w-6 h-6 text-purple-400" />
-              </div>
-              <div>
-                <div className="text-sm text-[var(--text-secondary)]">视频计费记录</div>
-                <div className="text-2xl font-bold text-[var(--text-primary)]">{formatInteger(stats?.videoCount)}</div>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
-
+        {/* 详细账单 */}
         <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
-          <CardBody className="p-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-5">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-blue-400" />
-                  详细账单
-                </h3>
-                <div className="text-sm text-slate-500 mt-1">
-                  每次真实模型调用的状态、用量、拆分计费和总价
+          <CardBody className="p-0">
+            {/* 账单头部 */}
+            <div className="p-5 border-b border-[var(--border-color)]">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-[var(--accent)]/10 rounded-xl">
+                    <Receipt className="w-5 h-5 text-[var(--accent)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-[var(--text-primary)]">详细账单</h3>
+                    <div className="text-sm text-[var(--text-muted)]">
+                      每次 AI 模型调用的状态、用量和计费明细
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="light"
+                    className="text-[var(--text-secondary)] min-w-0 px-2 h-8 ml-auto"
+                    isLoading={recordsLoading}
+                    onPress={() => fetchBillingData()}
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
                 </div>
-              </div>
 
-              <div className="flex flex-col md:flex-row gap-3">
-                <select
-                  value={chargeStatus}
-                  onChange={(e) => {
-                    setChargeStatus(e.target.value);
-                    setPage(1);
-                  }}
-                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="">全部扣费状态</option>
-                  <option value="charged">已扣费</option>
-                  <option value="skipped">已跳过</option>
-                  <option value="pending">待结算</option>
-                </select>
+                {/* 筛选器 */}
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    value={chargeStatus}
+                    onChange={(e) => {
+                      setChargeStatus(e.target.value);
+                      setPage(1);
+                    }}
+                    className="bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-sm min-w-[120px] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                  >
+                    <option value="">全部状态</option>
+                    <option value="charged">已扣费</option>
+                    <option value="skipped">已跳过</option>
+                    <option value="pending">待结算</option>
+                  </select>
 
-                <select
-                  value={modelCategory}
-                  onChange={(e) => {
-                    setModelCategory(e.target.value);
-                    setPage(1);
-                  }}
-                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="">全部模型类型</option>
-                  <option value="TEXT">TEXT</option>
-                  <option value="IMAGE">IMAGE</option>
-                  <option value="VIDEO">VIDEO</option>
-                  <option value="AUDIO">AUDIO</option>
-                </select>
+                  <select
+                    value={modelCategory}
+                    onChange={(e) => {
+                      setModelCategory(e.target.value);
+                      setPage(1);
+                    }}
+                    className="bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-sm min-w-[120px] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                  >
+                    <option value="">全部模型</option>
+                    <option value="TEXT">文本模型</option>
+                    <option value="IMAGE">图像模型</option>
+                    <option value="VIDEO">视频模型</option>
+                    <option value="AUDIO">音频模型</option>
+                  </select>
 
-                <select
-                  value={sourceType}
-                  onChange={(e) => {
-                    setSourceType(e.target.value);
-                    setPage(1);
-                  }}
-                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="">全部来源</option>
-                  <option value="workflow">工作流</option>
-                  <option value="route">直连接口</option>
-                  <option value="admin_tool">管理调试</option>
-                </select>
+                  <select
+                    value={sourceType}
+                    onChange={(e) => {
+                      setSourceType(e.target.value);
+                      setPage(1);
+                    }}
+                    className="bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-sm min-w-[120px] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50"
+                  >
+                    <option value="">全部来源</option>
+                    <option value="workflow">工作流</option>
+                    <option value="route">直连接口</option>
+                    <option value="admin_tool">管理调试</option>
+                  </select>
+                </div>
               </div>
             </div>
 
-            <Table
-              aria-label="详细账单表格"
-              className="min-w-full"
-              classNames={{
-                wrapper: 'bg-transparent shadow-none',
-                th: 'bg-slate-800/60 text-slate-400 font-semibold',
-                td: 'text-slate-300 align-top'
-              }}
-            >
-              <TableHeader>
-                <TableColumn>时间</TableColumn>
-                <TableColumn>来源</TableColumn>
-                <TableColumn>模型</TableColumn>
-                <TableColumn>状态</TableColumn>
-                <TableColumn>计费明细</TableColumn>
-                <TableColumn>总价</TableColumn>
-              </TableHeader>
-              <TableBody emptyContent={recordsLoading ? '账单加载中...' : '暂无账单记录'}>
+            {/* 账单表格 */}
+            <div className="overflow-x-auto">
+              <Table
+                aria-label="详细账单表格"
+                className="min-w-full"
+                classNames={{
+                  wrapper: 'bg-transparent shadow-none rounded-none',
+                  th: 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] font-medium text-xs uppercase tracking-wider',
+                  td: 'text-[var(--text-primary)] align-top py-4'
+                }}
+              >
+                <TableHeader>
+                  <TableColumn>时间</TableColumn>
+                  <TableColumn>来源</TableColumn>
+                  <TableColumn>模型</TableColumn>
+                  <TableColumn>状态</TableColumn>
+                  <TableColumn>计费明细</TableColumn>
+                  <TableColumn className="text-right">总价</TableColumn>
+                </TableHeader>
+              <TableBody emptyContent={
+                recordsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Receipt className="w-12 h-12 mx-auto mb-3 text-[var(--text-muted)] opacity-30" />
+                    <p className="text-[var(--text-muted)]">暂无账单记录</p>
+                  </div>
+                )
+              }>
                 {records.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell className="text-sm text-slate-400 whitespace-nowrap">
-                      {formatDate(record.created_at)}
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex flex-col gap-2">
-                        <Chip size="sm" className="bg-blue-500/10 text-blue-400 w-fit">
-                          {getSourceLabel(record.source_type)}
-                        </Chip>
-                        <div className="text-sm text-slate-200">{record.operation_key || record.operation || '-'}</div>
+                  <TableRow key={record.id} className="hover:bg-[var(--bg-secondary)]/50 transition-colors">
+                    <TableCell className="text-sm text-[var(--text-muted)] whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5" />
+                        {formatDate(record.created_at)}
                       </div>
                     </TableCell>
 
                     <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <div className="font-medium text-slate-100">{record.model_name || record.model_provider || '-'}</div>
-                        <div className="text-xs text-slate-500">
-                          {(record.model_category || 'UNKNOWN')}{record.model_provider ? ` · ${record.model_provider}` : ''}
+                      <div className="flex flex-col gap-1.5">
+                        <Chip size="sm" className="bg-[var(--accent)]/10 text-[var(--accent)] w-fit">
+                          {getSourceLabel(record.source_type)}
+                        </Chip>
+                        <div className="text-xs text-[var(--text-muted)] truncate max-w-[150px]">
+                          {record.operation_key || record.operation || '-'}
                         </div>
                       </div>
                     </TableCell>
 
                     <TableCell>
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-0.5">
+                        <div className="font-medium text-[var(--text-primary)]">
+                          {record.model_name || record.model_provider || '-'}
+                        </div>
+                        <Chip size="sm" variant="flat" className="w-fit text-xs bg-[var(--bg-secondary)]">
+                          {record.model_category || 'UNKNOWN'}
+                        </Chip>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col gap-1.5">
                         <Chip size="sm" className={getStatusChipClass(record.request_status, 'request')}>
                           {record.request_status || 'unknown'}
                         </Chip>
@@ -429,22 +535,24 @@ const UserCenter: React.FC = () => {
                     </TableCell>
 
                     <TableCell>
-                      <div className="flex flex-col gap-2 max-w-md">
+                      <div className="flex flex-col gap-1.5 max-w-md">
                         {record.price_breakdown_json && record.price_breakdown_json.length > 0 ? (
                           record.price_breakdown_json.map((item, index) => (
-                            <div key={`${record.id}-${index}`} className="text-sm text-slate-300">
-                              <span className="text-slate-200">{item.label || item.type}</span>
-                              <span className="text-slate-500"> · {formatInteger(item.quantity)}</span>
-                              <span className="text-slate-500"> × {formatMoney(item.unitPrice)}</span>
-                              <span className="text-amber-300"> = {formatMoney(item.amount)}</span>
+                            <div key={`${record.id}-${index}`} className="text-sm">
+                              <span className="text-[var(--text-primary)]">{item.label || item.type}</span>
+                              <span className="text-[var(--text-muted)]"> × {formatInteger(item.quantity)}</span>
+                              <span className="text-amber-400 font-medium"> = {formatMoney(item.amount)}</span>
                             </div>
                           ))
                         ) : (
-                          <div className="text-sm text-slate-500">无拆分明细</div>
+                          <div className="text-sm text-[var(--text-muted)]">-</div>
                         )}
 
                         {buildUsageSummary(record) && (
-                          <div className="text-xs text-slate-500">{buildUsageSummary(record)}</div>
+                          <div className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+                            <Zap className="w-3 h-3" />
+                            {buildUsageSummary(record)}
+                          </div>
                         )}
 
                         {record.error_message && (
@@ -453,37 +561,44 @@ const UserCenter: React.FC = () => {
                       </div>
                     </TableCell>
 
-                    <TableCell className="font-mono font-semibold text-emerald-400 whitespace-nowrap">
-                      {formatMoney(record.amount)}
+                    <TableCell className="text-right">
+                      <span className="font-mono font-bold text-emerald-400">
+                        {formatMoney(record.amount)}
+                      </span>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            </div>
 
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-5">
-              <div className="text-sm text-slate-500">
-                共 {formatInteger(total)} 条记录，第 {page} / {totalPages} 页
+            {/* 分页 */}
+            <div className="p-4 border-t border-[var(--border-color)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="text-sm text-[var(--text-muted)]">
+                共 <span className="font-medium text-[var(--text-primary)]">{formatInteger(total)}</span> 条记录，
+                第 {page} / {totalPages} 页
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex items-center gap-2">
                 <Button
                   size="sm"
                   variant="flat"
-                  className="bg-slate-800 text-slate-200"
+                  className="bg-[var(--bg-secondary)] text-[var(--text-primary)] gap-1"
                   isDisabled={page <= 1 || recordsLoading}
                   onPress={() => setPage((prev) => Math.max(1, prev - 1))}
                 >
+                  <ChevronLeft className="w-4 h-4" />
                   上一页
                 </Button>
                 <Button
                   size="sm"
                   variant="flat"
-                  className="bg-slate-800 text-slate-200"
+                  className="bg-[var(--bg-secondary)] text-[var(--text-primary)] gap-1"
                   isDisabled={page >= totalPages || recordsLoading}
                   onPress={() => setPage((prev) => Math.min(totalPages, prev + 1))}
                 >
                   下一页
+                  <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
             </div>

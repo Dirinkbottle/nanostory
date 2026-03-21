@@ -80,8 +80,49 @@ export interface Prop {
   category: string;
   image_url: string;
   tags: string;
+  generation_status?: 'idle' | 'generating' | 'completed' | 'failed';
+  generation_prompt?: string;
+  style_config?: PropStyleConfig | null;
   created_at: string;
   updated_at: string;
+}
+
+// 道具样式配置接口
+export interface PropStyleConfig {
+  material?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  texture?: string;
+  size?: string;
+  condition?: string;
+  style?: string;
+  era?: string;
+  details?: string;
+}
+
+// 道具状态接口
+export interface PropState {
+  id: number;
+  prop_id: number;
+  name: string;
+  description: string;
+  image_url: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// 道具生成状态响应
+export interface PropGenerationStatusResponse {
+  status: 'idle' | 'generating' | 'completed' | 'failed';
+  imageUrl?: string;
+  prompt?: string;
+  job?: {
+    jobId: string;
+    status: string;
+    currentStep: number;
+    error?: string;
+  } | null;
 }
 
 // ============================================================
@@ -109,12 +150,24 @@ export interface CharacterState {
 
 export type AssetReferenceType = 'character' | 'character_state' | 'prop';
 
+/** 参考图视角类型 */
+export type ReferenceViewType = 'front' | 'side' | 'back' | 'other';
+
+/** 视角类型配置：标签、描述、颜色 */
+export const VIEW_TYPE_CONFIG: Record<ReferenceViewType, { label: string; desc: string; color: string }> = {
+  front: { label: '正面', desc: '角色正面形象，适用于面部特写、正面全身等場景', color: 'text-blue-400' },
+  side: { label: '侧面', desc: '角色侧面轮廓，适用于过肩镜头、侧面特写等場景', color: 'text-green-400' },
+  back: { label: '背面', desc: '角色背面形象，适用于背影镜头、远景等場景', color: 'text-purple-400' },
+  other: { label: '其他', desc: '其他参考图，用于补充角色细节', color: 'text-slate-400' }
+};
+
 export interface AssetReferenceImage {
   id: number;
   asset_type: AssetReferenceType;
   asset_id: number;
   image_url: string;
   description: string | null;
+  view_type: ReferenceViewType;
   sort_order: number;
   created_at: string;
 }
@@ -318,18 +371,18 @@ export async function deleteProp(id: number): Promise<void> {
 // 标签分组 API
 // ============================================================
 
-// 预设颜色方案
+// 预设颜色方案 - 优化对比度，符合 WCAG AA 标准
 export const TAG_GROUP_COLORS = [
-  '#ef4444', // 红
-  '#f97316', // 橙
-  '#eab308', // 黄
-  '#22c55e', // 绿
-  '#06b6d4', // 青
-  '#3b82f6', // 蓝
-  '#8b5cf6', // 紫
-  '#ec4899', // 粉
-  '#6b7280', // 灰
-  '#78716c', // 棕
+  '#dc2626', // 红 - 更深的红色
+  '#ea580c', // 橙 - 更深的橙色
+  '#ca8a04', // 黄 - 金黄色
+  '#16a34a', // 绿 - 更深的绿色
+  '#0891b2', // 青 - 更深的青色
+  '#2563eb', // 蓝 - 更深的蓝色
+  '#7c3aed', // 紫 - 更深的紫色
+  '#db2777', // 粉 - 更深的粉色
+  '#4b5563', // 灰 - 更深的灰色
+  '#78350f', // 棕 - 更深的棕色
 ];
 
 export async function fetchTagGroups(): Promise<TagGroup[]> {
@@ -654,7 +707,8 @@ export async function uploadReferenceImage(
   assetType: AssetReferenceType,
   assetId: number,
   imageUrl: string,
-  description?: string
+  description?: string,
+  viewType?: ReferenceViewType
 ): Promise<AssetReferenceImage> {
   const token = getAuthToken();
   const response = await fetch('/api/reference-images', {
@@ -667,7 +721,8 @@ export async function uploadReferenceImage(
       asset_type: assetType,
       asset_id: assetId,
       image_url: imageUrl,
-      description
+      description,
+      view_type: viewType || 'other'
     })
   });
   if (!response.ok) {
@@ -683,7 +738,7 @@ export async function uploadReferenceImage(
  */
 export async function updateReferenceImage(
   imageId: number,
-  data: { image_url?: string; description?: string; sort_order?: number }
+  data: { image_url?: string; description?: string; sort_order?: number; view_type?: ReferenceViewType }
 ): Promise<AssetReferenceImage> {
   const token = getAuthToken();
   const response = await fetch(`/api/reference-images/${imageId}`, {
@@ -737,5 +792,169 @@ export async function batchReorderReferenceImages(
   if (!response.ok) {
     const result = await response.json();
     throw new Error(result.message || '重排序参考图失败');
+  }
+}
+
+// ============================================================
+// 道具生成 API
+// ============================================================
+
+/**
+ * 生成道具图片
+ */
+export async function generatePropImage(
+  propId: number,
+  params: {
+    imageModel: string;
+    textModel?: string;
+    styleConfig?: PropStyleConfig;
+  }
+): Promise<{ jobId: string; propId: number; status: string }> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/props/${propId}/generate-image`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(params)
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '启动道具图片生成失败');
+  }
+  return response.json();
+}
+
+/**
+ * 获取道具生成状态
+ */
+export async function getPropGenerationStatus(
+  propId: number
+): Promise<PropGenerationStatusResponse> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/props/${propId}/generation-status`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '查询道具生成状态失败');
+  }
+  return response.json();
+}
+
+/**
+ * 更新道具样式配置
+ */
+export async function updatePropStyleConfig(
+  propId: number,
+  styleConfig: PropStyleConfig
+): Promise<{ styleConfig: PropStyleConfig }> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/props/${propId}/style-config`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ styleConfig })
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '更新道具样式配置失败');
+  }
+  return response.json();
+}
+
+// ============================================================
+// 道具状态 API
+// ============================================================
+
+/**
+ * 获取道具的所有状态
+ */
+export async function fetchPropStates(propId: number): Promise<PropState[]> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/props/${propId}/states`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '获取道具状态失败');
+  }
+  const data = await response.json();
+  return data.states || [];
+}
+
+/**
+ * 创建道具状态
+ */
+export async function createPropState(
+  propId: number,
+  data: Partial<PropState>
+): Promise<PropState> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/props/${propId}/states`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '创建道具状态失败');
+  }
+  const result = await response.json();
+  return result.state;
+}
+
+/**
+ * 更新道具状态
+ */
+export async function updatePropState(
+  propId: number,
+  stateId: number,
+  data: Partial<PropState>
+): Promise<PropState> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/props/${propId}/states/${stateId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '更新道具状态失败');
+  }
+  const result = await response.json();
+  return result.state;
+}
+
+/**
+ * 删除道具状态
+ */
+export async function deletePropState(
+  propId: number,
+  stateId: number
+): Promise<void> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/props/${propId}/states/${stateId}`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '删除道具状态失败');
   }
 }

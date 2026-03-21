@@ -30,7 +30,7 @@ interface ParamSelectProps {
 
 const ParamSelect: React.FC<ParamSelectProps> = ({ label, options, value, onChange }) => (
   <div className="flex flex-col gap-1">
-    <label className="text-xs text-gray-400">{label}</label>
+    <label className="text-xs text-foreground-500">{label}</label>
     <Select
       size="sm"
       selectedKeys={[value]}
@@ -39,16 +39,16 @@ const ParamSelect: React.FC<ParamSelectProps> = ({ label, options, value, onChan
         if (selected) onChange(selected);
       }}
       classNames={{
-        trigger: 'bg-gray-800 border-gray-700 min-h-[32px] h-8',
+        trigger: 'bg-content2 border-divider min-h-[32px] h-8',
         value: 'text-xs',
-        popoverContent: 'bg-gray-800 border-gray-700',
+        popoverContent: 'bg-content1 border-divider',
       }}
     >
       {options.map((opt) => (
         <SelectItem key={opt.value} textValue={opt.label}>
           <div className="flex flex-col">
             <span className="text-sm">{opt.label}</span>
-            <span className="text-xs text-gray-400">{opt.desc}</span>
+            <span className="text-xs text-foreground-400">{opt.desc}</span>
           </div>
         </SelectItem>
       ))}
@@ -64,7 +64,7 @@ interface CategorySectionProps {
 }
 
 const CategorySection: React.FC<CategorySectionProps> = ({ title, icon, children, color }) => (
-  <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-800">
+  <div className="bg-content2/50 rounded-lg p-3 border border-divider">
     <div className={`flex items-center gap-2 mb-3 ${color}`}>
       {icon}
       <span className="font-medium text-sm">{title}</span>

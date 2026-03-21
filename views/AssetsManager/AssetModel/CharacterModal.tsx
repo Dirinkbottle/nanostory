@@ -381,10 +381,15 @@ const CharacterModal: React.FC<CharacterModalProps> = ({
                               <button
                                 key={color}
                                 onClick={() => setNewGroupColor(color)}
-                                className={`w-6 h-6 rounded-full transition-all ${
-                                  newGroupColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-800' : ''
-                                }`}
-                                style={{ backgroundColor: color }}
+                                className="w-7 h-7 rounded-full transition-all"
+                                style={{
+                                  backgroundColor: color,
+                                  boxShadow: newGroupColor === color 
+                                    ? `0 0 0 2px #1e293b, 0 0 0 4px ${color}` 
+                                    : `0 0 0 1px rgba(255,255,255,0.15)`,
+                                  transform: newGroupColor === color ? 'scale(1.15)' : 'scale(1)',
+                                }}
+                                title={color}
                               />
                             ))}
                           </div>
@@ -467,17 +472,18 @@ const CharacterModal: React.FC<CharacterModalProps> = ({
                               return (
                                 <span
                                   key={idx}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors"
                                   style={{
-                                    backgroundColor: `${color}15`,
+                                    backgroundColor: `${color}25`,
                                     color: color,
-                                    borderColor: `${color}30`
+                                    border: `1.5px solid ${color}50`,
+                                    boxShadow: `0 1px 2px ${color}15`,
                                   }}
                                 >
                                   {tag}
                                   <button
                                     onClick={() => handleRemoveTag(entry.groupId, tag)}
-                                    className="hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                                    className="hover:bg-white/20 rounded-full p-0.5 transition-colors -mr-0.5"
                                   >
                                     <X className="w-3 h-3" />
                                   </button>

@@ -7,6 +7,7 @@ const { getPriceSummary } = require('./aiBillingService');
 const { callAIModel, queryAIModel, getTextModels } = require('./aiModelService');
 const { generationStartService, sendGenerationError } = require('./modules/generation');
 const { listServices, runServiceAction } = require('./coreServiceClient');
+const { getRateLimitStats, reloadRateLimitConfigs } = require('./nosyntask/utils/aiRateLimiter');
 
 const router = express.Router();
 
@@ -620,6 +621,195 @@ router.post('/ai-models/:id/test-handler', authMiddleware, requireAdmin, async (
       message: error.message || '测试失败',
       error: error.message
     });
+  }
+});
+
+// ========================================
+// 限流配置管理 API
+// ========================================
+
+/**
+ * 获取所有限流配置
+ * GET /api/admin/rate-limit-configs
+ */
+router.get('/rate-limit-configs', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const configs = await queryAll(
+      'SELECT * FROM rate_limit_configs ORDER BY role'
+    );
+    res.json({ configs });
+  } catch (error) {
+    console.error('[Admin] Get rate limit configs error:', error);
+    res.status(500).json({ message: '获取限流配置失败' });
+  }
+});
+
+/**
+ * 获取限流统计信息
+ * GET /api/admin/rate-limit-stats
+ */
+router.get('/rate-limit-stats', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const stats = getRateLimitStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('[Admin] Get rate limit stats error:', error);
+    res.status(500).json({ message: '获取限流统计失败' });
+  }
+});
+
+/**
+ * 创建限流配置
+ * POST /api/admin/rate-limit-configs
+ */
+router.post('/rate-limit-configs', authMiddleware, requireAdmin, async (req, res) => {
+  const {
+    role, max_concurrent_text, max_concurrent_image, max_concurrent_video,
+    timeout_seconds, retry_delay_ms, max_retries, description, is_active
+  } = req.body;
+
+  if (!role) {
+    return res.status(400).json({ message: '角色名称不能为空' });
+  }
+
+  try {
+    const existing = await queryOne('SELECT id FROM rate_limit_configs WHERE role = ?', [role]);
+    if (existing) {
+      return res.status(409).json({ message: '该角色配置已存在' });
+    }
+
+    await execute(
+      `INSERT INTO rate_limit_configs 
+        (role, max_concurrent_text, max_concurrent_image, max_concurrent_video,
+         timeout_seconds, retry_delay_ms, max_retries, description, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        role,
+        max_concurrent_text ?? 10,
+        max_concurrent_image ?? 5,
+        max_concurrent_video ?? 3,
+        timeout_seconds ?? 300,
+        retry_delay_ms ?? 60000,
+        max_retries ?? 3,
+        description || null,
+        is_active ?? 1
+      ]
+    );
+
+    // 重新加载限流配置
+    await reloadRateLimitConfigs();
+
+    res.json({ message: '限流配置创建成功' });
+  } catch (error) {
+    console.error('[Admin] Create rate limit config error:', error);
+    res.status(500).json({ message: '创建限流配置失败' });
+  }
+});
+
+/**
+ * 更新限流配置
+ * PUT /api/admin/rate-limit-configs/:id
+ */
+router.put('/rate-limit-configs/:id', authMiddleware, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const {
+    role, max_concurrent_text, max_concurrent_image, max_concurrent_video,
+    timeout_seconds, retry_delay_ms, max_retries, description, is_active
+  } = req.body;
+
+  try {
+    const existing = await queryOne('SELECT id FROM rate_limit_configs WHERE id = ?', [id]);
+    if (!existing) {
+      return res.status(404).json({ message: '配置不存在' });
+    }
+
+    const updates = [];
+    const values = [];
+
+    if (role !== undefined) {
+      updates.push('role = ?');
+      values.push(role);
+    }
+    if (max_concurrent_text !== undefined) {
+      updates.push('max_concurrent_text = ?');
+      values.push(max_concurrent_text);
+    }
+    if (max_concurrent_image !== undefined) {
+      updates.push('max_concurrent_image = ?');
+      values.push(max_concurrent_image);
+    }
+    if (max_concurrent_video !== undefined) {
+      updates.push('max_concurrent_video = ?');
+      values.push(max_concurrent_video);
+    }
+    if (timeout_seconds !== undefined) {
+      updates.push('timeout_seconds = ?');
+      values.push(timeout_seconds);
+    }
+    if (retry_delay_ms !== undefined) {
+      updates.push('retry_delay_ms = ?');
+      values.push(retry_delay_ms);
+    }
+    if (max_retries !== undefined) {
+      updates.push('max_retries = ?');
+      values.push(max_retries);
+    }
+    if (description !== undefined) {
+      updates.push('description = ?');
+      values.push(description);
+    }
+    if (is_active !== undefined) {
+      updates.push('is_active = ?');
+      values.push(is_active);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ message: '没有需要更新的字段' });
+    }
+
+    values.push(id);
+    await execute(
+      `UPDATE rate_limit_configs SET ${updates.join(', ')} WHERE id = ?`,
+      values
+    );
+
+    // 重新加载限流配置
+    await reloadRateLimitConfigs();
+
+    res.json({ message: '限流配置更新成功' });
+  } catch (error) {
+    console.error('[Admin] Update rate limit config error:', error);
+    res.status(500).json({ message: '更新限流配置失败' });
+  }
+});
+
+/**
+ * 删除限流配置
+ * DELETE /api/admin/rate-limit-configs/:id
+ */
+router.delete('/rate-limit-configs/:id', authMiddleware, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const config = await queryOne('SELECT role FROM rate_limit_configs WHERE id = ?', [id]);
+    if (!config) {
+      return res.status(404).json({ message: '配置不存在' });
+    }
+
+    // 不允许删除 default 配置
+    if (config.role === 'default') {
+      return res.status(400).json({ message: '不能删除默认配置' });
+    }
+
+    await execute('DELETE FROM rate_limit_configs WHERE id = ?', [id]);
+
+    // 重新加载限流配置
+    await reloadRateLimitConfigs();
+
+    res.json({ message: '限流配置已删除' });
+  } catch (error) {
+    console.error('[Admin] Delete rate limit config error:', error);
+    res.status(500).json({ message: '删除限流配置失败' });
   }
 });
 

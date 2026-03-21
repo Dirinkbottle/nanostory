@@ -1,16 +1,17 @@
 /**
- * 工作流步骤：保存分镜到数据库 + 提取场景信息
+ * 工作流步骤：保存分镜到数据库 + 提取场景/道具信息
  * 
  * 逻辑与前端调用的 saveFromWorkflow API 完全一致：
  *   1. DELETE 旧分镜（或追加模式下保留）
  *   2. INSERT 新分镜（prompt_template + variables_json）
  *   3. linkAllForScript 建立资源关联
  *   4. 从 scenes.location 汇总场景信息，直接保存到 scenes 表（无需 AI）
+ *   5. 从 scenes.props 汇总道具信息，保存到 props 表并建立关联
  * 
  * 确保 scene_state_analysis 执行前分镜已在 DB 中
  * 
  * input:  { scenes, scriptId, projectId, userId, sceneNumber?, appendMode? }
- * output: { saved: number, scenesExtracted: number }
+ * output: { saved: number, scenesExtracted: number, propsExtracted: number }
  */
 
 const { execute, queryOne, queryAll } = require('../../../dbHelper');
@@ -136,7 +137,55 @@ async function handleSaveStoryboards(inputParams, onProgress) {
     console.log('[SaveStoryboards] 场景提取完成:', scenesExtracted);
   }
 
-  if (onProgress) onProgress(70);
+  if (onProgress) onProgress(60);
+
+  // ============================================
+  // 从 scenes.props 汇总道具信息，保存到 props 表
+  // ============================================
+  let propsExtracted = 0;
+  const propNameToId = new Map(); // propName -> propId
+
+  if (userId) {
+    // 收集所有道具名称
+    const allPropNames = new Set();
+    for (const scene of scenes) {
+      if (Array.isArray(scene.props)) {
+        scene.props.forEach(p => {
+          if (p && p.trim()) allPropNames.add(p.trim());
+        });
+      }
+    }
+
+    console.log('[SaveStoryboards] 从分镜汇总了', allPropNames.size, '个道具');
+
+    // 保存道具到数据库
+    for (const propName of allPropNames) {
+      try {
+        // 检查道具是否已存在
+        const existing = await queryOne(
+          'SELECT id FROM props WHERE project_id = ? AND name = ? AND user_id = ?',
+          [projectId, propName, userId]
+        );
+
+        if (existing) {
+          propNameToId.set(propName, existing.id);
+        } else {
+          // 插入新道具
+          const result = await execute(
+            `INSERT INTO props (user_id, project_id, name, description, category) 
+             VALUES (?, ?, ?, ?, ?)`,
+            [userId, projectId, propName, `从分镜自动提取的道具：${propName}`, '未分类']
+          );
+          propNameToId.set(propName, result.insertId);
+          propsExtracted++;
+        }
+      } catch (dbError) {
+        console.error('[SaveStoryboards] 保存道具失败:', propName, dbError.message);
+      }
+    }
+
+    console.log('[SaveStoryboards] 道具提取完成:', propsExtracted, '个新道具');
+  }
 
   // 建立分镜与角色/场景的强ID关联（与 saveFromWorkflow 一致）
   // 注意：必须在场景保存之后执行，否则关联时找不到场景
@@ -149,10 +198,49 @@ async function handleSaveStoryboards(inputParams, onProgress) {
     console.error('[SaveStoryboards] 资源关联失败（不影响分镜）:', linkError.message);
   }
 
-  if (onProgress) onProgress(100);
-  console.log(`[SaveStoryboards] 完成，已保存 ${scenes.length} 个分镜，${scenesExtracted} 个场景`);
+  if (onProgress) onProgress(90);
 
-  return { saved: scenes.length, scenesExtracted };
+  // 建立分镜与道具的关联
+  if (propNameToId.size > 0) {
+    try {
+      // 获取该剧本的所有分镜
+      const storyboards = await queryAll(
+        'SELECT id, idx, variables_json FROM storyboards WHERE script_id = ? ORDER BY idx',
+        [scriptId]
+      );
+
+      for (const sb of storyboards) {
+        try {
+          const variables = typeof sb.variables_json === 'string' 
+            ? JSON.parse(sb.variables_json) 
+            : sb.variables_json;
+          
+          const sceneProps = variables?.props || [];
+          
+          for (const propName of sceneProps) {
+            const propId = propNameToId.get(propName?.trim());
+            if (propId) {
+              // 插入分镜-道具关联（忽略重复）
+              await execute(
+                `INSERT IGNORE INTO storyboard_props (storyboard_id, prop_id) VALUES (?, ?)`,
+                [sb.id, propId]
+              );
+            }
+          }
+        } catch (parseErr) {
+          // 解析失败，跳过该分镜
+        }
+      }
+      console.log('[SaveStoryboards] 分镜-道具关联完成');
+    } catch (linkPropErr) {
+      console.error('[SaveStoryboards] 分镜-道具关联失败:', linkPropErr.message);
+    }
+  }
+
+  if (onProgress) onProgress(100);
+  console.log(`[SaveStoryboards] 完成，已保存 ${scenes.length} 个分镜，${scenesExtracted} 个场景，${propsExtracted} 个新道具`);
+
+  return { saved: scenes.length, scenesExtracted, propsExtracted };
 }
 
 module.exports = handleSaveStoryboards;

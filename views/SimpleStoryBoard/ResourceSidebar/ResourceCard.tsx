@@ -18,19 +18,21 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ type, name, imageUrl, isAct
 
   return (
     <div
-      className={`relative group cursor-pointer rounded-xl overflow-hidden border transition-all ${
-        isActive
-          ? 'border-cyan-500 ring-1 ring-cyan-500/30'
-          : 'border-slate-700 hover:border-slate-500'
-      }`}
+      className="relative group cursor-pointer rounded-xl overflow-hidden transition-all"
+      style={{
+        border: isActive 
+          ? '1px solid var(--accent-primary)' 
+          : '1px solid var(--border-color)',
+        boxShadow: isActive ? '0 0 0 1px rgba(6, 182, 212, 0.3)' : 'none',
+      }}
       onClick={onClick}
     >
       {/* 图片区域 */}
-      <div className="aspect-square bg-slate-800 flex items-center justify-center">
+      <div className="aspect-square flex items-center justify-center" style={{ backgroundColor: 'var(--bg-input)' }}>
         {imageUrl ? (
           <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
         ) : (
-          <div className="flex flex-col items-center gap-1.5 text-slate-500">
+          <div className="flex flex-col items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
             <Icon className="w-8 h-8" />
             <span className="text-[10px]">暂无图片</span>
           </div>
@@ -38,8 +40,11 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ type, name, imageUrl, isAct
       </div>
 
       {/* 名字 */}
-      <div className="px-2 py-1.5 bg-slate-800/80">
-        <p className={`text-xs font-medium text-center truncate ${isActive ? 'text-cyan-400' : 'text-slate-300'}`}>
+      <div className="px-2 py-1.5" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <p 
+          className="text-xs font-medium text-center truncate"
+          style={{ color: isActive ? 'var(--accent-primary)' : 'var(--text-primary)' }}
+        >
           {name}
         </p>
       </div>
@@ -57,7 +62,10 @@ const ResourceCard: React.FC<ResourceCardProps> = ({ type, name, imageUrl, isAct
 
       {/* 在线指示 */}
       {imageUrl && (
-        <div className="absolute top-1.5 left-1.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-800" />
+        <div 
+          className="absolute top-1.5 left-1.5 w-2.5 h-2.5 rounded-full bg-emerald-400"
+          style={{ border: '2px solid var(--bg-card)' }}
+        />
       )}
     </div>
   );
