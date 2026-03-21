@@ -23,6 +23,7 @@ const AdminLayout = React.lazy(() => import('./views/admin/AdminLayout'));
 const Dashboard = React.lazy(() => import('./views/admin/Dashboard'));
 const AIModels = React.lazy(() => import('./views/admin/AIModels'));
 const UserManagement = React.lazy(() => import('./views/admin/UserManagement'));
+const ModelStatsDashboard = React.lazy(() => import('./views/admin/ModelStatsDashboard'));
 
 // 加载中回退组件
 const LoadingFallback = () => (
@@ -116,6 +117,11 @@ const App: React.FC = () => {
             <Route path="users" element={
               <Suspense fallback={<LoadingFallback />}>
                 <UserManagement />
+              </Suspense>
+            } />
+            <Route path="model-stats" element={
+              <Suspense fallback={<LoadingFallback />}>
+                <ModelStatsDashboard />
               </Suspense>
             } />
             <Route index element={<Navigate to="/admin/dashboard" replace />} />

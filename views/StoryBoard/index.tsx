@@ -20,7 +20,7 @@ import { getAuthToken } from '../../services/auth';
 import { useToast } from '../../contexts/ToastContext';
 import { AIModel } from '../../components/AIModelSelector';
 import { normalizeCapabilityOptions } from '../../utils/modelCapabilities';
-import { useKeyboardShortcuts, ShortcutConfig, STORYBOARD_SHORTCUTS_CONFIG } from '../../hooks/useKeyboardShortcuts';
+import { useKeyboardShortcuts, ShortcutConfig, STORYBOARD_SHORTCUTS_CONFIG, VIDEO_COMPOSITION_SHORTCUTS_CONFIG } from '../../hooks/useKeyboardShortcuts';
 
 interface Script {
   id: number;
@@ -643,7 +643,53 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
         setSelectedScene(null);
       },
     },
-  ], [scenes, selectedScene, setSelectedScene, deleteScene, addScene, currentScriptId, isLoading, loadStoryboards]);
+    // 新增快捷键
+    {
+      ...STORYBOARD_SHORTCUTS_CONFIG.MOVE_UP,
+      action: () => {
+        if (selectedScene && !isLoading) {
+          moveScene(selectedScene, 'up');
+        }
+      },
+    },
+    {
+      ...STORYBOARD_SHORTCUTS_CONFIG.MOVE_DOWN,
+      action: () => {
+        if (selectedScene && !isLoading) {
+          moveScene(selectedScene, 'down');
+        }
+      },
+    },
+    {
+      ...STORYBOARD_SHORTCUTS_CONFIG.GENERATE_IMAGE,
+      action: () => {
+        if (selectedScene && !isLoading) {
+          const scene = scenes.find(s => s.id === selectedScene);
+          if (scene && !scene.imageUrl) {
+            generateImage(selectedScene, scene.description);
+          }
+        }
+      },
+    },
+    {
+      ...STORYBOARD_SHORTCUTS_CONFIG.GENERATE_VIDEO,
+      action: () => {
+        if (selectedScene && !isLoading) {
+          const scene = scenes.find(s => s.id === selectedScene);
+          if (scene && scene.imageUrl && !scene.videoUrl) {
+            generateVideo(selectedScene);
+          }
+        }
+      },
+    },
+    {
+      ...STORYBOARD_SHORTCUTS_CONFIG.SELECT_ALL,
+      action: () => {
+        // 暂不支持多选，可以扩展为选择全部
+        showToast('多选功能开发中', 'info');
+      },
+    },
+  ], [scenes, selectedScene, setSelectedScene, deleteScene, addScene, currentScriptId, isLoading, loadStoryboards, moveScene, generateImage, generateVideo, showToast]);
 
   // 注册快捷键（只在有剧本ID时启用）
   useKeyboardShortcuts(storyboardShortcuts, !!currentScriptId);

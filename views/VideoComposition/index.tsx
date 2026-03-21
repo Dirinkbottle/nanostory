@@ -3,7 +3,7 @@
  * 组合所有子组件：侧边栏、合成预览、时间线多轨道、属性面板、导出工具栏
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from '@heroui/react';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import EpisodeSidebar from './components/EpisodeSidebar';
@@ -21,6 +21,7 @@ import { useSubtitles } from './hooks/useSubtitles';
 import { useBGM } from './hooks/useBGM';
 import { useFFmpegExport } from './hooks/useFFmpegExport';
 import { useToast } from '../../contexts/ToastContext';
+import { useKeyboardShortcuts, ShortcutConfig, VIDEO_COMPOSITION_SHORTCUTS_CONFIG } from '../../hooks/useKeyboardShortcuts';
 import type { CompositionClip, ExportOptions } from './types';
 
 interface VideoCompositionProps {
@@ -83,6 +84,100 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectN
       ffmpeg.downloadVideo(url, filename, exportOptions.format);
     }
   }, [timeline.clips, ffmpeg, compositionData.selectedEpisode, exportOptions]);
+
+  // 视频合成快捷键
+  const compositionShortcuts = useMemo<ShortcutConfig[]>(() => [
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.PLAY_PAUSE,
+      action: () => {
+        timeline.setPlaying(!timeline.playing);
+      },
+    },
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.PREV_CLIP,
+      action: () => {
+        if (timeline.clips.length === 0) return;
+        const currentIndex = timeline.clips.findIndex(c => c.id === timeline.selectedClipId);
+        if (currentIndex > 0) {
+          timeline.selectClip(timeline.clips[currentIndex - 1].id);
+        }
+      },
+    },
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.NEXT_CLIP,
+      action: () => {
+        if (timeline.clips.length === 0) return;
+        const currentIndex = timeline.clips.findIndex(c => c.id === timeline.selectedClipId);
+        if (currentIndex < timeline.clips.length - 1) {
+          timeline.selectClip(timeline.clips[currentIndex + 1].id);
+        }
+      },
+    },
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.DELETE_CLIP,
+      action: () => {
+        if (timeline.selectedClipId) {
+          timeline.removeClip(timeline.selectedClipId);
+        }
+      },
+    },
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.EXPORT_VIDEO,
+      action: () => {
+        handleExport();
+      },
+    },
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.CLEAR_TIMELINE,
+      action: () => {
+        timeline.clearTimeline();
+      },
+    },
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.ZOOM_IN,
+      action: () => {
+        timeline.setZoom(Math.min(timeline.zoom * 1.2, 5));
+      },
+    },
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.ZOOM_OUT,
+      action: () => {
+        timeline.setZoom(Math.max(timeline.zoom / 1.2, 0.5));
+      },
+    },
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.RESET_ZOOM,
+      action: () => {
+        timeline.setZoom(1);
+      },
+    },
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.TOGGLE_PANEL,
+      action: () => {
+        setShowPanel(prev => !prev);
+      },
+    },
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.MUTE_TOGGLE,
+      action: () => {
+        // 切换静音状态 - 需要VideoPreview组件支持
+        showToast('静音切换功能开发中', 'info');
+      },
+    },
+    {
+      ...VIDEO_COMPOSITION_SHORTCUTS_CONFIG.FULLSCREEN,
+      action: () => {
+        // 全屏预览
+        const videoElement = document.querySelector('video');
+        if (videoElement && videoElement.requestFullscreen) {
+          videoElement.requestFullscreen();
+        }
+      },
+    },
+  ], [timeline, handleExport, showToast]);
+
+  // 注册快捷键
+  useKeyboardShortcuts(compositionShortcuts, true);
 
   return (
     <div className="h-full flex flex-col bg-[#0c0e1a] overflow-hidden">
