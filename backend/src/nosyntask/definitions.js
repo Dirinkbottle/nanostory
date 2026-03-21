@@ -32,7 +32,10 @@ const {
   handleSceneStateAnalysis,
   handleSaveStoryboards,
   handleSceneStoryboardGeneration,
-  handleBatchStoryboardGeneration
+  handleBatchStoryboardGeneration,
+  handleSketchPreprocess,
+  handleSketchToImage,
+  handleBatchSketchFrameGeneration
 } = require('./tasks');
 
 // 独立帧生成模块（支持并发）
@@ -398,6 +401,65 @@ const WORKFLOW_DEFINITIONS = {
         buildInput: createBuildInput([
           'storyboardId', 'textModel',
           { key: 'think', defaultValue: true }
+        ])
+      }
+    ]
+  },
+
+  /**
+   * 草图帧生成（单个分镜）
+   * 
+   * 流程：
+   *   1. sketch_preprocess - 预处理草图（验证、类型推测、尺寸标准化）
+   *   2. sketch_to_image - 草图转图片（收集参考图、AI选择、调用模型生成）
+   */
+  sketch_frame_generation: {
+    name: '草图帧生成',
+    steps: [
+      {
+        type: 'sketch_preprocess',
+        targetType: 'storyboard',
+        handler: handleSketchPreprocess,
+        buildInput: createBuildInput([
+          'storyboardId', 'sketchUrl', 'sketchType'
+        ])
+      },
+      {
+        type: 'sketch_to_image',
+        targetType: 'storyboard',
+        handler: handleSketchToImage,
+        dependencies: [0],
+        buildInput: createBuildInput([
+          'storyboardId', 'prompt', 'imageModel', 'textModel', 'aspectRatio',
+          { key: 'controlStrength', defaultValue: 0.8 },
+          { key: 'imageUrls', from: ctx => ctx.jobParams.imageUrls || null },
+          { key: 'processedSketchUrl', from: ctx => ctx.previousResults[0]?.processedSketchUrl || ctx.jobParams.sketchUrl },
+          { key: 'sketchType', from: ctx => ctx.previousResults[0]?.sketchType || ctx.jobParams.sketchType || 'storyboard_sketch' }
+        ])
+      }
+    ]
+  },
+
+  /**
+   * 批量草图帧生成（一键生成一集所有分镜的草图转图片）
+   * 
+   * 特点：
+   *   - 与 batch_frame_generation 类似，但使用草图控制
+   *   - 只处理已上传草图的分镜
+   *   - 支持并发处理
+   */
+  batch_sketch_frame_generation: {
+    name: '批量草图帧生成',
+    steps: [
+      {
+        type: 'batch_sketch_frame',
+        targetType: 'storyboard',
+        handler: handleBatchSketchFrameGeneration,
+        buildInput: createBuildInput([
+          'scriptId', 'imageModel', 'textModel', 'aspectRatio',
+          { key: 'controlStrength', defaultValue: 0.8 },
+          { key: 'overwriteFrames', defaultValue: false },
+          { key: 'maxConcurrency', defaultValue: 5 }
         ])
       }
     ]

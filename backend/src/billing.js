@@ -1,8 +1,12 @@
 const express = require('express');
 const { authMiddleware } = require('./middleware');
 const { getBillingSummary, listBillingRecords } = require('./aiBillingService');
+const modelStatsRoutes = require('./billingHandlers/modelStats');
 
 const router = express.Router();
+
+// 注册模型统计路由
+modelStatsRoutes(router);
 
 router.get('/summary', authMiddleware, async (req, res) => {
   const userId = req.user.id;

@@ -25,6 +25,9 @@ const handleSceneStateAnalysis_env = require('./StoryBoard/sceneStateAnalysis');
 const handleSaveStoryboards = require('./StoryBoard/saveStoryboards');
 const handleSceneStoryboardGeneration = require('./StoryBoard/sceneStoryboardGeneration');
 const handleBatchStoryboardGeneration = require('./StoryBoard/batchStoryboardGeneration');
+const handleSketchPreprocess = require('./StoryBoard/sketchPreprocess');
+const handleSketchToImage = require('./StoryBoard/sketchToImage');
+const handleBatchSketchFrameGeneration = require('./StoryBoard/batchSketchFrameGeneration');
 
 module.exports = {
   handleScriptGeneration,
@@ -48,5 +51,8 @@ module.exports = {
   handleSceneStateAnalysis: handleSceneStateAnalysis_env,
   handleSaveStoryboards,
   handleSceneStoryboardGeneration,
-  handleBatchStoryboardGeneration
+  handleBatchStoryboardGeneration,
+  handleSketchPreprocess,
+  handleSketchToImage,
+  handleBatchSketchFrameGeneration
 };

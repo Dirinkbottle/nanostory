@@ -164,6 +164,30 @@ export const STORYBOARD_SHORTCUTS_CONFIG = {
   NEW_SCENE: { key: 'n', scope: 'storyboard', description: '新增分镜' },
   REFRESH_LIST: { key: 'r', scope: 'storyboard', description: '刷新分镜列表' },
   DESELECT: { key: 'Escape', scope: 'storyboard', description: '取消选择' },
+  // 新增快捷键
+  MOVE_UP: { key: 'ArrowUp', shift: true, scope: 'storyboard', description: '上移选中的分镜' },
+  MOVE_DOWN: { key: 'ArrowDown', shift: true, scope: 'storyboard', description: '下移选中的分镜' },
+  LOCK_SCENE: { key: 'l', ctrl: true, scope: 'storyboard', description: '锁定/解锁选中的分镜' },
+  GENERATE_IMAGE: { key: 'i', ctrl: true, scope: 'storyboard', description: '生成选中的分镜图片' },
+  GENERATE_VIDEO: { key: 'v', ctrl: true, scope: 'storyboard', description: '生成选中的分镜视频' },
+  DUPLICATE_SCENE: { key: 'd', ctrl: true, scope: 'storyboard', description: '复制选中的分镜' },
+  SELECT_ALL: { key: 'a', ctrl: true, scope: 'storyboard', description: '全选分镜' },
+} as const;
+
+// 预定义的视频合成快捷键配置（供 VideoComposition 组件使用）
+export const VIDEO_COMPOSITION_SHORTCUTS_CONFIG = {
+  PLAY_PAUSE: { key: ' ', scope: 'video-composition', description: '播放/暂停' },
+  PREV_CLIP: { key: 'ArrowLeft', scope: 'video-composition', description: '上一个片段' },
+  NEXT_CLIP: { key: 'ArrowRight', scope: 'video-composition', description: '下一个片段' },
+  DELETE_CLIP: { key: 'Delete', scope: 'video-composition', description: '删除选中的片段' },
+  EXPORT_VIDEO: { key: 'e', ctrl: true, scope: 'video-composition', description: '导出视频' },
+  CLEAR_TIMELINE: { key: 'Delete', ctrl: true, shift: true, scope: 'video-composition', description: '清空时间线' },
+  ZOOM_IN: { key: '=', ctrl: true, scope: 'video-composition', description: '放大时间线' },
+  ZOOM_OUT: { key: '-', ctrl: true, scope: 'video-composition', description: '缩小时间线' },
+  RESET_ZOOM: { key: '0', ctrl: true, scope: 'video-composition', description: '重置缩放' },
+  TOGGLE_PANEL: { key: 'p', scope: 'video-composition', description: '切换属性面板' },
+  MUTE_TOGGLE: { key: 'm', scope: 'video-composition', description: '静音/取消静音' },
+  FULLSCREEN: { key: 'f', scope: 'video-composition', description: '全屏预览' },
 } as const;
 
 export default useKeyboardShortcuts;

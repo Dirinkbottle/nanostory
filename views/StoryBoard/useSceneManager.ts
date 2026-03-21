@@ -57,6 +57,11 @@ export interface StoryboardScene {
   linkedScenes?: LinkedScene[];
   directorParams?: DirectorParams;  // 导演参数
   spatialDescription?: SpatialDescription;  // 空间描述
+  // 草图相关字段
+  sketchUrl?: string;           // 草图图片 URL
+  sketchType?: string;          // 草图类型 (stick_figure / storyboard_sketch / detailed_lineart)
+  sketchData?: unknown;         // Excalidraw 矢量数据，用于回显编辑
+  controlStrength?: number;     // 控制强度 (0.0 ~ 1.0)
 }
 
 export const useSceneManager = (scriptId: number | null, projectId?: number | null) => {
@@ -184,7 +189,12 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
               linkedCharacters: item.linkedCharacters || [],
               linkedScenes: item.linkedScenes || [],
               directorParams: vars.directorParams || undefined,  // 导演参数
-              spatialDescription: item.spatial_description || undefined  // 空间描述
+              spatialDescription: item.spatial_description || undefined,  // 空间描述
+              // 草图相关字段
+              sketchUrl: item.sketch_url || undefined,
+              sketchType: item.sketch_type || undefined,
+              sketchData: item.sketch_data || undefined,
+              controlStrength: item.control_strength ?? undefined
             };
           });
 

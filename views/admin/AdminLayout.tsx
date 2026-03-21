@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronRight, LogOut, Settings, Users, Cpu, LayoutDashboard, Server } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogOut, Settings, Users, Cpu, LayoutDashboard, Server, BarChart3 } from 'lucide-react';
 import { getAuthUser, logout } from '../../services/auth';
 
 interface MenuItem {
@@ -41,6 +41,12 @@ const AdminLayout: React.FC = () => {
           label: 'AI 模型配置',
           icon: <Cpu className="w-4 h-4" />,
           path: '/admin/ai-models'
+        },
+        {
+          id: 'model-stats',
+          label: '模型性能统计',
+          icon: <BarChart3 className="w-4 h-4" />,
+          path: '/admin/model-stats'
         },
         {
           id: 'users',
