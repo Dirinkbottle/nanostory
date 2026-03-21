@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Button, Textarea } from '@heroui/react';
-import { ArrowLeft, Upload, Mic, Sparkles, ZoomIn } from 'lucide-react';
-import { Character } from '../../StoryBoard/ResourcePanel/types';
+import React, { useState, useEffect } from 'react';
+import { Button, Textarea, Select, SelectItem } from '@heroui/react';
+import { ArrowLeft, Upload, Mic, Sparkles, ZoomIn, Layers } from 'lucide-react';
+import { Character, CharacterState } from '../../StoryBoard/ResourcePanel/types';
 import { usePreview } from '../../../components/PreviewProvider';
+import { fetchCharacterStates } from '../../../services/assets';
 
 interface CharacterDetailViewProps {
   character: Character;
@@ -15,9 +16,26 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
   const [description, setDescription] = useState(
     character.description || character.appearance || ''
   );
+  const [states, setStates] = useState<CharacterState[]>([]);
+  const [selectedStateId, setSelectedStateId] = useState<number | null>(null);
   const { openPreview } = usePreview();
 
-  const mainImage = character.imageUrl || character.frontViewUrl || character.characterSheetUrl;
+  // 加载角色状态
+  useEffect(() => {
+    if (character?.id) {
+      fetchCharacterStates(character.id)
+        .then(setStates)
+        .catch(err => console.error('加载角色状态失败:', err));
+    } else {
+      setStates([]);
+      setSelectedStateId(null);
+    }
+  }, [character?.id]);
+
+  // 获取当前选中的状态
+  const currentState = selectedStateId ? states.find(s => s.id === selectedStateId) : null;
+
+  const mainImage = currentState?.image_url || character.imageUrl || character.frontViewUrl || character.characterSheetUrl;
 
   // 构建三视图 slides 用于灯箱预览
   const buildViewSlides = (startIndex: number = 0) => {
@@ -48,6 +66,41 @@ const CharacterDetailView: React.FC<CharacterDetailViewProps> = ({ character, on
 
       {/* 内容 */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* 状态选择器 */}
+        {states.length > 0 && (
+          <div className="bg-purple-500/10 rounded-lg p-3 border border-purple-500/20">
+            <div className="flex items-center gap-2 mb-2">
+              <Layers className="w-3 h-3 text-purple-400" />
+              <span className="text-xs font-medium text-slate-300">角色状态</span>
+              <span className="text-[10px] text-purple-400">{states.length}</span>
+            </div>
+            <Select
+              size="sm"
+              placeholder="选择状态"
+              selectedKeys={selectedStateId ? [selectedStateId.toString()] : []}
+              onSelectionChange={(keys) => {
+                const key = Array.from(keys)[0] as string;
+                setSelectedStateId(key ? parseInt(key) : null);
+              }}
+              classNames={{
+                trigger: "bg-slate-800/60 border border-slate-700/50 h-8",
+                value: "text-slate-100 text-xs"
+              }}
+            >
+              {[
+                <SelectItem key="default" textValue="默认状态">
+                  默认状态
+                </SelectItem>,
+                ...states.map((state) => (
+                  <SelectItem key={state.id.toString()} textValue={state.name}>
+                    {state.name}
+                  </SelectItem>
+                ))
+              ]}
+            </Select>
+          </div>
+        )}
+
         {/* 角色图片 */}
         <div
           className="rounded-xl border-2 border-dashed border-slate-600 overflow-hidden bg-slate-800/50 aspect-square flex items-center justify-center group relative cursor-pointer"

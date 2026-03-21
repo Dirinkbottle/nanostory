@@ -11,19 +11,33 @@ export default {
   theme: {
     extend: {
       colors: {
+        // 专业影视制作软件风格配色
         slate: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          850: '#172033',
-          900: '#0f172a',
-          950: '#020617',
+          50: '#f5f5f8',
+          100: '#eaeaef',
+          200: '#e0e0e8',
+          300: '#c8c8d4',
+          400: '#8890a0',
+          500: '#5a6070',
+          600: '#404050',
+          700: '#303040',
+          800: '#252538',
+          850: '#1e1e2e',
+          900: '#1a1a2e',
+          950: '#0f0f1a',
+        },
+        // 科技蓝强调色
+        accent: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          800: '#1e40af',
+          900: '#1e3a8a',
         },
       },
       backgroundImage: {
@@ -35,40 +49,40 @@ export default {
     themes: {
       dark: {
         colors: {
-          background: "#0a0a0f",
-          foreground: "#e2e8f0",
+          background: "#1e1e2e",
+          foreground: "#e0e0e8",
           primary: {
-            DEFAULT: "#6366f1",
+            DEFAULT: "#3b82f6",
             foreground: "#FFFFFF",
           },
           secondary: {
-            DEFAULT: "#8b5cf6",
+            DEFAULT: "#06b6d4",
             foreground: "#FFFFFF",
           },
-          content1: "#0f172a",
-          content2: "#1e293b",
-          content3: "#334155",
-          content4: "#475569",
-          focus: "#6366f1",
+          content1: "#1a1a2e",
+          content2: "#252538",
+          content3: "#303040",
+          content4: "#404050",
+          focus: "#3b82f6",
         }
       },
       light: {
         colors: {
-          background: "#f8fafc",
+          background: "#f5f5f8",
           foreground: "#1e293b",
           primary: {
-            DEFAULT: "#4f46e5",
+            DEFAULT: "#2563eb",
             foreground: "#FFFFFF",
           },
           secondary: {
-            DEFAULT: "#7c3aed",
+            DEFAULT: "#0891b2",
             foreground: "#FFFFFF",
           },
           content1: "#ffffff",
-          content2: "#f1f5f9",
-          content3: "#e2e8f0",
-          content4: "#cbd5e1",
-          focus: "#4f46e5",
+          content2: "#f5f5f8",
+          content3: "#eaeaef",
+          content4: "#e0e0e8",
+          focus: "#2563eb",
         }
       }
     }

@@ -34,20 +34,20 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
   // 根据状态获取按钮样式
   const getButtonStyle = (script: Script, isActive: boolean) => {
     if (script.status === 'draft') {
-      // 草稿状态 - 橙色
+      // 草稿状态 - 警告色
       return isActive
-        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/20'
-        : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30';
+        ? 'bg-gradient-to-r from-[var(--warning)] to-orange-500 text-white shadow-md shadow-[var(--warning-glow)]'
+        : 'bg-[var(--warning)]/10 text-[var(--warning)] hover:bg-[var(--warning)]/20 border border-[var(--warning)]/30';
     } else if (script.status === 'generating') {
-      // 生成中 - 蓝色摸动
+      // 生成中 - 强调色动画
       return isActive
-        ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-md shadow-blue-500/20 animate-pulse'
-        : 'bg-slate-800/60 text-slate-400 hover:bg-slate-700/60 border border-slate-700/30 animate-pulse';
+        ? 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent-secondary)] text-white shadow-md shadow-[var(--accent-glow)] animate-pulse'
+        : 'bg-[var(--bg-input)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-color)] animate-pulse';
     } else {
-      // 已完成/失败 - 标准蓝色
+      // 已完成/失败 - 标准强调色
       return isActive
-        ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-md shadow-blue-500/20'
-        : 'bg-slate-800/60 text-slate-400 hover:bg-slate-700/60 border border-slate-700/30';
+        ? 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent-secondary)] text-white shadow-md shadow-[var(--accent-glow)]'
+        : 'bg-[var(--bg-input)] text-[var(--text-secondary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border-color)]';
     }
   };
 
@@ -62,8 +62,8 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-3 pb-4 border-b border-slate-700/30">
-      <span className="text-sm text-slate-500 font-medium">集数:</span>
+    <div className="flex items-center gap-3 pb-4 border-b border-[var(--border-color)]">
+      <span className="text-sm text-[var(--text-muted)] font-medium">集数:</span>
       <div className="flex gap-2 flex-wrap flex-1">
         {scripts.map((s) => (
           <button
@@ -78,7 +78,7 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
       <button
         onClick={onNewEpisode}
         disabled={loading || hasDraft}
-        className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-all flex items-center gap-1 disabled:opacity-50 shadow-md shadow-emerald-500/20"
+        className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-[var(--success)] text-white hover:bg-[var(--success)]/80 transition-all flex items-center gap-1 disabled:opacity-50 shadow-md shadow-[var(--success-glow)]"
       >
         <span className="text-lg leading-none">+</span> 生成第{nextEpisode}集
       </button>

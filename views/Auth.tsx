@@ -65,7 +65,7 @@ const Auth: React.FC = () => {
         ))}
       </div>
 
-      <Card className="w-full max-w-md genshin-card relative z-10">
+      <Card className="w-full max-w-md pro-card relative z-10">
         <CardBody className="p-10 space-y-8">
           {/* Logo 区域 */}
           <div className="text-center space-y-4">
@@ -76,7 +76,7 @@ const Auth: React.FC = () => {
               </div>
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight genshin-title">
+              <h1 className="text-3xl font-black tracking-tight pro-title">
                 饺子动漫
               </h1>
               <p className="text-sm text-[#6b6561] mt-2 font-medium">

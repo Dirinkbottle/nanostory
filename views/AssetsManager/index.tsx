@@ -93,10 +93,33 @@ const TagGroupManager: React.FC<TagGroupManagerProps> = ({ isOpen, onOpenChange,
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       size="lg"
+      motionProps={{
+        variants: {
+          enter: {
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            transition: {
+              duration: 0.2,
+              ease: [0.4, 0, 0.2, 1],
+            },
+          },
+          exit: {
+            y: 8,
+            opacity: 0,
+            scale: 0.98,
+            transition: {
+              duration: 0.15,
+              ease: [0.4, 0, 1, 1],
+            },
+          },
+        },
+      }}
       classNames={{
         base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50",
         header: "border-b border-slate-700/50",
-        body: "py-4"
+        body: "py-4",
+        backdrop: "bg-black/60 backdrop-blur-sm"
       }}
     >
       <ModalContent>
@@ -604,16 +627,16 @@ const AssetsManager: React.FC = () => {
   });
 
   return (
-    <div className="h-full bg-[#0c0e1a] overflow-hidden p-6">
+    <div className="h-full bg-[var(--bg-app)] overflow-hidden p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 头部 */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold genshin-title">资产管理</h1>
+          <h1 className="text-2xl font-bold pro-title">资产管理</h1>
           <div className="flex gap-2">
             {activeTab === 'characters' && (
               <Button
                 variant="flat"
-                className="bg-slate-800/60 text-slate-300 hover:bg-slate-700/60"
+                className="pro-btn"
                 startContent={<Settings className="w-4 h-4" />}
                 onPress={onTagManagerOpen}
               >
@@ -621,7 +644,7 @@ const AssetsManager: React.FC = () => {
               </Button>
             )}
             <Button
-              className="bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-[#1a1d35] font-bold shadow-lg shadow-amber-500/30 hover:shadow-[0_0_25px_rgba(230,200,122,0.4)] transition-all"
+              className="pro-btn-primary"
               startContent={<Plus className="w-4 h-4" />}
               onPress={handleAdd}
             >
@@ -635,10 +658,10 @@ const AssetsManager: React.FC = () => {
           placeholder="搜索资产..."
           value={searchQuery}
           onValueChange={setSearchQuery}
-          startContent={<Search className="w-4 h-4 text-[#6b6561]" />}
+          startContent={<Search className="w-4 h-4 text-[var(--text-muted)]" />}
           classNames={{
-            input: "bg-transparent text-[#e8e4dc] placeholder:text-[#6b6561]",
-            inputWrapper: "bg-[rgba(30,35,60,0.6)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(230,200,122,0.3)] focus-within:border-[rgba(230,200,122,0.5)] shadow-sm transition-all"
+            input: "bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)]",
+            inputWrapper: "bg-[var(--bg-input)] border border-[var(--border-color)] hover:border-[var(--accent)]/30 focus-within:border-[var(--accent)]/50 shadow-sm transition-all"
           }}
         />
 
@@ -646,12 +669,12 @@ const AssetsManager: React.FC = () => {
         {activeTab === 'characters' && Object.keys(groupedTags).length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Tag className="w-3.5 h-3.5 text-white/40" />
-              <span className="text-xs text-white/40">分组标签筛选</span>
+              <Tag className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+              <span className="text-xs text-[var(--text-muted)]">分组标签筛选</span>
               {activeGroupFilter && (
                 <button
                   onClick={() => setActiveGroupFilter(null)}
-                  className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition-all"
+                  className="px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--danger)]/15 text-[var(--danger)] border border-[var(--danger)]/30 hover:bg-[var(--danger)]/25 transition-all"
                 >
                   清除分组筛选
                 </button>
@@ -665,7 +688,7 @@ const AssetsManager: React.FC = () => {
                   <div key={groupId} className="space-y-1">
                     <button
                       onClick={() => toggleGroupExpand(groupId)}
-                      className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+                      className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                     >
                       {isExpanded ? (
                         <ChevronDown className="w-3 h-3" />
@@ -677,7 +700,7 @@ const AssetsManager: React.FC = () => {
                         style={{ backgroundColor: color }}
                       />
                       <span>{groupName}</span>
-                      <span className="text-xs text-slate-500">({tags.size})</span>
+                      <span className="text-xs text-[var(--text-muted)]">({tags.size})</span>
                     </button>
                     {isExpanded && (
                       <div className="flex flex-wrap gap-1.5 pl-6">
@@ -714,11 +737,11 @@ const AssetsManager: React.FC = () => {
         {/* 普通标签过滤 */}
         {allTags.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
-            <Tag className="w-3.5 h-3.5 text-white/40 flex-shrink-0" />
+            <Tag className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0" />
             {activeTag && (
               <button
                 onClick={() => setActiveTag(null)}
-                className="px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/15 text-red-400 border border-red-500/30 hover:bg-red-500/25 transition-all"
+                className="px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--danger)]/15 text-[var(--danger)] border border-[var(--danger)]/30 hover:bg-[var(--danger)]/25 transition-all"
               >
                 清除筛选
               </button>
@@ -729,8 +752,8 @@ const AssetsManager: React.FC = () => {
                 onClick={() => setActiveTag(activeTag === tag ? null : tag)}
                 className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                   activeTag === tag
-                    ? 'bg-amber-500/20 text-[#e6c87a] border border-amber-500/40 shadow-sm shadow-amber-500/20'
-                    : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 hover:text-white/70'
+                    ? 'bg-[var(--accent)]/20 text-[var(--accent-light)] border border-[var(--accent)]/40 shadow-sm shadow-[var(--accent-glow)]'
+                    : 'bg-white/5 text-[var(--text-muted)] border border-white/10 hover:bg-white/10 hover:text-[var(--text-secondary)]'
                 }`}
               >
                 {tag} <span className="opacity-60">({count})</span>
@@ -744,9 +767,9 @@ const AssetsManager: React.FC = () => {
           selectedKey={activeTab}
           onSelectionChange={(key) => setActiveTab(key as TabType)}
           classNames={{
-            tabList: "bg-[rgba(18,20,40,0.8)] border border-[rgba(255,255,255,0.08)] shadow-sm",
-            tab: "text-[#6b6561] data-[selected=true]:text-[#e6c87a] font-medium",
-            cursor: "bg-gradient-to-r from-amber-400 to-yellow-500 h-0.5 shadow-[0_0_10px_rgba(230,200,122,0.5)]"
+            tabList: "bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm",
+            tab: "text-[var(--text-muted)] data-[selected=true]:text-[var(--accent-light)] font-medium",
+            cursor: "bg-gradient-to-r from-[var(--accent)] to-[var(--accent-light)] h-0.5 shadow-[0_0_10px_var(--accent-glow)]"
           }}
         >
           <Tab

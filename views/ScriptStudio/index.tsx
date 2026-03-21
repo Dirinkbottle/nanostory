@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, Tab, Button, useDisclosure, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import { FileText, Film, Bot, Clapperboard } from 'lucide-react';
+import { PanelGroup } from '../../components/PanelGroup';
+import ResizablePanel from '../../components/ResizablePanel';
 import { useProjectInit } from './hooks/useProjectInit';
 import { useScriptManagement } from './hooks/useScriptManagement';
 import { useScriptGeneration } from './hooks/useScriptGeneration';
@@ -27,9 +29,7 @@ const ScriptStudio: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  // 可调整大小的分隔条状态
-  const [rightPanelWidth, setRightPanelWidth] = useState(50); // 百分比
-  const [isResizing, setIsResizing] = useState(false);
+  // 面板引用
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 使用自定义 hooks
@@ -118,38 +118,7 @@ const ScriptStudio: React.FC = () => {
   
   const loading = scriptLoading || generationLoading;
 
-  // 拖拽调整大小处理
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !containerRef.current) return;
 
-      const container = containerRef.current;
-      const containerRect = container.getBoundingClientRect();
-      const newWidth = ((containerRect.right - e.clientX) / containerRect.width) * 100;
-
-      // 限制宽度范围：30% - 70%
-      const clampedWidth = Math.max(30, Math.min(70, newWidth));
-      setRightPanelWidth(clampedWidth);
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [isResizing]);
 
   // 切换标签页时保存
   const handleTabChange = (key: 'script' | 'storyboard' | 'composition') => {
@@ -387,9 +356,9 @@ const ScriptStudio: React.FC = () => {
   }
 
   return (
-    <div className="h-full bg-[#0c0e1a] overflow-hidden flex flex-col">
+    <div className="h-full bg-[var(--bg-app)] overflow-hidden flex flex-col">
       {/* 项目信息和子标签页 */}
-      <div className="bg-[rgba(18,20,40,0.9)] backdrop-blur-xl border-b border-[rgba(255,255,255,0.06)]">
+      <div className="bg-[var(--bg-nav)] backdrop-blur-xl border-b border-[var(--border-color)]">
         <div className="px-8 pt-4">
           {selectedProject && (
             <ProjectInfo 
@@ -408,9 +377,9 @@ const ScriptStudio: React.FC = () => {
               variant="underlined"
               classNames={{
                 tabList: "gap-8 w-full relative p-0 border-b-0",
-                cursor: "w-full bg-gradient-to-r from-amber-400 to-yellow-500 h-0.5 shadow-[0_0_10px_rgba(230,200,122,0.5)]",
+                cursor: "w-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent-light)] h-0.5 shadow-[0_0_10px_var(--accent-glow)]",
                 tab: "max-w-fit px-0 h-12 data-[hover-unselected=true]:opacity-80",
-                tabContent: "group-data-[selected=true]:text-[#e6c87a] group-data-[selected=false]:text-[#6b6561] font-semibold transition-colors"
+                tabContent: "group-data-[selected=true]:text-[var(--accent-light)] group-data-[selected=false]:text-[var(--text-muted)] font-semibold transition-colors"
               }}
             >
               <Tab
@@ -445,7 +414,7 @@ const ScriptStudio: React.FC = () => {
           <Button
             size="sm"
             variant="flat"
-            className="bg-[rgba(230,200,122,0.15)] text-[#e6c87a] font-semibold border border-[rgba(230,200,122,0.3)] hover:border-[rgba(230,200,122,0.5)] hover:shadow-[0_0_15px_rgba(230,200,122,0.2)] transition-all cursor-pointer"
+            className="pro-btn cursor-pointer"
             startContent={<Bot className="w-4 h-4" />}
             onPress={openModelConfig}
           >
@@ -459,13 +428,9 @@ const ScriptStudio: React.FC = () => {
         {activeTab === 'composition' ? (
           <VideoComposition projectId={selectedProject?.id || null} projectName={selectedProject?.name || ''} />
         ) : activeTab === 'script' ? (
-          <div ref={containerRef} className="h-full flex relative">
-            {/* 左侧：创作区 */}
-            <div
-              className="border-r border-[rgba(255,255,255,0.06)] flex flex-col bg-[rgba(18,20,40,0.6)] overflow-hidden"
-              style={{ width: `${100 - rightPanelWidth}%` }}
-            >
-              <div className="p-8 space-y-6 overflow-auto">
+          <PanelGroup direction="horizontal" storageKey="script-studio">
+            <ResizablePanel defaultSize={50} minSize={35} title="剧本创作">
+              <div className="p-6 space-y-6 overflow-auto h-full">
                 {/* 集数选择器 */}
                 <EpisodeSelector
                   scripts={scripts}
@@ -576,29 +541,16 @@ const ScriptStudio: React.FC = () => {
                   />
                 )}
               </div>
-            </div>
-
-            {/* 可拖拽的分隔条 */}
-            <div
-              className="w-1 bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(230,200,122,0.4)] cursor-col-resize transition-colors relative group"
-              onMouseDown={() => setIsResizing(true)}
-            >
-              <div className="absolute inset-y-0 -left-1 -right-1" />
-            </div>
-
-            {/* 右侧：预览区 */}
-            <div
-              className="flex flex-col bg-[#0c0e1a] overflow-hidden"
-              style={{ width: `${rightPanelWidth}%` }}
-            >
+            </ResizablePanel>
+            <ResizablePanel defaultSize={50} minSize={30} title="预览">
               <ScriptPreview
                 content={content}
                 isEditing={isEditing}
                 loadingScript={loadingScript}
                 onContentChange={setContent}
               />
-            </div>
-          </div>
+            </ResizablePanel>
+          </PanelGroup>
         ) : (
           isAdminUser() ? (
             <StoryBoard 
@@ -684,16 +636,16 @@ const ScriptStudio: React.FC = () => {
         size="md"
         classNames={{
           backdrop: 'bg-black/60 backdrop-blur-sm',
-          base: 'bg-gradient-to-br from-[#1a1d35] to-[#121428] border border-[rgba(255,255,255,0.08)] shadow-2xl',
-          header: 'border-b border-[rgba(255,255,255,0.06)]',
+          base: 'bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl',
+          header: 'border-b border-[var(--border-color)]',
           body: 'py-4',
-          footer: 'border-t border-[rgba(255,255,255,0.06)]',
-          closeButton: 'text-[#a8a29e] hover:text-[#e8e4dc] hover:bg-white/10'
+          footer: 'border-t border-[var(--border-color)]',
+          closeButton: 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/10'
         }}
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
-            <span className="text-[#e8e4dc] font-bold">
+            <span className="text-[var(--text-primary)] font-bold">
               {deleteResult.type === 'confirm' && '删除确认'}
               {deleteResult.type === 'orphans' && '发现多余资源'}
               {deleteResult.type === 'success' && '删除成功'}
@@ -702,17 +654,17 @@ const ScriptStudio: React.FC = () => {
           </ModalHeader>
           <ModalBody>
             {deleteResult.type === 'confirm' && (
-              <p className="text-[#a8a29e]">确定要删除该集剧本吗？将同时删除该集的所有分镜、帧图片和视频，此操作无法恢复。</p>
+              <p className="text-[var(--text-secondary)]">确定要删除该集剧本吗？将同时删除该集的所有分镜、帧图片和视频，此操作无法恢复。</p>
             )}
             {deleteResult.type === 'orphans' && (
               <div className="space-y-3">
-                <p className="text-[#a8a29e] text-sm">{deleteResult.message}。以下角色/场景仅在该集中出现，是否一并删除？</p>
+                <p className="text-[var(--text-secondary)] text-sm">{deleteResult.message}。以下角色/场景仅在该集中出现，是否一并删除？</p>
                 {orphanCharacters.length > 0 && (
                   <div>
-                    <p className="text-sm font-semibold text-[#e6c87a] mb-1">多余角色：</p>
+                    <p className="text-sm font-semibold text-[var(--warning)] mb-1">多余角色：</p>
                     <div className="flex flex-wrap gap-2">
                       {orphanCharacters.map(c => (
-                        <span key={c.id} className="inline-flex items-center gap-1 px-2 py-1 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm text-amber-400">
+                        <span key={c.id} className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--warning)]/10 border border-[var(--warning)]/30 rounded-lg text-sm text-[var(--warning)]">
                           {c.name}
                         </span>
                       ))}
@@ -721,10 +673,10 @@ const ScriptStudio: React.FC = () => {
                 )}
                 {orphanScenes.length > 0 && (
                   <div>
-                    <p className="text-sm font-semibold text-[#4fc3f7] mb-1">多余场景：</p>
+                    <p className="text-sm font-semibold text-[var(--accent-primary)] mb-1">多余场景：</p>
                     <div className="flex flex-wrap gap-2">
                       {orphanScenes.map(s => (
-                        <span key={s.id} className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-sm text-cyan-400">
+                        <span key={s.id} className="inline-flex items-center gap-1 px-2 py-1 bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/30 rounded-lg text-sm text-[var(--accent-primary)]">
                           {s.name}
                         </span>
                       ))}
@@ -743,18 +695,18 @@ const ScriptStudio: React.FC = () => {
           <ModalFooter className="gap-2">
             {deleteResult.type === 'confirm' && (
               <>
-                <Button variant="flat" className="bg-white/5 text-[#a8a29e] hover:bg-white/10 border border-white/10 cursor-pointer" onPress={closeDeleteModal}>取消</Button>
+                <Button variant="flat" className="pro-btn cursor-pointer" onPress={closeDeleteModal}>取消</Button>
                 <Button className="bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30 cursor-pointer" onPress={confirmDelete} isLoading={scriptLoading}>确认删除</Button>
               </>
             )}
             {deleteResult.type === 'orphans' && (
               <>
-                <Button variant="flat" className="bg-white/5 text-[#a8a29e] hover:bg-white/10 border border-white/10 cursor-pointer" onPress={skipCleanOrphans}>保留资源</Button>
+                <Button variant="flat" className="pro-btn cursor-pointer" onPress={skipCleanOrphans}>保留资源</Button>
                 <Button className="bg-gradient-to-br from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30 cursor-pointer" onPress={confirmCleanOrphans}>一并删除</Button>
               </>
             )}
             {(deleteResult.type === 'success' || deleteResult.type === 'error') && (
-              <Button className="bg-gradient-to-br from-amber-400 to-yellow-500 text-[#1a1d35] font-semibold shadow-lg shadow-amber-500/30 cursor-pointer" onPress={closeDeleteModal}>确定</Button>
+              <Button className="pro-btn-primary cursor-pointer" onPress={closeDeleteModal}>确定</Button>
             )}
           </ModalFooter>
         </ModalContent>

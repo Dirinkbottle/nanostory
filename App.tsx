@@ -1,23 +1,86 @@
-import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { Suspense } from 'react';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import Layout from './components/Layout';
 import Auth from './views/Auth';
-import ScriptStudio from './views/ScriptStudio/index';
-import UserCenter from './views/UserCenter';
-import AssetsManager from './views/AssetsManager';
-import Projects from './views/Projects';
-import AdminLogin from './views/AdminLogin';
-import AdminLayout from './views/admin/AdminLayout';
-import Dashboard from './views/admin/Dashboard';
-import AIModels from './views/admin/AIModels';
-import UserManagement from './views/admin/UserManagement';
 import AdminRoute from './components/AdminRoute';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ToastProvider } from './contexts/ToastContext';
 import { PreviewProvider } from './components/PreviewProvider';
 import TaskQueueBubble from './components/TaskQueueBubble';
+import Skeleton from './components/Skeleton';
 
-import Settings from './views/Settings';
+// 懒加载主要视图组件
+const ScriptStudio = React.lazy(() => import('./views/ScriptStudio/index'));
+const AssetsManager = React.lazy(() => import('./views/AssetsManager'));
+const Projects = React.lazy(() => import('./views/Projects'));
+const Settings = React.lazy(() => import('./views/Settings'));
+const UserCenter = React.lazy(() => import('./views/UserCenter'));
+
+// 懒加载管理员模块
+const AdminLogin = React.lazy(() => import('./views/AdminLogin'));
+const AdminLayout = React.lazy(() => import('./views/admin/AdminLayout'));
+const Dashboard = React.lazy(() => import('./views/admin/Dashboard'));
+const AIModels = React.lazy(() => import('./views/admin/AIModels'));
+const UserManagement = React.lazy(() => import('./views/admin/UserManagement'));
+
+// 加载中回退组件
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center h-full">
+    <Skeleton lines={5} className="w-96" />
+  </div>
+);
+
+// 页面过渡动画包装组件
+const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 8 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -8 }}
+    transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+    className="h-full"
+  >
+    {children}
+  </motion.div>
+);
+
+// 带动画的路由内容组件
+const AnimatedRoutes: React.FC = () => {
+  const location = useLocation();
+  
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={
+          <Suspense fallback={<LoadingFallback />}>
+            <PageTransition><ScriptStudio /></PageTransition>
+          </Suspense>
+        } />
+        <Route path="/assets" element={
+          <Suspense fallback={<LoadingFallback />}>
+            <PageTransition><AssetsManager /></PageTransition>
+          </Suspense>
+        } />
+        <Route path="/projects" element={
+          <Suspense fallback={<LoadingFallback />}>
+            <PageTransition><Projects /></PageTransition>
+          </Suspense>
+        } />
+        <Route path="/settings" element={
+          <Suspense fallback={<LoadingFallback />}>
+            <PageTransition><Settings /></PageTransition>
+          </Suspense>
+        } />
+        <Route path="/user-center" element={
+          <Suspense fallback={<LoadingFallback />}>
+            <PageTransition><UserCenter /></PageTransition>
+          </Suspense>
+        } />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
+  );
+};
 
 const App: React.FC = () => {
   return (
@@ -26,17 +89,35 @@ const App: React.FC = () => {
         <Routes>
           {/* 公开路由 - 不需要登录 */}
           <Route path="/auth" element={<Auth />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/login" element={
+            <Suspense fallback={<LoadingFallback />}>
+              <AdminLogin />
+            </Suspense>
+          } />
 
           {/* 管理员路由 - 需要管理员权限 */}
           <Route path="/admin" element={
             <AdminRoute>
-              <AdminLayout />
+              <Suspense fallback={<LoadingFallback />}>
+                <AdminLayout />
+              </Suspense>
             </AdminRoute>
           }>
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="ai-models" element={<AIModels />} />
-            <Route path="users" element={<UserManagement />} />
+            <Route path="dashboard" element={
+              <Suspense fallback={<LoadingFallback />}>
+                <Dashboard />
+              </Suspense>
+            } />
+            <Route path="ai-models" element={
+              <Suspense fallback={<LoadingFallback />}>
+                <AIModels />
+              </Suspense>
+            } />
+            <Route path="users" element={
+              <Suspense fallback={<LoadingFallback />}>
+                <UserManagement />
+              </Suspense>
+            } />
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
           </Route>
 
@@ -44,14 +125,7 @@ const App: React.FC = () => {
           <Route path="*" element={
             <ProtectedRoute>
               <Layout>
-                <Routes>
-                  <Route path="/" element={<ScriptStudio />} />
-                  <Route path="/assets" element={<AssetsManager />} />
-                  <Route path="/projects" element={<Projects />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/user-center" element={<UserCenter />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
+                <AnimatedRoutes />
               </Layout>
             </ProtectedRoute>
           } />

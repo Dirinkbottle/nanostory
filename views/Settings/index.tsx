@@ -271,14 +271,14 @@ const Settings: React.FC = () => {
           {submitted ? (
             <div className="p-6 text-center">
               <div className="text-3xl mb-3">&#10003;</div>
-              <p className="text-[#e6c87a] font-semibold">感谢您的反馈!</p>
-              <p className="text-white/50 text-sm mt-1">我们会认真阅读每一条建议</p>
+              <p className="text-[var(--accent)] font-semibold">感谢您的反馈!</p>
+              <p className="text-[var(--text-muted)] text-sm mt-1">我们会认真阅读每一条建议</p>
             </div>
           ) : (
             <div className="space-y-4">
               {/* Type selector */}
               <div>
-                <label className="text-sm text-white/60 mb-2 block">反馈类型</label>
+                <label className="text-sm text-[var(--text-muted)] mb-2 block">反馈类型</label>
                 <div className="flex gap-2 flex-wrap">
                   {(Object.keys(typeLabels) as FeedbackType[]).map(t => (
                     <button
@@ -286,8 +286,8 @@ const Settings: React.FC = () => {
                       onClick={() => setType(t)}
                       className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                         type === t
-                          ? 'bg-amber-500/20 text-[#e6c87a] border border-amber-500/40'
-                          : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10'
+                          ? 'bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/40'
+                          : 'bg-white/5 text-[var(--text-muted)] border border-white/10 hover:bg-white/10'
                       }`}
                     >
                       {typeLabels[t]}
@@ -298,16 +298,16 @@ const Settings: React.FC = () => {
 
               {/* Content */}
               <div>
-                <label className="text-sm text-white/60 mb-2 block">反馈内容</label>
+                <label className="text-sm text-[var(--text-muted)] mb-2 block">反馈内容</label>
                 <textarea
                   value={content}
                   onChange={e => setContent(e.target.value)}
                   placeholder="请描述您遇到的问题或建议..."
                   rows={4}
                   maxLength={5000}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-[#e8e4dc] placeholder-white/30 focus:outline-none focus:border-amber-500/40 resize-none"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]/40 resize-none"
                 />
-                <div className="text-right text-xs text-white/30 mt-1">{content.length}/5000</div>
+                <div className="text-right text-xs text-[var(--text-muted)] mt-1">{content.length}/5000</div>
               </div>
 
               {/* Contact (optional) */}
@@ -325,7 +325,7 @@ const Settings: React.FC = () => {
               <button
                 onClick={handleSubmit}
                 disabled={!content.trim() || submitting}
-                className="w-full py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-amber-500 to-yellow-600 text-[#1a1d35] hover:from-amber-400 hover:to-yellow-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl font-semibold text-sm pro-btn-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
               >
                 <Send className="w-4 h-4" />
                 {submitting ? '提交中...' : '提交反馈'}

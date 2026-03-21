@@ -228,24 +228,24 @@ const Projects: React.FC = () => {
   };
 
   return (
-    <div className="h-full bg-[#0c0e1a] overflow-auto p-6">
+    <div className="h-full bg-[var(--bg-app)] overflow-auto p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 头部 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-400/30 to-yellow-600/30 rounded-xl blur-lg opacity-60" />
-              <div className="relative p-2.5 bg-gradient-to-br from-[rgba(230,200,122,0.2)] to-[rgba(201,168,76,0.3)] rounded-xl border border-[rgba(230,200,122,0.3)]">
-                <FolderOpen className="w-6 h-6 text-[#e6c87a]" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent)]/30 to-[var(--accent-dark)]/30 rounded-xl blur-lg opacity-60" />
+              <div className="relative p-2.5 bg-gradient-to-br from-[var(--accent)]/20 to-[var(--accent-dark)]/30 rounded-xl border border-[var(--accent)]/30">
+                <FolderOpen className="w-6 h-6 text-[var(--accent)]" />
               </div>
             </div>
             <div>
-              <h1 className="text-2xl font-bold genshin-title">我的工程</h1>
-              <p className="text-sm text-[#6b6561]">管理你的漫剧和剧本工程</p>
+              <h1 className="text-2xl font-bold pro-title">我的工程</h1>
+              <p className="text-sm text-[var(--text-muted)]">管理你的漫剧和剧本工程</p>
             </div>
           </div>
           <Button
-            className="bg-gradient-to-br from-amber-400 to-yellow-600 text-[#1a1d35] font-bold shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 hover:-translate-y-0.5 transition-all cursor-pointer"
+            className="pro-btn-primary"
             startContent={<Plus className="w-4 h-4" />}
             onPress={handleAdd}
           >
@@ -258,16 +258,16 @@ const Projects: React.FC = () => {
           placeholder="搜索工程..."
           value={searchQuery}
           onValueChange={setSearchQuery}
-          startContent={<Search className="w-4 h-4 text-[#6b6561]" />}
+          startContent={<Search className="w-4 h-4 text-[var(--text-muted)]" />}
           classNames={{
-            input: "bg-transparent text-[#e8e4dc] placeholder:text-[#6b6561]",
-            inputWrapper: "bg-[rgba(30,35,60,0.6)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(230,200,122,0.3)] focus-within:border-[rgba(230,200,122,0.4)] shadow-sm"
+            input: "bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)]",
+            inputWrapper: "bg-[var(--bg-input)] border border-[var(--border-color)] hover:border-[var(--accent)]/30 focus-within:border-[var(--accent)]/40 shadow-sm"
           }}
         />
 
         {/* 工程列表 */}
         {loading ? (
-          <div className="text-center py-12 text-[#6b6561]">加载中...</div>
+          <div className="text-center py-12 text-[var(--text-muted)]">加载中...</div>
         ) : filteredProjects.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-20 h-20 mx-auto bg-[rgba(30,35,60,0.6)] rounded-full flex items-center justify-center mb-4 border border-[rgba(255,255,255,0.08)]">
@@ -281,20 +281,20 @@ const Projects: React.FC = () => {
             {filteredProjects.map((project) => (
               <Card 
                 key={project.id} 
-                className="genshin-card cursor-pointer group"
+                className="pro-card cursor-pointer group"
                 onDoubleClick={() => handleEnterProject(project)}
               >
                 <CardBody className="p-0">
                   {/* 封面区域 */}
                   <div 
-                    className="h-32 bg-gradient-to-br from-[rgba(26,29,53,0.9)] to-[rgba(18,20,40,0.9)] relative overflow-hidden rounded-t-2xl"
+                    className="h-32 bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-input)] relative overflow-hidden rounded-t-2xl"
                     onDoubleClick={() => handleEnterProject(project)}
                   >
                     {project.cover_url ? (
                       <img src={project.cover_url} alt={project.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <BookOpen className="w-12 h-12 text-[rgba(230,200,122,0.3)]" />
+                        <BookOpen className="w-12 h-12 text-[var(--accent)]/30" />
                       </div>
                     )}
                     {/* 操作按钮 */}
@@ -302,15 +302,15 @@ const Projects: React.FC = () => {
                       <Button
                         size="sm"
                         isIconOnly
-                        className="bg-[rgba(18,20,40,0.9)] backdrop-blur-sm hover:bg-[rgba(26,29,53,0.9)] shadow-lg border border-[rgba(255,255,255,0.1)] cursor-pointer"
+                        className="bg-[var(--bg-elevated)] backdrop-blur-sm hover:bg-[var(--bg-card)] shadow-lg border border-[var(--border-color)] cursor-pointer"
                         onPress={() => handleEdit(project)}
                       >
-                        <Edit className="w-4 h-4 text-[#e8e4dc]" />
+                        <Edit className="w-4 h-4 text-[var(--text-primary)]" />
                       </Button>
                       <Button
                         size="sm"
                         isIconOnly
-                        className="bg-[rgba(18,20,40,0.9)] backdrop-blur-sm hover:bg-red-500/20 shadow-lg border border-[rgba(255,255,255,0.1)] cursor-pointer"
+                        className="bg-[var(--bg-elevated)] backdrop-blur-sm hover:bg-red-500/20 shadow-lg border border-[var(--border-color)] cursor-pointer"
                         onPress={() => handleDelete(project.id)}
                       >
                         <Trash2 className="w-4 h-4 text-red-400" />
@@ -321,15 +321,15 @@ const Projects: React.FC = () => {
                   {/* 信息区域 */}
                   <div className="p-4 space-y-2">
                     <div className="flex items-start justify-between">
-                      <h3 className="text-lg font-semibold text-[#e8e4dc] line-clamp-1">{project.name}</h3>
+                      <h3 className="text-lg font-semibold text-[var(--text-primary)] line-clamp-1">{project.name}</h3>
                       <Chip size="sm" className={getStatusColor(project.status)}>
                         {getStatusText(project.status)}
                       </Chip>
                     </div>
-                    <p className="text-sm text-[#6b6561] line-clamp-2 min-h-[40px]">
+                    <p className="text-sm text-[var(--text-muted)] line-clamp-2 min-h-[40px]">
                       {project.description || '暂无描述'}
                     </p>
-                    <div className="flex items-center gap-1 text-xs text-[#6b6561] pt-2 border-t border-[rgba(255,255,255,0.06)]">
+                    <div className="flex items-center gap-1 text-xs text-[var(--text-muted)] pt-2 border-t border-[var(--border-color)]">
                       <Clock className="w-3 h-3" />
                       <span>更新于 {formatDate(project.updated_at)}</span>
                     </div>
@@ -347,17 +347,17 @@ const Projects: React.FC = () => {
           size="lg"
           classNames={{
             backdrop: 'bg-black/60 backdrop-blur-sm',
-            base: 'bg-gradient-to-br from-[#1a1d35] to-[#121428] border border-[rgba(255,255,255,0.08)] shadow-2xl',
-            header: 'border-b border-[rgba(255,255,255,0.06)]',
+            base: 'bg-[var(--bg-elevated)] border border-[var(--border-color)] shadow-2xl',
+            header: 'border-b border-[var(--border-color)]',
             body: 'py-6',
-            footer: 'border-t border-[rgba(255,255,255,0.06)]',
-            closeButton: 'text-[#a8a29e] hover:text-[#e8e4dc] hover:bg-white/10'
+            footer: 'border-t border-[var(--border-color)]',
+            closeButton: 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/10'
           }}
         >
           <ModalContent>
             {(onClose) => (
               <>
-                <ModalHeader className="text-[#e8e4dc] font-bold">
+                <ModalHeader className="text-[var(--text-primary)] font-bold">
                   {editMode ? '编辑工程' : '新建工程'}
                 </ModalHeader>
                 <ModalBody className="space-y-4">
@@ -367,9 +367,9 @@ const Projects: React.FC = () => {
                     value={formData.name}
                     onValueChange={(val) => setFormData({ ...formData, name: val })}
                     classNames={{
-                      input: "bg-transparent text-[#e8e4dc] placeholder:text-[#6b6561]",
-                      label: "text-[#a8a29e] font-medium",
-                      inputWrapper: "bg-[rgba(30,35,60,0.6)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(230,200,122,0.3)] focus-within:border-[rgba(230,200,122,0.4)]"
+                      input: "bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)]",
+                      label: "text-[var(--text-secondary)] font-medium",
+                      inputWrapper: "bg-[var(--bg-input)] border border-[var(--border-color)] hover:border-[var(--accent)]/30 focus-within:border-[var(--accent)]/40"
                     }}
                   />
                   
@@ -380,9 +380,9 @@ const Projects: React.FC = () => {
                     onValueChange={(val) => setFormData({ ...formData, description: val })}
                     minRows={3}
                     classNames={{
-                      input: "bg-transparent text-[#e8e4dc] placeholder:text-[#6b6561]",
-                      label: "text-[#a8a29e] font-medium",
-                      inputWrapper: "bg-[rgba(30,35,60,0.6)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(230,200,122,0.3)] focus-within:border-[rgba(230,200,122,0.4)]"
+                      input: "bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)]",
+                      label: "text-[var(--text-secondary)] font-medium",
+                      inputWrapper: "bg-[var(--bg-input)] border border-[var(--border-color)] hover:border-[var(--accent)]/30 focus-within:border-[var(--accent)]/40"
                     }}
                   />
 
@@ -398,7 +398,7 @@ const Projects: React.FC = () => {
 
                   {/* 工程状态 */}
                   <div>
-                    <label className="text-sm text-[#a8a29e] font-medium mb-2 block">工程状态</label>
+                    <label className="text-sm text-[var(--text-secondary)] font-medium mb-2 block">工程状态</label>
                     <div className="flex gap-2">
                       {(['draft', 'in_progress', 'completed'] as const).map((status) => (
                         <button
@@ -407,7 +407,7 @@ const Projects: React.FC = () => {
                           className={`px-4 py-2 rounded-lg border transition-all cursor-pointer ${
                             formData.status === status
                               ? getStatusColor(status)
-                              : 'border-[rgba(255,255,255,0.08)] bg-[rgba(30,35,60,0.4)] text-[#6b6561] hover:border-[rgba(255,255,255,0.15)]'
+                              : 'border-[var(--border-color)] bg-[var(--bg-input)] text-[var(--text-muted)] hover:border-[var(--border-color)]'
                           }`}
                         >
                           {getStatusText(status)}
@@ -422,18 +422,18 @@ const Projects: React.FC = () => {
                     value={formData.cover_url}
                     onValueChange={(val) => setFormData({ ...formData, cover_url: val })}
                     classNames={{
-                      input: "bg-transparent text-[#e8e4dc] placeholder:text-[#6b6561]",
-                      label: "text-[#a8a29e] font-medium",
-                      inputWrapper: "bg-[rgba(30,35,60,0.6)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(230,200,122,0.3)] focus-within:border-[rgba(230,200,122,0.4)]"
+                      input: "bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)]",
+                      label: "text-[var(--text-secondary)] font-medium",
+                      inputWrapper: "bg-[var(--bg-input)] border border-[var(--border-color)] hover:border-[var(--accent)]/30 focus-within:border-[var(--accent)]/40"
                     }}
                   />
 
                   {/* 视觉风格选择 */}
                   <div>
-                    <label className="text-sm text-[#a8a29e] font-medium mb-2 flex items-center gap-1.5">
-                      <Palette className="w-4 h-4 text-[#e6c87a]" />
+                    <label className="text-sm text-[var(--text-secondary)] font-medium mb-2 flex items-center gap-1.5">
+                      <Palette className="w-4 h-4 text-[var(--accent)]" />
                       视觉风格
-                      <span className="text-xs text-[#6b6561] font-normal">（统一所有图片/视频的画风）</span>
+                      <span className="text-xs text-[var(--text-muted)] font-normal">（统一所有图片/视频的画风）</span>
                     </label>
                     <div className="grid grid-cols-4 gap-2 mt-2">
                       {Object.keys(VISUAL_STYLE_PRESETS).map((label) => (
@@ -442,8 +442,8 @@ const Projects: React.FC = () => {
                           onClick={() => handleSelectVisualStyle(label)}
                           className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
                             formData.visualStyle === label
-                              ? 'bg-[rgba(230,200,122,0.15)] border-[rgba(230,200,122,0.4)] text-[#e6c87a] shadow-[0_0_10px_rgba(230,200,122,0.2)]'
-                              : 'border-[rgba(255,255,255,0.08)] bg-[rgba(30,35,60,0.4)] text-[#6b6561] hover:border-[rgba(230,200,122,0.3)] hover:bg-[rgba(230,200,122,0.05)]'
+                              ? 'bg-[var(--accent)]/15 border-[var(--accent)]/40 text-[var(--accent)] shadow-[0_0_10px_var(--accent-glow)]'
+                              : 'border-[var(--border-color)] bg-[var(--bg-input)] text-[var(--text-muted)] hover:border-[var(--accent)]/30 hover:bg-[var(--accent)]/5'
                           }`}
                         >
                           {label}
@@ -451,7 +451,7 @@ const Projects: React.FC = () => {
                       ))}
                     </div>
                     {formData.visualStyle && (
-                      <p className="text-xs text-[#6b6561] mt-1.5 truncate" title={formData.visualStylePrompt}>
+                      <p className="text-xs text-[var(--text-muted)] mt-1.5 truncate" title={formData.visualStylePrompt}>
                         Prompt: {formData.visualStylePrompt}
                       </p>
                     )}
@@ -462,8 +462,8 @@ const Projects: React.FC = () => {
                       onValueChange={(val) => setFormData({ ...formData, visualStylePrompt: val })}
                       className="mt-2"
                       classNames={{
-                        input: "bg-transparent text-[#e8e4dc] placeholder:text-[#6b6561] text-xs",
-                        inputWrapper: "bg-[rgba(30,35,60,0.6)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(230,200,122,0.3)] h-8 min-h-8"
+                        input: "bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-xs",
+                        inputWrapper: "bg-[var(--bg-input)] border border-[var(--border-color)] hover:border-[var(--accent)]/30 h-8 min-h-8"
                       }}
                     />
                   </div>
@@ -495,10 +495,10 @@ const Projects: React.FC = () => {
                   </div>
                 </ModalBody>
                 <ModalFooter className="gap-2">
-                  <Button variant="flat" onPress={onClose} className="bg-white/5 text-[#a8a29e] font-semibold hover:bg-white/10 border border-white/10 cursor-pointer">
+                  <Button variant="flat" onPress={onClose} className="bg-white/5 text-[var(--text-secondary)] font-semibold hover:bg-white/10 border border-white/10 cursor-pointer">
                     取消
                   </Button>
-                  <Button className="bg-gradient-to-br from-amber-400 to-yellow-600 text-[#1a1d35] font-bold shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 cursor-pointer" onPress={handleSave}>
+                  <Button className="pro-btn-primary" onPress={handleSave}>
                     保存
                   </Button>
                 </ModalFooter>

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, Component, ReactNode } from 'react';
-import { Button, Select, SelectItem } from '@heroui/react';
-import { Wand2, RefreshCw, Upload, Download, Video, ImageIcon } from 'lucide-react';
-import { useSceneManager } from './useSceneManager';
+import React, { useState, useEffect, useMemo, useCallback, Component, ReactNode } from 'react';
+import { Button, Select, SelectItem, Tooltip } from '@heroui/react';
+import { Wand2, RefreshCw, Upload, Download, Video, ImageIcon, Users, MapPin, Frame, Film } from 'lucide-react';
+import { useSceneManager, StoryboardScene } from './useSceneManager';
 import { useAutoStoryboard } from './useAutoStoryboard';
 import { useSceneGeneration } from './useSceneGeneration';
 import { useBatchFrameGeneration } from './hooks/useBatchFrameGeneration';
@@ -13,10 +13,14 @@ import ImportStoryboardModal from './ImportStoryboardModal';
 import BatchDownloadModal from './BatchDownloadModal';
 import SceneList from './SceneList';
 import ResourcePanel from './ResourcePanel';
+import ScenePreviewPanel from './ScenePreviewPanel';
+import { PanelGroup } from '../../components/PanelGroup';
+import ResizablePanel from '../../components/ResizablePanel';
 import { getAuthToken } from '../../services/auth';
 import { useToast } from '../../contexts/ToastContext';
 import { AIModel } from '../../components/AIModelSelector';
 import { normalizeCapabilityOptions } from '../../utils/modelCapabilities';
+import { useKeyboardShortcuts, ShortcutConfig, STORYBOARD_SHORTCUTS_CONFIG } from '../../hooks/useKeyboardShortcuts';
 
 interface Script {
   id: number;
@@ -48,12 +52,12 @@ class StoryboardErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-500 bg-[#0c0e1a]">
-          <p className="text-lg font-medium text-[#a8a29e]">Something went wrong loading the storyboard.</p>
-          <p className="text-sm text-gray-400">{this.state.error?.message}</p>
+        <div className="flex flex-col items-center justify-center h-full gap-4 bg-[var(--bg-app)]">
+          <p className="text-lg font-medium text-[var(--text-secondary)]">Something went wrong loading the storyboard.</p>
+          <p className="text-sm text-[var(--text-muted)]">{this.state.error?.message}</p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            className="pro-btn-primary px-4 py-2"
           >
             Retry
           </button>
@@ -562,6 +566,88 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
   const allProps = useMemo(() => 
     [...new Set(scenes.flatMap(s => s.props))], [scenes]);
   
+  // 获取选中的分镜数据
+  const selectedSceneData = useMemo(() => 
+    scenes.find(s => s.id === selectedScene) || null, [scenes, selectedScene]);
+
+  // 处理分镜描述更新
+  const handleUpdateSelectedDescription = async (description: string) => {
+    if (selectedScene) {
+      return await updateDescription(selectedScene, description);
+    }
+    return false;
+  };
+
+  // 处理选中分镜的更新
+  const handleUpdateSelectedScene = (updates: Partial<StoryboardScene>) => {
+    if (selectedScene) {
+      setScenes(prev => prev.map(s => s.id === selectedScene ? { ...s, ...updates } : s));
+    }
+  };
+  
+  // 分镜视图快捷键
+  const storyboardShortcuts = useMemo<ShortcutConfig[]>(() => [
+    {
+      ...STORYBOARD_SHORTCUTS_CONFIG.SELECT_PREV,
+      action: () => {
+        if (scenes.length === 0) return;
+        const currentIndex = scenes.findIndex(s => s.id === selectedScene);
+        if (currentIndex > 0) {
+          setSelectedScene(scenes[currentIndex - 1].id);
+        } else if (currentIndex === -1 && scenes.length > 0) {
+          // 没有选中时，选择最后一个
+          setSelectedScene(scenes[scenes.length - 1].id);
+        }
+      },
+    },
+    {
+      ...STORYBOARD_SHORTCUTS_CONFIG.SELECT_NEXT,
+      action: () => {
+        if (scenes.length === 0) return;
+        const currentIndex = scenes.findIndex(s => s.id === selectedScene);
+        if (currentIndex < scenes.length - 1) {
+          setSelectedScene(scenes[currentIndex + 1].id);
+        } else if (currentIndex === -1 && scenes.length > 0) {
+          // 没有选中时，选择第一个
+          setSelectedScene(scenes[0].id);
+        }
+      },
+    },
+    {
+      ...STORYBOARD_SHORTCUTS_CONFIG.DELETE_SCENE,
+      action: () => {
+        if (selectedScene && !isLoading) {
+          deleteScene(selectedScene);
+        }
+      },
+    },
+    {
+      ...STORYBOARD_SHORTCUTS_CONFIG.NEW_SCENE,
+      action: () => {
+        if (currentScriptId && !isLoading) {
+          addScene();
+        }
+      },
+    },
+    {
+      ...STORYBOARD_SHORTCUTS_CONFIG.REFRESH_LIST,
+      action: () => {
+        if (currentScriptId && !isLoading) {
+          loadStoryboards(currentScriptId);
+        }
+      },
+    },
+    {
+      ...STORYBOARD_SHORTCUTS_CONFIG.DESELECT,
+      action: () => {
+        setSelectedScene(null);
+      },
+    },
+  ], [scenes, selectedScene, setSelectedScene, deleteScene, addScene, currentScriptId, isLoading, loadStoryboards]);
+
+  // 注册快捷键（只在有剧本ID时启用）
+  useKeyboardShortcuts(storyboardShortcuts, !!currentScriptId);
+
   // Debug: 检查角色数据
   useEffect(() => {
     console.log('[StoryBoard] 分镜数量:', scenes.length);
@@ -573,132 +659,168 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     console.log('[StoryBoard] 收集到的角色:', allCharacters);
   }, [scenes, allCharacters]);
 
-  return (
-    <div className="h-full flex flex-col bg-[#0c0e1a]">
-      {/* 顶部工具栏 */}
-      <div className="px-4 py-3 genshin-navbar backdrop-blur-xl border-b flex items-center justify-between">
-        <div className="w-full space-y-3">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <h2 className="text-lg font-bold genshin-title">分镜设计</h2>
-              <EpisodeSelector
-                scripts={scripts}
-                currentEpisode={currentEpisode}
-                onSelect={handleEpisodeSelect}
-              />
-              {scenes.length > 0 && (
-                <span className="text-sm text-[#a8a29e]">共 {scenes.length} 个分镜</span>
-              )}
-            </div>
+  // 小型图标按钮组件
+  const IconButton: React.FC<{
+    icon: React.ReactNode;
+    tooltip: string;
+    onClick: () => void;
+    disabled?: boolean;
+    loading?: boolean;
+    variant?: 'default' | 'primary' | 'success' | 'warning' | 'danger';
+  }> = ({ icon, tooltip, onClick, disabled, loading, variant = 'default' }) => {
+    const variantClasses = {
+      default: 'bg-[var(--bg-card)] hover:bg-[var(--bg-card-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-color)]',
+      primary: 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white border-transparent',
+      success: 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border-emerald-500/30',
+      warning: 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border-amber-500/30',
+      danger: 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border-rose-500/30'
+    };
 
-            <div className="flex items-center gap-2">
+    return (
+      <Tooltip content={tooltip} placement="bottom">
+        <button
+          onClick={onClick}
+          disabled={disabled || loading}
+          className={`
+            h-8 w-8 flex items-center justify-center rounded-md border transition-all duration-150
+            ${variantClasses[variant]}
+            ${disabled || loading ? 'opacity-50 cursor-not-allowed' : ''}
+          `}
+        >
+          {loading ? (
+            <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          ) : icon}
+        </button>
+      </Tooltip>
+    );
+  };
+
+  // 分隔线组件
+  const Divider = () => (
+    <div className="w-px h-6 bg-[var(--border-color)]" />
+  );
+
+  return (
+    <div className="h-full flex flex-col bg-[var(--bg-app)]">
+      {/* 顶部工具栏 */}
+      <div className="flex-shrink-0 border-b border-[var(--border-color)] bg-[var(--bg-card)]">
+        {/* 第一行：集数选择 + 操作按钮 */}
+        <div className="h-11 px-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <EpisodeSelector
+              scripts={scripts}
+              currentEpisode={currentEpisode}
+              onSelect={handleEpisodeSelect}
+            />
+            {scenes.length > 0 && (
+              <span className="text-xs text-[var(--text-muted)] px-2 py-0.5 rounded bg-[var(--bg-app)]">
+                {scenes.length} 个分镜
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {/* 基础操作 */}
+            <IconButton
+              icon={<RefreshCw className="w-4 h-4" />}
+              tooltip="刷新分镜列表"
+              onClick={() => currentScriptId && loadStoryboards(currentScriptId)}
+              disabled={!currentScriptId}
+              loading={isLoading}
+            />
+            {scenes.length > 0 && (
+              <IconButton
+                icon={<Download className="w-4 h-4" />}
+                tooltip="批量下载"
+                onClick={() => setShowBatchDownloadModal(true)}
+                variant="success"
+              />
+            )}
+            <IconButton
+              icon={<Upload className="w-4 h-4" />}
+              tooltip="从 JSON 导入"
+              onClick={() => setShowImportModal(true)}
+              disabled={!currentScriptId}
+            />
+
+            <Divider />
+
+            {/* 批量生成操作 */}
+            <IconButton
+              icon={<Users className="w-4 h-4" />}
+              tooltip="批量生成角色"
+              onClick={handleBatchCharacterGeneration}
+              disabled={!currentScriptId || isSubmittingCharacterBatch || characterBatchRecovery.isGenerating}
+              loading={isSubmittingCharacterBatch || characterBatchRecovery.isGenerating}
+              variant="warning"
+            />
+            <IconButton
+              icon={<MapPin className="w-4 h-4" />}
+              tooltip="批量生成场景"
+              onClick={handleBatchSceneGeneration}
+              disabled={!currentScriptId || isSubmittingSceneBatch || sceneBatchRecovery.isGenerating}
+              loading={isSubmittingSceneBatch || sceneBatchRecovery.isGenerating}
+              variant="success"
+            />
+            <IconButton
+              icon={<Frame className="w-4 h-4" />}
+              tooltip="批量生成首尾帧"
+              onClick={handleBatchFrameGeneration}
+              disabled={!currentScriptId || batchFrameGen.isGenerating}
+              loading={batchFrameGen.isGenerating}
+              variant="warning"
+            />
+            <IconButton
+              icon={<Film className="w-4 h-4" />}
+              tooltip="批量生成视频"
+              onClick={handleBatchVideoGeneration}
+              disabled={!currentScriptId || batchSceneVideoGen.isGenerating}
+              loading={batchSceneVideoGen.isGenerating}
+              variant="danger"
+            />
+
+            <Divider />
+
+            {/* 主操作 */}
+            <Tooltip content={autoStoryboard.isGenerating 
+              ? (autoStoryboard.progress 
+                ? `${autoStoryboard.progress.currentStep}/${autoStoryboard.progress.totalSteps} ${autoStoryboard.progress.stepName}`
+                : '生成中...')
+              : '智能生成分镜'
+            } placement="bottom">
               <Button
                 size="sm"
-                variant="flat"
-                className="bg-[rgba(230,200,122,0.1)] text-[#a8a29e] border border-[rgba(255,255,255,0.1)] hover:border-[rgba(230,200,122,0.3)] hover:text-[#e6c87a] font-medium transition-all"
-                startContent={<RefreshCw className="w-4 h-4" />}
-                onPress={() => currentScriptId && loadStoryboards(currentScriptId)}
-                isLoading={isLoading}
-                isDisabled={!currentScriptId}
-              >
-                刷新
-              </Button>
-              {scenes.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="flat"
-                  className="bg-gradient-to-r from-emerald-500/15 to-green-500/15 border border-emerald-500/30 text-emerald-400 font-medium hover:from-emerald-500/25 hover:to-green-500/25 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)] transition-all"
-                  startContent={<Download className="w-4 h-4" />}
-                  onPress={() => setShowBatchDownloadModal(true)}
-                >
-                  批量下载
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="flat"
-                className="bg-[rgba(230,200,122,0.1)] text-[#a8a29e] border border-[rgba(255,255,255,0.1)] hover:border-[rgba(230,200,122,0.3)] hover:text-[#e6c87a] font-medium transition-all"
-                startContent={<Upload className="w-4 h-4" />}
-                onPress={() => setShowImportModal(true)}
-                isDisabled={!currentScriptId}
-              >
-                从 JSON 导入
-              </Button>
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-[0_0_25px_rgba(59,130,246,0.4)] transition-all"
-                startContent={<Wand2 className="w-4 h-4" />}
-                onPress={handleBatchCharacterGeneration}
-                isDisabled={!currentScriptId || isSubmittingCharacterBatch || characterBatchRecovery.isGenerating}
-                isLoading={isSubmittingCharacterBatch || characterBatchRecovery.isGenerating}
-              >
-                批量生成角色
-              </Button>
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold shadow-lg shadow-green-500/30 hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all"
-                startContent={<Wand2 className="w-4 h-4" />}
-                onPress={handleBatchSceneGeneration}
-                isDisabled={!currentScriptId || isSubmittingSceneBatch || sceneBatchRecovery.isGenerating}
-                isLoading={isSubmittingSceneBatch || sceneBatchRecovery.isGenerating}
-              >
-                批量生成场景
-              </Button>
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-purple-500 to-violet-500 text-white font-bold shadow-lg shadow-purple-500/30 hover:shadow-[0_0_25px_rgba(139,92,246,0.4)] transition-all"
-                startContent={<Wand2 className="w-4 h-4" />}
-                onPress={handleBatchFrameGeneration}
-                isDisabled={!currentScriptId || batchFrameGen.isGenerating}
-                isLoading={batchFrameGen.isGenerating}
-              >
-                批量生成首尾帧
-              </Button>
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold shadow-lg shadow-rose-500/30 hover:shadow-[0_0_25px_rgba(244,63,94,0.4)] transition-all"
-                startContent={<Video className="w-4 h-4" />}
-                onPress={handleBatchVideoGeneration}
-                isDisabled={!currentScriptId || batchSceneVideoGen.isGenerating}
-                isLoading={batchSceneVideoGen.isGenerating}
-              >
-                批量生成视频
-              </Button>
-              <Button
-                size="sm"
-                className="bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-[#1a1d35] font-bold shadow-lg shadow-amber-500/30 hover:shadow-[0_0_25px_rgba(230,200,122,0.4)] transition-all"
-                startContent={<Wand2 className="w-4 h-4" />}
+                className="pro-btn-primary h-8 px-3 font-medium"
+                startContent={!autoStoryboard.isGenerating && <Wand2 className="w-4 h-4" />}
                 onPress={autoStoryboard.handleAutoGenerateClick}
                 isLoading={autoStoryboard.isGenerating}
                 isDisabled={!currentScriptId || autoStoryboard.isGenerating}
               >
-                {autoStoryboard.isGenerating
-                  ? (autoStoryboard.progress
-                      ? `${autoStoryboard.progress.currentStep}/${autoStoryboard.progress.totalSteps} ${autoStoryboard.progress.stepName}`
-                      : '生成中...')
-                  : '智能生成分镜'}
+                {autoStoryboard.isGenerating ? '生成中...' : '智能分镜'}
               </Button>
-            </div>
+            </Tooltip>
           </div>
+        </div>
 
-          <div className="flex flex-wrap items-end gap-3">
+        {/* 第二行：模型设置（仅当有模型时显示） */}
+        {(imageModel || videoModel) && (
+          <div className="h-10 px-4 flex items-center gap-4 border-t border-[var(--border-color)] bg-[var(--bg-app)]">
             {imageModel && (
-              <div className="flex items-center gap-2 rounded-xl border border-slate-700/50 bg-slate-900/50 px-3 py-2">
-                <ImageIcon className="w-4 h-4 text-cyan-400" />
-                <div className="text-xs text-slate-400">图片模型</div>
-                <div className="text-sm font-semibold text-slate-100 min-w-[120px]">{imageModel}</div>
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-xs text-[var(--text-muted)]">图片:</span>
+                <span className="text-xs font-medium text-[var(--text-secondary)]">{imageModel}</span>
                 <Select
                   size="sm"
-                  label="图片比例"
-                  placeholder={imageAspectRatioOptions.length > 0 ? '选择图片比例' : '未配置支持比例'}
+                  aria-label="图片比例"
+                  placeholder="比例"
                   selectedKeys={imageAspectRatio ? [imageAspectRatio] : []}
                   onChange={(e) => setImageAspectRatio(e.target.value)}
-                  className="w-44"
+                  className="w-28"
                   isDisabled={imageAspectRatioOptions.length === 0}
                   classNames={{
-                    trigger: "bg-slate-800/60 border-slate-600/50 hover:border-cyan-500/50",
-                    label: "text-slate-400 text-xs",
-                    value: "text-slate-200 text-sm"
+                    trigger: "h-7 min-h-7 bg-[var(--bg-card)] border-[var(--border-color)]",
+                    value: "text-xs text-[var(--text-secondary)]"
                   }}
                 >
                   {imageAspectRatioOptions.map((option) => (
@@ -709,24 +831,21 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
             )}
 
             {videoModel && (
-              <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-700/50 bg-slate-900/50 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Video className="w-4 h-4 text-rose-400" />
-                  <div className="text-xs text-slate-400">视频模型</div>
-                  <div className="text-sm font-semibold text-slate-100 min-w-[120px]">{videoModel}</div>
-                </div>
+              <div className="flex items-center gap-2">
+                <Video className="w-3.5 h-3.5 text-rose-400" />
+                <span className="text-xs text-[var(--text-muted)]">视频:</span>
+                <span className="text-xs font-medium text-[var(--text-secondary)]">{videoModel}</span>
                 <Select
                   size="sm"
-                  label="视频比例"
-                  placeholder={videoAspectRatioOptions.length > 0 ? '选择视频比例' : '未配置支持比例'}
+                  aria-label="视频比例"
+                  placeholder="比例"
                   selectedKeys={videoAspectRatio ? [videoAspectRatio] : []}
                   onChange={(e) => setVideoAspectRatio(e.target.value)}
-                  className="w-44"
+                  className="w-28"
                   isDisabled={videoAspectRatioOptions.length === 0}
                   classNames={{
-                    trigger: "bg-slate-800/60 border-slate-600/50 hover:border-rose-500/50",
-                    label: "text-slate-400 text-xs",
-                    value: "text-slate-200 text-sm"
+                    trigger: "h-7 min-h-7 bg-[var(--bg-card)] border-[var(--border-color)]",
+                    value: "text-xs text-[var(--text-secondary)]"
                   }}
                 >
                   {videoAspectRatioOptions.map((option) => (
@@ -735,16 +854,15 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
                 </Select>
                 <Select
                   size="sm"
-                  label="视频时长"
-                  placeholder={videoDurationOptions.length > 0 ? '选择视频时长' : '未配置支持时长'}
+                  aria-label="视频时长"
+                  placeholder="时长"
                   selectedKeys={videoDuration === null ? [] : [String(videoDuration)]}
                   onChange={(e) => setVideoDuration(Number(e.target.value))}
-                  className="w-36"
+                  className="w-24"
                   isDisabled={videoDurationOptions.length === 0}
                   classNames={{
-                    trigger: "bg-slate-800/60 border-slate-600/50 hover:border-rose-500/50",
-                    label: "text-slate-400 text-xs",
-                    value: "text-slate-200 text-sm"
+                    trigger: "h-7 min-h-7 bg-[var(--bg-card)] border-[var(--border-color)]",
+                    value: "text-xs text-[var(--text-secondary)]"
                   }}
                 >
                   {videoDurationOptions.map((option) => (
@@ -754,64 +872,89 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* 无剧本提示 */}
       {!currentScriptId && (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-[#6b6561]">
-            <Wand2 className="w-16 h-16 mx-auto mb-4 text-[#4a4540]" />
-            <p className="text-lg font-medium text-[#a8a29e]">请先生成剧本</p>
-            <p className="text-sm mt-1">生成剧本后，可以自动将剧本转换为分镜</p>
+          <div className="text-center">
+            <Wand2 className="w-16 h-16 mx-auto mb-4 text-[var(--text-muted)] opacity-30" />
+            <p className="text-lg font-medium text-[var(--text-secondary)]">请先生成剧本</p>
+            <p className="text-sm mt-1 text-[var(--text-muted)]">生成剧本后，可以自动将剧本转换为分镜</p>
           </div>
         </div>
       )}
 
-      {/* 主内容区 */}
+      {/* 主内容区 - 三栏布局 */}
       {currentScriptId && (
-        <div className="flex-1 flex overflow-hidden">
-          {/* 左侧：分镜列表 */}
-          <div className="flex-1 overflow-y-auto">
-            <SceneList
-              scenes={scenes}
-              selectedScene={selectedScene}
-              projectId={currentProjectId}
-              scriptId={currentScriptId}
-              onSelectScene={setSelectedScene}
-              onAddScene={addScene}
-              onDeleteScene={deleteScene}
-              onMoveScene={moveScene}
-              onUpdateDescription={updateDescription}
-              onReorderScenes={reorderScenes}
-              onGenerateImage={generateImage}
-              onGenerateVideo={generateVideo}
-              onUpdateScene={(id, updates) => {
-                setScenes(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-              }}
-              tasks={tasks}
-              onBatchGenerate={(overwrite) => batchFrameGen.startBatchGeneration(overwrite)}
-              isBatchGenerating={batchFrameGen.isGenerating}
-              batchProgress={batchFrameGen.progress}
-              onBatchGenerateVideo={(overwrite) => batchSceneVideoGen.startBatchVideoGeneration(overwrite)}
-              isBatchGeneratingVideo={batchSceneVideoGen.isGenerating}
-              batchVideoProgress={batchSceneVideoGen.progress}
-              isLoading={isLoading}
-            />
-          </div>
+        <div className="flex-1 overflow-hidden">
+          <PanelGroup 
+            direction="horizontal" 
+            storageKey="storyboard-layout"
+            mobileDefaultPanel={1}
+            mobilePanelLabels={['分镜列表', '预览编辑', '资源']}
+          >
+            {/* 左侧：分镜列表 */}
+            <ResizablePanel defaultSize={22} minSize={15} maxSize={35} title="分镜列表" collapsible>
+              <SceneList
+                scenes={scenes}
+                selectedScene={selectedScene}
+                projectId={currentProjectId}
+                scriptId={currentScriptId}
+                onSelectScene={setSelectedScene}
+                onAddScene={addScene}
+                onDeleteScene={deleteScene}
+                onMoveScene={moveScene}
+                onUpdateDescription={updateDescription}
+                onReorderScenes={reorderScenes}
+                onGenerateImage={generateImage}
+                onGenerateVideo={generateVideo}
+                onUpdateScene={(id, updates) => {
+                  setScenes(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+                }}
+                tasks={tasks}
+                onBatchGenerate={(overwrite) => batchFrameGen.startBatchGeneration(overwrite)}
+                isBatchGenerating={batchFrameGen.isGenerating}
+                batchProgress={batchFrameGen.progress}
+                onBatchGenerateVideo={(overwrite) => batchSceneVideoGen.startBatchVideoGeneration(overwrite)}
+                isBatchGeneratingVideo={batchSceneVideoGen.isGenerating}
+                batchVideoProgress={batchSceneVideoGen.progress}
+                isLoading={isLoading}
+              />
+            </ResizablePanel>
 
-          {/* 右侧：资源面板 */}
-          <ResourcePanel
-            characters={allCharacters}
-            locations={allLocations}
-            props={allProps}
-            projectId={currentProjectId}
-            scriptId={currentScriptId}
-            scenes={scenes}
-            imageModel={imageModel}
-            imageAspectRatio={imageAspectRatio}
-            textModel={textModel}
-          />
+            {/* 中央：预览编辑 */}
+            <ResizablePanel defaultSize={53} minSize={30} title="预览编辑">
+              <ScenePreviewPanel
+                scene={selectedSceneData}
+                sceneIndex={selectedSceneData ? scenes.findIndex(s => s.id === selectedSceneData.id) : -1}
+                projectId={currentProjectId}
+                scriptId={currentScriptId}
+                onUpdateDescription={handleUpdateSelectedDescription}
+                onGenerateImage={generateImage}
+                onGenerateVideo={generateVideo}
+                onUpdateScene={handleUpdateSelectedScene}
+                imageTask={selectedScene ? tasks[`img_${selectedScene}`] : undefined}
+                videoTask={selectedScene ? tasks[`vid_${selectedScene}`] : undefined}
+              />
+            </ResizablePanel>
+
+            {/* 右侧：资源面板 */}
+            <ResizablePanel defaultSize={25} minSize={15} maxSize={35} title="资源" collapsible>
+              <ResourcePanel
+                characters={allCharacters}
+                locations={allLocations}
+                props={allProps}
+                projectId={currentProjectId}
+                scriptId={currentScriptId}
+                scenes={scenes}
+                imageModel={imageModel}
+                imageAspectRatio={imageAspectRatio}
+                textModel={textModel}
+              />
+            </ResizablePanel>
+          </PanelGroup>
         </div>
       )}
 

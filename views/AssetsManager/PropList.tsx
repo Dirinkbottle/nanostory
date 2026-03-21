@@ -13,19 +13,19 @@ const PropList: React.FC<PropListProps> = ({ props, onEdit, onDelete }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
       {props.map((prop) => (
-        <Card key={prop.id} className="bg-slate-900/80 border border-slate-700/50 shadow-sm hover:shadow-md hover:shadow-blue-500/5 transition-shadow">
+        <Card key={prop.id} className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm hover:shadow-md hover:shadow-[var(--accent)]/5 transition-shadow">
           <CardBody className="p-4 space-y-3">
             <div className="flex items-start justify-between">
-              <h3 className="text-lg font-semibold text-slate-100">{prop.name}</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">{prop.name}</h3>
               <div className="flex gap-1">
                 <Button 
                   size="sm" 
                   isIconOnly 
                   variant="light" 
                   onPress={() => onEdit(prop)} 
-                  className="hover:bg-blue-500/10"
+                  className="hover:bg-[var(--accent)]/10"
                 >
-                  <Edit className="w-4 h-4 text-blue-400" />
+                  <Edit className="w-4 h-4 text-[var(--accent)]" />
                 </Button>
                 <Button 
                   size="sm" 
@@ -38,7 +38,7 @@ const PropList: React.FC<PropListProps> = ({ props, onEdit, onDelete }) => {
                 </Button>
               </div>
             </div>
-            <p className="text-sm text-slate-400 line-clamp-2">{prop.description}</p>
+            <p className="text-sm text-[var(--text-secondary)] line-clamp-2">{prop.description}</p>
             {prop.category && (
               <Chip size="sm" variant="flat" className="bg-amber-500/10 text-amber-400 font-medium">
                 {prop.category}

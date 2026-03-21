@@ -25,9 +25,9 @@ const ScriptActions: React.FC<ScriptActionsProps> = ({
 }) => {
   if (loadingScript) {
     return (
-      <Card className="bg-slate-800/60 border border-slate-700/50">
+      <Card className="pro-card">
         <CardBody className="p-4 text-center">
-          <p className="text-slate-400">加载剧本中...</p>
+          <p className="text-[var(--text-secondary)]">加载剧本中...</p>
         </CardBody>
       </Card>
     );
@@ -39,23 +39,23 @@ const ScriptActions: React.FC<ScriptActionsProps> = ({
 
   return (
     <>
-      <Card className="bg-slate-800/60 border border-emerald-500/20">
+      <Card className="pro-card border-[var(--success)]/20">
         <CardBody className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/15 rounded-lg border border-emerald-500/20">
-                <FileText className="w-5 h-5 text-emerald-400" />
+              <div className="p-2 bg-[var(--success)]/15 rounded-lg border border-[var(--success)]/20">
+                <FileText className="w-5 h-5 text-[var(--success)]" />
               </div>
               <div>
-                <p className="text-slate-200 font-bold">已有剧本</p>
-                <p className="text-xs text-slate-500">可以编辑或删除当前剧本</p>
+                <p className="text-[var(--text-primary)] font-bold">已有剧本</p>
+                <p className="text-xs text-[var(--text-muted)]">可以编辑或删除当前剧本</p>
               </div>
             </div>
             <div className="flex gap-2">
               <Button
                 size="sm"
                 variant="light"
-                className="text-red-400 font-semibold hover:bg-red-500/10"
+                className="text-[var(--danger)] font-semibold hover:bg-[var(--danger)]/10"
                 onPress={onDelete}
                 isDisabled={loading}
               >
@@ -64,7 +64,7 @@ const ScriptActions: React.FC<ScriptActionsProps> = ({
               {isEditing ? (
                 <Button
                   size="sm"
-                  className="bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
+                  className="bg-[var(--success)] text-white font-semibold hover:bg-[var(--success)]/80"
                   onPress={onSave}
                   isLoading={loading}
                 >
@@ -73,7 +73,7 @@ const ScriptActions: React.FC<ScriptActionsProps> = ({
               ) : (
                 <Button
                   size="sm"
-                  className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold"
+                  className="pro-btn-primary"
                   onPress={onEdit}
                 >
                   编辑剧本

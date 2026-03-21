@@ -1,7 +1,8 @@
-import React from 'react';
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Chip } from '@heroui/react';
-import { User, Wand2 } from 'lucide-react';
-import { Character } from './types';
+import React, { useState, useEffect } from 'react';
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Chip, Select, SelectItem } from '@heroui/react';
+import { User, Wand2, Layers } from 'lucide-react';
+import { Character, CharacterState } from './types';
+import { fetchCharacterStates } from '../../../services/assets';
 
 interface CharacterDetailModalProps {
   isOpen: boolean;
@@ -18,6 +19,26 @@ const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
   scenes,
   onGenerateImage
 }) => {
+  const [states, setStates] = useState<CharacterState[]>([]);
+  const [selectedStateId, setSelectedStateId] = useState<number | null>(null);
+
+  // 加载角色状态
+  useEffect(() => {
+    if (character?.id && isOpen) {
+      fetchCharacterStates(character.id)
+        .then(setStates)
+        .catch(err => console.error('加载角色状态失败:', err));
+    } else {
+      setStates([]);
+      setSelectedStateId(null);
+    }
+  }, [character?.id, isOpen]);
+
+  // 获取当前显示的状态
+  const currentState = selectedStateId 
+    ? states.find(s => s.id === selectedStateId) 
+    : null;
+
   if (!character) return null;
 
   const sceneCount = scenes?.filter(s => s.characters?.includes(character.name)).length || 0;
@@ -56,12 +77,59 @@ const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
 
             <ModalBody className="py-6">
               <div className="space-y-6">
+                {/* 状态选择器 */}
+                {states.length > 0 && (
+                  <div className="bg-purple-500/5 rounded-lg p-4 border border-purple-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Layers className="w-4 h-4 text-purple-400" />
+                      <h4 className="text-sm font-bold text-slate-300">角色状态</h4>
+                      <Chip size="sm" variant="flat" className="bg-purple-500/10 text-purple-400">
+                        {states.length} 个状态
+                      </Chip>
+                    </div>
+                    <Select
+                      size="sm"
+                      placeholder="选择状态查看"
+                      selectedKeys={selectedStateId ? [selectedStateId.toString()] : []}
+                      onSelectionChange={(keys) => {
+                        const key = Array.from(keys)[0] as string;
+                        setSelectedStateId(key ? parseInt(key) : null);
+                      }}
+                      classNames={{
+                        trigger: "bg-slate-800/60 border border-slate-700/50",
+                        value: "text-slate-100"
+                      }}
+                    >
+                      {[
+                        <SelectItem key="default" textValue="默认状态">
+                          默认状态
+                        </SelectItem>,
+                        ...states.map((state) => (
+                          <SelectItem key={state.id.toString()} textValue={state.name}>
+                            {state.name}
+                          </SelectItem>
+                        ))
+                      ]}
+                    </Select>
+                    {currentState && (
+                      <div className="mt-2 text-xs text-slate-400">
+                        {currentState.description && (
+                          <p className="mb-1">{currentState.description}</p>
+                        )}
+                        {currentState.appearance && (
+                          <p className="text-slate-500">外貌：{currentState.appearance}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* 角色主图 */}
-                {character.imageUrl && (
+                {(currentState?.image_url || character.imageUrl) && (
                   <div className="flex justify-center">
                     <div className="w-64 h-64 bg-slate-800/60 rounded-lg overflow-hidden border border-slate-700/50">
                       <img 
-                        src={character.imageUrl} 
+                        src={currentState?.image_url || character.imageUrl} 
                         alt={character.name} 
                         className="w-full h-full object-cover" 
                       />

@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, memo } from 'react';
 import { Card, CardBody, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Checkbox } from '@heroui/react';
+import { Trash2, ImageIcon } from 'lucide-react';
 import SceneImageGenerator from '../SceneImageGenerator';
 import { StoryboardScene } from '../useSceneManager';
 import { TaskState } from '../../../hooks/useTaskRunner';
@@ -8,6 +9,7 @@ import SceneCardContent from './SceneCardContent';
 import SceneCardMetadata from './SceneCardMetadata';
 import SceneCardActions from './SceneCardActions';
 import VideoPreviewModal from './VideoPreviewModal';
+import LazyImage from '../../../components/LazyImage';
 import { getAuthToken } from '../../../services/auth';
 import { validateFrameReadiness, formatValidationMessage } from '../utils/validateFrameReadiness';
 import { useToast } from '../../../contexts/ToastContext';
@@ -276,76 +278,94 @@ const SceneCard: React.FC<SceneCardProps> = ({
   return (
     <>
       <Card
-        className={`transition-all ${
+        className={`transition-all cursor-pointer ${
           isSelected
-            ? 'border-2 border-blue-500/50 shadow-md shadow-blue-500/10 bg-slate-800/80'
-            : 'border border-slate-700/50 hover:border-blue-500/30 bg-slate-900/60'
+            ? 'border-l-2 border-l-[var(--accent)] border-y border-r border-[var(--border-color)] bg-[var(--bg-card-hover)]'
+            : 'border border-[var(--border-color)] hover:border-[var(--accent)]/30 bg-[var(--bg-card)]'
         }`}
+        isPressable
+        onPress={() => onSelect(scene.id)}
       >
-        <CardBody className="p-4">
-          <div className="flex gap-4">
-            <SceneCardHeader
-              index={index}
-              sceneId={scene.id}
-              isFirst={isFirst}
-              isLast={isLast}
-              onSelect={onSelect}
-              onMoveUp={onMoveUp}
-              onMoveDown={onMoveDown}
-            />
+        <CardBody className="p-2">
+          <div className="flex gap-2">
+            {/* 紧凑的序号 */}
+            <div className="flex flex-col items-center justify-center w-6 flex-shrink-0">
+              <span className={`text-xs font-bold ${
+                isSelected ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
+              }`}>
+                {index + 1}
+              </span>
+            </div>
 
-            {scene.videoUrl ? (
-              <VideoPreviewModal
-                scene={scene}
-                index={index}
-                isGeneratingVideo={isGeneratingVideo}
-                onGenerateVideo={handleGenerateVideo}
-                onDeleteVideo={handleDeleteVideo}
-                showVideoPreview={showVideoPreview}
-                setShowVideoPreview={setShowVideoPreview}
-              />
+            {/* 缩略图 */}
+            {(scene.startFrame || scene.videoUrl) ? (
+              <div className="relative w-16 h-10 flex-shrink-0 rounded overflow-hidden bg-[var(--bg-app)]">
+                {scene.videoUrl ? (
+                  <div 
+                    className="w-full h-full flex items-center justify-center cursor-pointer bg-gradient-to-br from-rose-500/20 to-purple-500/20"
+                    onClick={(e) => { e.stopPropagation(); setShowVideoPreview(true); }}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-white/90 flex items-center justify-center">
+                      <div className="w-0 h-0 border-t-[3px] border-t-transparent border-l-[5px] border-l-[var(--bg-app)] border-b-[3px] border-b-transparent ml-0.5" />
+                    </div>
+                  </div>
+                ) : (
+                  <LazyImage
+                    src={scene.startFrame!}
+                    alt={`分镜 ${index + 1} 缩略图`}
+                    className="w-full h-full"
+                  />
+                )}
+                {/* 生成状态指示 */}
+                {isGeneratingImage && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
             ) : (
-              <SceneImageGenerator
-                sceneId={scene.id}
-                startFrame={scene.startFrame}
-                endFrame={scene.endFrame}
-                hasAction={scene.hasAction}
-                hasVideo={!!scene.videoUrl}
-                sceneDescription={scene.description}
-                isGenerating={isGeneratingImage}
-                onGenerate={handleGenerateImageWithValidation}
-                onDeleteFrames={handleDeleteFrames}
-                onDeleteFirstFrame={handleDeleteFirstFrame}
-                onDeleteLastFrame={handleDeleteLastFrame}
-              />
+              <div className="w-16 h-10 flex-shrink-0 rounded border border-dashed border-[var(--border-color)] flex items-center justify-center bg-[var(--bg-app)]">
+                {isGeneratingImage ? (
+                  <div className="w-3 h-3 border-2 border-[var(--text-muted)] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <ImageIcon className="w-4 h-4 text-[var(--text-muted)]" />
+                )}
+              </div>
             )}
 
+            {/* 内容 */}
             <div className="flex-1 min-w-0">
-              <SceneCardContent
-                scene={scene}
-                isEditingDescription={isEditingDescription}
-                isSavingDescription={isSavingDescription}
-                editedDescription={editedDescription}
-                onEditedDescriptionChange={setEditedDescription}
-                onSaveDescription={handleSaveDescription}
-                onStartEditing={() => setIsEditingDescription(true)}
-                onDelete={handleDeleteClick}
-              />
+              <p className="text-xs text-[var(--text-secondary)] line-clamp-2 leading-tight">
+                {scene.description || '暂无描述'}
+              </p>
+              {/* 元数据标签 */}
+              <div className="flex items-center gap-1 mt-1">
+                {scene.shotType && (
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-400">
+                    {scene.shotType}
+                  </span>
+                )}
+                {scene.hasAction && (
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-400">
+                    动作
+                  </span>
+                )}
+                {scene.videoUrl && (
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-rose-500/20 text-rose-400">
+                    视频
+                  </span>
+                )}
+              </div>
+            </div>
 
-              <SceneCardMetadata 
-                scene={scene} 
-                onUpdateSpatialDescription={(spatialDescription) => {
-                  if (onUpdateScene) {
-                    onUpdateScene(scene.id, { spatialDescription });
-                  }
-                }}
-              />
-
-              <SceneCardActions
-                scene={scene}
-                isGeneratingVideo={isGeneratingVideo}
-                onGenerateVideo={handleGenerateVideo}
-              />
+            {/* 悬停时显示的操作按钮 */}
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDeleteClick(scene.id); }}
+                className="p-1 rounded hover:bg-red-500/20 text-[var(--text-muted)] hover:text-red-400 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </CardBody>
@@ -363,16 +383,16 @@ const SceneCard: React.FC<SceneCardProps> = ({
       />
 
       {/* 删除确认弹窗 */}
-      <Modal isOpen={showDeleteConfirm} onOpenChange={setShowDeleteConfirm} size="sm" classNames={{ base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50" }}>
+      <Modal isOpen={showDeleteConfirm} onOpenChange={setShowDeleteConfirm} size="sm" classNames={{ base: "pro-modal" }}>
         <ModalContent>
           {(onClose) => (
             <>
               <ModalHeader className="text-red-400">删除分镜</ModalHeader>
               <ModalBody>
-                <p className="text-sm text-slate-300">
+                <p className="text-sm text-[var(--text-secondary)]">
                   确定要删除分镜 <span className="font-bold">#{index + 1}</span> 吗？此操作不可撤销。
                 </p>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-[var(--text-muted)] mt-1">
                   仅删除分镜记录，不会影响角色和场景数据。
                 </p>
                 <Checkbox
@@ -381,11 +401,11 @@ const SceneCard: React.FC<SceneCardProps> = ({
                   onValueChange={setDontAskAgain}
                   className="mt-2"
                 >
-                  <span className="text-xs text-slate-400">本集不再提示</span>
+                  <span className="text-xs text-[var(--text-muted)]">本集不再提示</span>
                 </Checkbox>
               </ModalBody>
               <ModalFooter>
-                <Button variant="flat" size="sm" onPress={onClose} className="bg-slate-800/80 text-slate-300">
+                <Button variant="flat" size="sm" onPress={onClose} className="pro-btn">
                   取消
                 </Button>
                 <Button
@@ -404,4 +424,5 @@ const SceneCard: React.FC<SceneCardProps> = ({
   );
 };
 
-export default SceneCard;
+// 使用 React.memo 优化渲染性能，避免父组件更新时不必要的重渲染
+export default memo(SceneCard);

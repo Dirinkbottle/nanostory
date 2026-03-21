@@ -129,6 +129,28 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
+      build: {
+        rollupOptions: {
+          output: {
+            // 手动分块策略，优化加载性能
+            manualChunks: {
+              // 核心 React 库
+              vendor: ['react', 'react-dom', 'react-router-dom'],
+              // UI 组件库和动画
+              ui: ['@heroui/react', 'framer-motion'],
+              // 拖拽库
+              dnd: ['@dnd-kit/core', '@dnd-kit/sortable'],
+              // 工具库
+              utils: ['jszip', 'lucide-react'],
+            },
+          },
+        },
+        // 启用压缩和源码映射
+        sourcemap: false,
+        minify: 'esbuild',
+        // 拆分 chunk 大小警告阈值
+        chunkSizeWarningLimit: 1000,
+      },
       plugins: [
         react(),
         {

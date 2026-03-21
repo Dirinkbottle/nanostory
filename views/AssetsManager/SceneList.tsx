@@ -14,10 +14,10 @@ const SceneList: React.FC<SceneListProps> = ({ scenes, onEdit, onDelete, onViewD
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
       {scenes.map((scene) => (
-        <Card key={scene.id} className="bg-slate-900/80 border border-slate-700/50 shadow-sm hover:shadow-md hover:shadow-blue-500/5 transition-shadow">
+        <Card key={scene.id} className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm hover:shadow-md hover:shadow-[var(--accent)]/5 transition-shadow">
           <CardBody className="p-4 space-y-3">
             <div className="flex items-start justify-between">
-              <h3 className="text-lg font-semibold text-slate-100">{scene.name}</h3>
+              <h3 className="text-lg font-semibold text-[var(--text-primary)]">{scene.name}</h3>
               <div className="flex gap-1">
                 {onViewDetail && (
                   <Button 
@@ -35,9 +35,9 @@ const SceneList: React.FC<SceneListProps> = ({ scenes, onEdit, onDelete, onViewD
                   isIconOnly 
                   variant="light" 
                   onPress={() => onEdit(scene)} 
-                  className="hover:bg-blue-500/10"
+                  className="hover:bg-[var(--accent)]/10"
                 >
-                  <Edit className="w-4 h-4 text-blue-400" />
+                  <Edit className="w-4 h-4 text-[var(--accent)]" />
                 </Button>
                 <Button 
                   size="sm" 
@@ -50,7 +50,7 @@ const SceneList: React.FC<SceneListProps> = ({ scenes, onEdit, onDelete, onViewD
                 </Button>
               </div>
             </div>
-            <p className="text-sm text-slate-400 line-clamp-2">{scene.description}</p>
+            <p className="text-sm text-[var(--text-secondary)] line-clamp-2">{scene.description}</p>
             <div className="flex flex-wrap gap-2">
               {scene.project_name && (
                 <Chip 

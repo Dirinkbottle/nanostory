@@ -11,7 +11,8 @@ module.exports = (router) => {
     const { tagGroup, tag } = req.query;
 
     try {
-      let sql = `SELECT c.*, p.name AS project_name 
+      let sql = `SELECT c.*, p.name AS project_name,
+         (SELECT COUNT(*) FROM character_states WHERE character_id = c.id) AS states_count
          FROM characters c 
          LEFT JOIN projects p ON c.project_id = p.id 
          WHERE c.user_id = ?`;
@@ -35,7 +36,8 @@ module.exports = (router) => {
       // 解析 tag_groups_json 字段
       const parsedCharacters = characters.map(c => ({
         ...c,
-        tag_groups_json: c.tag_groups_json ? JSON.parse(c.tag_groups_json) : null
+        tag_groups_json: c.tag_groups_json ? JSON.parse(c.tag_groups_json) : null,
+        states_count: c.states_count || 0
       }));
 
       res.json({ characters: parsedCharacters });

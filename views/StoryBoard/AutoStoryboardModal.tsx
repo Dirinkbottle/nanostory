@@ -22,10 +22,33 @@ const AutoStoryboardModal: React.FC<AutoStoryboardModalProps> = ({
       isOpen={isOpen} 
       onOpenChange={onOpenChange} 
       size="md"
+      motionProps={{
+        variants: {
+          enter: {
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            transition: {
+              duration: 0.2,
+              ease: [0.4, 0, 0.2, 1],
+            },
+          },
+          exit: {
+            y: 8,
+            opacity: 0,
+            scale: 0.98,
+            transition: {
+              duration: 0.15,
+              ease: [0.4, 0, 1, 1],
+            },
+          },
+        },
+      }}
       classNames={{
         base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-black/40",
         header: "border-b border-slate-700/50",
-        footer: "border-t border-slate-700/50"
+        footer: "border-t border-slate-700/50",
+        backdrop: "bg-black/60 backdrop-blur-sm"
       }}
     >
       <ModalContent>

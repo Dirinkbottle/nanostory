@@ -1,5 +1,4 @@
 import React from 'react';
-import { Button } from '@heroui/react';
 import { TabType } from './types';
 
 interface TabButtonsProps {
@@ -8,32 +7,27 @@ interface TabButtonsProps {
 }
 
 const TabButtons: React.FC<TabButtonsProps> = ({ activeTab, onTabChange }) => {
+  const tabs: { key: TabType; label: string }[] = [
+    { key: 'characters', label: '角色' },
+    { key: 'locations', label: '场景' },
+    { key: 'props', label: '道具' }
+  ];
+
   return (
-    <div className="flex gap-2">
-      <Button
-        size="sm"
-        variant={activeTab === 'characters' ? 'solid' : 'flat'}
-        className={activeTab === 'characters' ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white' : 'bg-slate-800/60 text-slate-400'}
-        onPress={() => onTabChange('characters')}
-      >
-        角色
-      </Button>
-      <Button
-        size="sm"
-        variant={activeTab === 'locations' ? 'solid' : 'flat'}
-        className={activeTab === 'locations' ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white' : 'bg-slate-800/60 text-slate-400'}
-        onPress={() => onTabChange('locations')}
-      >
-        场景
-      </Button>
-      <Button
-        size="sm"
-        variant={activeTab === 'props' ? 'solid' : 'flat'}
-        className={activeTab === 'props' ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white' : 'bg-slate-800/60 text-slate-400'}
-        onPress={() => onTabChange('props')}
-      >
-        道具
-      </Button>
+    <div className="flex gap-1">
+      {tabs.map((tab) => (
+        <button
+          key={tab.key}
+          onClick={() => onTabChange(tab.key)}
+          className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+            activeTab === tab.key
+              ? 'bg-[var(--accent)] text-white'
+              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]'
+          }`}
+        >
+          {tab.label}
+        </button>
+      ))}
     </div>
   );
 };

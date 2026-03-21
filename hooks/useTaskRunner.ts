@@ -51,6 +51,8 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
   // 用 ref 追踪 tasks，供 clearTask 读取 jobId
   const tasksRef = useRef<Record<string, TaskState>>({});
   const activeKeysRef = useRef<Set<string>>(new Set());
+  // 用于记录每个任务的轮询次数，实现自适应轮询
+  const pollCountRef = useRef<Record<string, number>>({});
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
 
   // 清理所有定时器
@@ -59,6 +61,17 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
       Object.values(timersRef.current).forEach(clearInterval);
     };
   }, []);
+
+  // 性能优化：自适应轮询间隔
+  // - 前10次：500ms（快速响应）
+  // - 10-30次：1000ms（中速）
+  // - 30次以上：2000ms（长时任务）
+  const getAdaptiveInterval = useCallback((key: string) => {
+    const count = pollCountRef.current[key] || 0;
+    if (count < 10) return interval;          // 前10次用初始间隔
+    if (count < 30) return interval * 2;      // 10-30次放慢一倍
+    return Math.min(2000, interval * 4);      // 30次以上最多2秒
+  }, [interval]);
 
   // 更新某个 key 的任务状态
   const updateTask = useCallback((key: string, patch: Partial<TaskState>) => {
@@ -76,14 +89,20 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
     }
   }, []);
 
-  // 开始轮询某个 jobId
+  // 开始轮询某个 jobId（使用 setTimeout 实现自适应间隔）
   const startPolling = useCallback((key: string, jobId: number) => {
     stopPolling(key);
     activeKeysRef.current.add(key);
+    pollCountRef.current[key] = 0;
     let failCount = 0;
     const MAX_FAIL = 3; // 连续失败 3 次才真正停止
 
     const poll = async () => {
+      // 检查是否已停止
+      if (!activeKeysRef.current.has(key)) return;
+      
+      pollCountRef.current[key] = (pollCountRef.current[key] || 0) + 1;
+      
       try {
         const job = await getWorkflowStatus(jobId);
         failCount = 0; // 请求成功，重置失败计数
@@ -106,6 +125,7 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
             progress: 100,
             result: lastTask?.result_data ?? null
           });
+          return;
         } else if (job.status === 'failed' || job.status === 'cancelled') {
           stopPolling(key);
           const failedTask = allTasks.find((t: any) => t.status === 'failed');
@@ -113,6 +133,7 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
             status: job.status,
             error: job.error_message || failedTask?.error_message || '任务失败'
           });
+          return;
         }
       } catch (err: any) {
         failCount++;
@@ -122,15 +143,20 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
             status: 'failed',
             error: err.message || '轮询失败'
           });
+          return;
         }
         // 未达上限时忽略本次错误，等下次轮询重试
+      }
+      
+      // 继续下一次轮询（使用自适应间隔）
+      if (activeKeysRef.current.has(key)) {
+        timersRef.current[key] = setTimeout(poll, getAdaptiveInterval(key)) as any;
       }
     };
 
     // 立即查一次
     poll();
-    timersRef.current[key] = setInterval(poll, interval);
-  }, [interval, stopPolling, updateTask]);
+  }, [stopPolling, updateTask, getAdaptiveInterval]);
 
   /**
    * 启动任务
@@ -244,6 +270,53 @@ export function useTaskRunner(options: UseTaskRunnerOptions = {}) {
   }, [stopPolling]);
 
   const isTaskActive = useCallback((key: string) => activeKeysRef.current.has(key), []);
+
+  // 页面可见性检测：页面不可见时暂停所有轮询，可见时恢复
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // 页面不可见时暂停所有轮询
+        Object.keys(timersRef.current).forEach(key => {
+          clearTimeout(timersRef.current[key]);
+          delete timersRef.current[key];
+        });
+        console.log('[useTaskRunner] 页面不可见，暂停所有轮询');
+      } else {
+        // 页面可见时恢复所有活跃任务的轮询
+        const tasksToResume = tasksRef.current;
+        Object.entries(tasksToResume).forEach(([key, task]) => {
+          if (task.status === 'pending' || task.status === 'running') {
+            if (task.jobId && !timersRef.current[key]) {
+              console.log(`[useTaskRunner] 恢复任务轮询: ${key}`);
+              // 重新开始轮询，但保留轮询计数
+              activeKeysRef.current.add(key);
+              const poll = async () => {
+                if (!activeKeysRef.current.has(key)) return;
+                try {
+                  const job = await getWorkflowStatus(task.jobId);
+                  const allTasks = job.tasks || [];
+                  const progress = allTasks.length > 0
+                    ? Math.round(allTasks.reduce((sum: number, t: any) => sum + (t.progress ?? 0), 0) / allTasks.length)
+                    : 0;
+                  updateTask(key, { status: job.status, progress });
+                  if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+                    stopPolling(key);
+                    return;
+                  }
+                } catch {}
+                if (activeKeysRef.current.has(key)) {
+                  timersRef.current[key] = setTimeout(poll, getAdaptiveInterval(key)) as any;
+                }
+              };
+              poll();
+            }
+          }
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [updateTask, stopPolling, getAdaptiveInterval]);
 
   // 是否有任何任务在运行
   const isRunning = (Object.values(tasks) as TaskState[]).some(

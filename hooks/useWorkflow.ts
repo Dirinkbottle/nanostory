@@ -269,6 +269,19 @@ export function useWorkflow(jobId: number | null, options: UseWorkflowOptions = 
     return stopPolling;
   }, [jobId, startPolling, stopPolling]);
 
+  // 页面可见性检测：页面不可见时暂停轮询，可见时恢复
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else if (jobId) {
+        startPolling();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [jobId, startPolling, stopPolling]);
+
   // 恢复工作流
   const resume = useCallback(async () => {
     if (!jobId) return;

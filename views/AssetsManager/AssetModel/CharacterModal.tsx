@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Textarea, Select, SelectItem, Popover, PopoverTrigger, PopoverContent } from '@heroui/react';
-import { Plus, X, Tag, Download, RefreshCw, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Textarea, Select, SelectItem, Popover, PopoverTrigger, PopoverContent, Tabs, Tab } from '@heroui/react';
+import { Plus, X, Tag, Download, RefreshCw, Trash2, Image as ImageIcon, User, Layers } from 'lucide-react';
 import { 
   TagGroup, 
   CharacterTagGroupEntry, 
@@ -13,6 +13,8 @@ import {
   downloadAllCharacterViews
 } from '../../../services/assets';
 import AIModelSelector, { AIModel } from '../../../components/AIModelSelector';
+import CharacterStateEditor from './CharacterStateEditor';
+import ReferenceImageManager from './ReferenceImageManager';
 
 interface CharacterModalProps {
   isOpen: boolean;
@@ -56,6 +58,9 @@ const CharacterModal: React.FC<CharacterModalProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [localImageModel, setLocalImageModel] = useState(selectedImageModel);
+
+  // Tab 状态
+  const [activeTab, setActiveTab] = useState<string>('basic');
 
   // 同步外部选中的模型
   useEffect(() => {
@@ -269,7 +274,28 @@ const CharacterModal: React.FC<CharacterModalProps> = ({
               {editMode ? '编辑' : '新建'}角色
             </ModalHeader>
             <ModalBody className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Tab 导航 */}
+              <Tabs
+                selectedKey={activeTab}
+                onSelectionChange={(key) => setActiveTab(key as string)}
+                classNames={{
+                  tabList: "bg-slate-800/60 border border-slate-700/50",
+                  tab: "text-slate-400 data-[selected=true]:text-slate-100",
+                  cursor: "bg-blue-500/20",
+                  panel: "py-4"
+                }}
+              >
+                {/* 基础信息 Tab */}
+                <Tab
+                  key="basic"
+                  title={
+                    <div className="flex items-center gap-1.5">
+                      <User className="w-4 h-4" />
+                      <span>基础信息</span>
+                    </div>
+                  }
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* 左侧：表单 */}
                 <div className="space-y-4">
                   <Input
@@ -688,7 +714,48 @@ const CharacterModal: React.FC<CharacterModalProps> = ({
                     )}
                   </div>
                 </div>
-              </div>
+                  </div>
+                </Tab>
+
+                {/* 状态管理 Tab */}
+                <Tab
+                  key="states"
+                  title={
+                    <div className="flex items-center gap-1.5">
+                      <Layers className="w-4 h-4" />
+                      <span>状态管理</span>
+                    </div>
+                  }
+                >
+                  <CharacterStateEditor
+                    characterId={editMode && formData.id ? formData.id : null}
+                    disabled={!editMode || !formData.id}
+                  />
+                </Tab>
+
+                {/* 参考图 Tab */}
+                <Tab
+                  key="references"
+                  title={
+                    <div className="flex items-center gap-1.5">
+                      <ImageIcon className="w-4 h-4" />
+                      <span>参考图</span>
+                    </div>
+                  }
+                >
+                  {editMode && formData.id ? (
+                    <ReferenceImageManager
+                      assetType="character"
+                      assetId={formData.id}
+                    />
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">请先保存角色后管理参考图</p>
+                    </div>
+                  )}
+                </Tab>
+              </Tabs>
             </ModalBody>
             <ModalFooter>
               <Button variant="light" onPress={onClose} className="font-semibold text-slate-400">

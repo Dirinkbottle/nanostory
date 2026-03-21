@@ -127,7 +127,7 @@ export const GenshinCard: React.FC<GenshinCardProps> = ({
           hover:border-[rgba(230,200,122,0.2)]
           hover:shadow-[0_12px_40px_rgba(0,0,0,0.5),0_0_20px_rgba(230,200,122,0.1)]
         ` : ''}
-        ${glow ? 'animate-gold-pulse' : ''}
+        ${glow ? 'animate-accent-pulse' : ''}
         ${onClick ? 'cursor-pointer' : ''}
         ${className}
       `}
@@ -289,7 +289,7 @@ export const GenshinModal: React.FC<GenshinModalProps> = ({
       <ModalContent>
         {title && (
           <ModalHeader>
-            <h2 className="text-lg font-bold genshin-title">{title}</h2>
+            <h2 className="text-lg font-bold pro-title">{title}</h2>
           </ModalHeader>
         )}
         <ModalBody className="text-[#e8e4dc]">

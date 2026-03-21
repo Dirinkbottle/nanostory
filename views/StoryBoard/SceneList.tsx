@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter } from '@heroui/react';
 import { Plus, Images, Video } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import SceneCard from './SceneCard';
 import { StoryboardScene } from './useSceneManager';
 import { TaskState } from '../../hooks/useTaskRunner';
@@ -30,20 +31,43 @@ interface SceneListProps {
   batchVideoProgress?: number;
 }
 
+// 列表容器动画配置
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+// 列表项动画配置
+const itemVariants = {
+  hidden: { opacity: 0, x: -10 },
+  show: { 
+    opacity: 1, 
+    x: 0,
+    transition: {
+      duration: 0.2,
+      ease: [0.4, 0, 0.2, 1] as const,
+    },
+  },
+};
+
 // Skeleton loading component for scene list
 const SceneListSkeleton: React.FC = () => (
-  <div className="space-y-3 p-4">
-    {Array.from({ length: 5 }).map((_, i) => (
+  <div className="space-y-1.5 p-2">
+    {Array.from({ length: 8 }).map((_, i) => (
       <div key={i} className="animate-pulse">
-        <div className="bg-slate-800/60 rounded-xl p-3 border border-slate-700/30">
-          <div className="flex items-start gap-3">
+        <div className="bg-[var(--bg-card)] rounded-lg p-2 border border-[var(--border-color)]">
+          <div className="flex items-start gap-2">
             {/* Image placeholder */}
-            <div className="w-20 h-14 bg-slate-700/50 rounded-lg flex-shrink-0" />
+            <div className="w-16 h-10 bg-[var(--bg-app)] rounded flex-shrink-0" />
             {/* Content placeholder */}
-            <div className="flex-1 space-y-2">
-              <div className="h-4 bg-slate-700/50 rounded w-24" />
-              <div className="h-3 bg-slate-700/30 rounded w-full" />
-              <div className="h-3 bg-slate-700/30 rounded w-3/4" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 bg-[var(--bg-app)] rounded w-16" />
+              <div className="h-2.5 bg-[var(--bg-app)] rounded w-full" />
             </div>
           </div>
         </div>
@@ -79,6 +103,9 @@ const SceneList: React.FC<SceneListProps> = ({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [showBatchVideoModal, setShowBatchVideoModal] = useState(false);
+  // 追踪是否是首次加载，用于控制 stagger 动画
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const prevScenesLengthRef = useRef(0);
 
   // 滚动容器 ref，用于追踪滚动位置
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -88,6 +115,22 @@ const SceneList: React.FC<SceneListProps> = ({
   
   // 预加载当前位置前后各 3 个分镜的图片
   useImagePreloader(scenes, currentScrollIndex, 3);
+
+  // 首次加载后关闭 stagger 动画
+  useEffect(() => {
+    if (scenes.length > 0 && isInitialLoad) {
+      // 延迟关闭，确保动画完成
+      const timer = setTimeout(() => {
+        setIsInitialLoad(false);
+      }, scenes.length * 50 + 300);
+      return () => clearTimeout(timer);
+    }
+    // 如果场景列表被清空再重新加载，重置为首次加载
+    if (scenes.length > 0 && prevScenesLengthRef.current === 0) {
+      setIsInitialLoad(true);
+    }
+    prevScenesLengthRef.current = scenes.length;
+  }, [scenes.length, isInitialLoad]);
 
   // 统计已有帧的镜头数
   const scenesWithFrames = scenes.filter(s => s.startFrame).length;
@@ -151,118 +194,127 @@ const SceneList: React.FC<SceneListProps> = ({
     setDragOverIndex(null);
   };
   return (
-    <div className="flex-1 flex flex-col border-r border-slate-700/50 bg-slate-900/40">
-      <div className="p-4 border-b border-slate-700/50">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-slate-100">分镜列表</h2>
-          <div className="flex items-center gap-2">
-            {onBatchGenerate && scenes.length > 0 && (
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold hover:from-amber-600 hover:to-orange-600"
-                startContent={<Images className="w-4 h-4" />}
-                onPress={handleBatchClick}
-                isLoading={isBatchGenerating}
-                isDisabled={isBatchGenerating || isBatchGeneratingVideo}
-              >
-                {isBatchGenerating ? `生成中 ${batchProgress}%` : '生成所有'}
-              </Button>
-            )}
-            {onBatchGenerateVideo && scenes.length > 0 && (
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:from-purple-600 hover:to-pink-600"
-                startContent={<Video className="w-4 h-4" />}
-                onPress={handleBatchVideoClick}
-                isLoading={isBatchGeneratingVideo}
-                isDisabled={isBatchGeneratingVideo || isBatchGenerating}
-              >
-                {isBatchGeneratingVideo ? `生成视频 ${batchVideoProgress}%` : '生成所有视频'}
-              </Button>
-            )}
+    <div className="h-full flex flex-col bg-[var(--bg-app)]">
+      {/* 紧凑的头部操作栏 */}
+      <div className="flex-shrink-0 px-2 py-2 border-b border-[var(--border-color)] flex items-center justify-between gap-2">
+        <Button
+          size="sm"
+          className="pro-btn h-7 px-2 text-xs"
+          startContent={<Plus className="w-3.5 h-3.5" />}
+          onPress={onAddScene}
+        >
+          添加
+        </Button>
+        <div className="flex items-center gap-1">
+          {onBatchGenerate && scenes.length > 0 && (
             <Button
               size="sm"
-              className="bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold"
-              startContent={<Plus className="w-4 h-4" />}
-              onPress={onAddScene}
+              className="h-7 px-2 text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30"
+              startContent={<Images className="w-3.5 h-3.5" />}
+              onPress={handleBatchClick}
+              isLoading={isBatchGenerating}
+              isDisabled={isBatchGenerating || isBatchGeneratingVideo}
             >
-              添加分镜
+              {isBatchGenerating ? `${batchProgress}%` : '帧'}
             </Button>
-          </div>
+          )}
+          {onBatchGenerateVideo && scenes.length > 0 && (
+            <Button
+              size="sm"
+              className="h-7 px-2 text-xs bg-rose-500/20 text-rose-400 border border-rose-500/30"
+              startContent={<Video className="w-3.5 h-3.5" />}
+              onPress={handleBatchVideoClick}
+              isLoading={isBatchGeneratingVideo}
+              isDisabled={isBatchGeneratingVideo || isBatchGenerating}
+            >
+              {isBatchGeneratingVideo ? `${batchVideoProgress}%` : '视频'}
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* 分镜卡片列表 - 添加滚动容器 ref */}
+      {/* 分镜卡片列表 - 紧凑间距 */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-3"
+        className="flex-1 overflow-y-auto p-2 space-y-1.5 scroll-fade-top scroll-fade-bottom"
       >
         {isLoading ? (
           <SceneListSkeleton />
-        ) : scenes.map((scene, index) => (
-          <div
-            key={scene.id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, index)}
-            onDragEnd={handleDragEnd}
-            className={`transition-all duration-200 ${
-              draggedIndex === index ? 'opacity-50 scale-95' : ''
-            } ${
-              dragOverIndex === index ? 'transform translate-y-2' : ''
-            }`}
-            style={{
-              // 性能优化：让浏览器跳过离屏元素的渲染
-              contentVisibility: 'auto',
-              containIntrinsicSize: '0 120px', // 估计卡片高度
-            }}
+        ) : (
+          <motion.div
+            variants={isInitialLoad ? containerVariants : undefined}
+            initial={isInitialLoad ? "hidden" : false}
+            animate="show"
+            className="space-y-1.5"
           >
-            <SceneCard
-              scene={scene}
-              index={index}
-              isSelected={selectedScene === scene.id}
-              isFirst={index === 0}
-              isLast={index === scenes.length - 1}
-              projectId={projectId}
-              scriptId={scriptId}
-              onSelect={onSelectScene}
-              onMoveUp={(id) => onMoveScene(id, 'up')}
-              onMoveDown={(id) => onMoveScene(id, 'down')}
-              onDelete={onDeleteScene}
-              onUpdateDescription={onUpdateDescription}
-              onGenerateImage={onGenerateImage}
-              onGenerateVideo={onGenerateVideo}
-              onUpdateScene={onUpdateScene}
-              imageTask={tasks[`img_${scene.id}`]}
-              videoTask={tasks[`vid_${scene.id}`]}
-            />
-          </div>
-        ))}
+            {scenes.map((scene, index) => (
+              <motion.div
+                key={scene.id}
+                variants={isInitialLoad ? itemVariants : undefined}
+                layout={!isInitialLoad}
+                draggable
+                onDragStart={(e) => handleDragStart(e as any, index)}
+                onDragOver={(e) => handleDragOver(e as any, index)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e as any, index)}
+                onDragEnd={handleDragEnd}
+                className={`${
+                  draggedIndex === index ? 'opacity-50 scale-95' : ''
+                } ${
+                  dragOverIndex === index ? 'transform translate-y-1' : ''
+                }`}
+                style={{
+                  // 性能优化：让浏览器跳过离屏元素的渲染
+                  contentVisibility: 'auto',
+                  containIntrinsicSize: '0 72px', // 紧凑卡片高度
+                }}
+              >
+                <SceneCard
+                  scene={scene}
+                  index={index}
+                  isSelected={selectedScene === scene.id}
+                  isFirst={index === 0}
+                  isLast={index === scenes.length - 1}
+                  projectId={projectId}
+                  scriptId={scriptId}
+                  onSelect={onSelectScene}
+                  onMoveUp={(id) => onMoveScene(id, 'up')}
+                  onMoveDown={(id) => onMoveScene(id, 'down')}
+                  onDelete={onDeleteScene}
+                  onUpdateDescription={onUpdateDescription}
+                  onGenerateImage={onGenerateImage}
+                  onGenerateVideo={onGenerateVideo}
+                  onUpdateScene={onUpdateScene}
+                  imageTask={tasks[`img_${scene.id}`]}
+                  videoTask={tasks[`vid_${scene.id}`]}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
       </div>
       {/* 批量生成确认弹窗 */}
-      <Modal isOpen={showBatchModal} onOpenChange={setShowBatchModal} size="sm" classNames={{ base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50" }}>
+      <Modal isOpen={showBatchModal} onOpenChange={setShowBatchModal} size="sm" classNames={{ base: "pro-modal" }}>
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="text-slate-100">检测到已有帧图片</ModalHeader>
+              <ModalHeader className="text-[var(--text-primary)]">检测到已有帧图片</ModalHeader>
               <ModalBody>
-                <p className="text-sm text-slate-300">
-                  当前 {totalScenes} 个分镜中，已有 <span className="font-bold text-orange-400">{scenesWithFrames}</span> 个分镜已生成帧图片。
+                <p className="text-sm text-[var(--text-secondary)]">
+                  当前 {totalScenes} 个分镜中，已有 <span className="font-bold text-amber-400">{scenesWithFrames}</span> 个分镜已生成帧图片。
                 </p>
-                <p className="text-sm text-slate-400 mt-1">请选择处理方式：</p>
+                <p className="text-sm text-[var(--text-muted)] mt-1">请选择处理方式：</p>
               </ModalBody>
               <ModalFooter>
                 <Button
                   variant="flat"
                   onPress={onClose}
-                  className="bg-slate-800/80 text-slate-300"
+                  className="pro-btn"
                 >
                   取消
                 </Button>
                 <Button
-                  className="bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold"
+                  className="pro-btn bg-[var(--accent)]/20 text-[var(--accent)] border-[var(--accent)]/30"
                   onPress={() => {
                     onClose();
                     onBatchGenerate?.(false);
@@ -271,7 +323,7 @@ const SceneList: React.FC<SceneListProps> = ({
                   跳过已有
                 </Button>
                 <Button
-                  className="bg-orange-500 text-white font-semibold"
+                  className="pro-btn-primary"
                   onPress={() => {
                     onClose();
                     onBatchGenerate?.(true);
@@ -286,27 +338,27 @@ const SceneList: React.FC<SceneListProps> = ({
       </Modal>
 
       {/* 批量视频生成确认弹窗 */}
-      <Modal isOpen={showBatchVideoModal} onOpenChange={setShowBatchVideoModal} size="sm" classNames={{ base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50" }}>
+      <Modal isOpen={showBatchVideoModal} onOpenChange={setShowBatchVideoModal} size="sm" classNames={{ base: "pro-modal" }}>
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader className="text-slate-100">检测到已有视频</ModalHeader>
+              <ModalHeader className="text-[var(--text-primary)]">检测到已有视频</ModalHeader>
               <ModalBody>
-                <p className="text-sm text-slate-300">
-                  当前 {totalScenes} 个分镜中，已有 <span className="font-bold text-purple-400">{scenesWithVideos}</span> 个分镜已生成视频。
+                <p className="text-sm text-[var(--text-secondary)]">
+                  当前 {totalScenes} 个分镜中，已有 <span className="font-bold text-rose-400">{scenesWithVideos}</span> 个分镜已生成视频。
                 </p>
-                <p className="text-sm text-slate-400 mt-1">请选择处理方式：</p>
+                <p className="text-sm text-[var(--text-muted)] mt-1">请选择处理方式：</p>
               </ModalBody>
               <ModalFooter>
                 <Button
                   variant="flat"
                   onPress={onClose}
-                  className="bg-slate-800/80 text-slate-300"
+                  className="pro-btn"
                 >
                   取消
                 </Button>
                 <Button
-                  className="bg-blue-500/20 text-blue-400 border border-blue-500/30 font-semibold"
+                  className="pro-btn bg-[var(--accent)]/20 text-[var(--accent)] border-[var(--accent)]/30"
                   onPress={() => {
                     onClose();
                     onBatchGenerateVideo?.(false);
@@ -315,7 +367,7 @@ const SceneList: React.FC<SceneListProps> = ({
                   跳过已有
                 </Button>
                 <Button
-                  className="bg-purple-500 text-white font-semibold"
+                  className="pro-btn-primary"
                   onPress={() => {
                     onClose();
                     onBatchGenerateVideo?.(true);

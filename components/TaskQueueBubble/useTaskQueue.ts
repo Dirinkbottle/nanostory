@@ -123,6 +123,32 @@ export function useTaskQueue(): UseTaskQueueReturn {
     };
   }, [getPollingInterval, fetchJobs]);
 
+  // 页面可见性检测：页面不可见时暂停轮询，可见时恢复
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const token = getAuthToken();
+      if (!token) return;
+      
+      if (document.hidden) {
+        // 页面不可见时暂停轮询
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+          console.log('[TaskQueue] 页面不可见，暂停轮询');
+        }
+      } else {
+        // 页面可见时立即获取一次并恢复轮询
+        fetchJobs(false);
+        if (!intervalRef.current) {
+          intervalRef.current = setInterval(() => fetchJobs(false), currentIntervalRef.current);
+          console.log('[TaskQueue] 页面可见，恢复轮询');
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [fetchJobs]);
+
   // Initial fetch on mount
   useEffect(() => {
     const token = getAuthToken();

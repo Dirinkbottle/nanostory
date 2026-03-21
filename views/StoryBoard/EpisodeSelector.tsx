@@ -1,4 +1,6 @@
 import React from 'react';
+import { Select, SelectItem } from '@heroui/react';
+import { Film } from 'lucide-react';
 
 interface Script {
   id: number;
@@ -20,24 +22,37 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
 }) => {
   if (scripts.length === 0) return null;
 
+  const currentScript = scripts.find(s => s.episode_number === currentEpisode);
+  const selectedKey = currentScript ? String(currentScript.id) : undefined;
+
+  const handleSelectionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = parseInt(e.target.value, 10);
+    const script = scripts.find(s => s.id === selectedId);
+    if (script) {
+      onSelect(script);
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-slate-400">集数:</span>
-      <div className="flex gap-1">
+      <Film className="w-4 h-4 text-[var(--text-muted)]" />
+      <Select
+        size="sm"
+        aria-label="选择集数"
+        selectedKeys={selectedKey ? [selectedKey] : []}
+        onChange={handleSelectionChange}
+        className="w-32"
+        classNames={{
+          trigger: "h-8 min-h-8 bg-[var(--bg-card)] border-[var(--border-color)] hover:border-[var(--accent)]/50",
+          value: "text-sm text-[var(--text-primary)]"
+        }}
+      >
         {scripts.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => onSelect(s)}
-            className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-              currentEpisode === s.episode_number
-                ? 'bg-gradient-to-r from-blue-500 to-violet-600 text-white shadow-sm shadow-blue-500/20'
-                : 'bg-slate-800/60 text-slate-400 hover:bg-slate-700/60 hover:text-slate-200'
-            }`}
-          >
+          <SelectItem key={String(s.id)}>
             第{s.episode_number}集
-          </button>
+          </SelectItem>
         ))}
-      </div>
+      </Select>
     </div>
   );
 };

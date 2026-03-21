@@ -215,17 +215,17 @@ const UserCenter: React.FC = () => {
 
   if (loading && !profile) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#0a0a0f]">
-        <div className="text-slate-400">加载中...</div>
+      <div className="h-full flex items-center justify-center bg-[var(--bg-app)]">
+        <div className="text-[var(--text-muted)]">加载中...</div>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-auto bg-[#0a0a0f] p-6">
+    <div className="h-full overflow-auto bg-[var(--bg-app)] p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm">
+          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
             <CardBody className="p-6">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 bg-emerald-500/10 rounded-lg">
@@ -238,7 +238,7 @@ const UserCenter: React.FC = () => {
             </CardBody>
           </Card>
 
-          <Card className="bg-slate-900/80 border border-orange-500/20 shadow-sm">
+          <Card className="bg-[var(--bg-card)] border border-orange-500/20 shadow-sm">
             <CardBody className="p-6">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 bg-orange-500/10 rounded-lg">
@@ -251,7 +251,7 @@ const UserCenter: React.FC = () => {
             </CardBody>
           </Card>
 
-          <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm">
+          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
             <CardBody className="p-6">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 bg-blue-500/10 rounded-lg">
@@ -264,7 +264,7 @@ const UserCenter: React.FC = () => {
             </CardBody>
           </Card>
 
-          <Card className="bg-slate-900/80 border border-rose-500/20 shadow-sm">
+          <Card className="bg-[var(--bg-card)] border border-rose-500/20 shadow-sm">
             <CardBody className="p-6">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 bg-rose-500/10 rounded-lg">
@@ -279,44 +279,44 @@ const UserCenter: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm">
+          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
             <CardBody className="p-5 flex flex-row items-center gap-4">
               <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
                 <FolderOpen className="w-6 h-6 text-blue-400" />
               </div>
               <div>
-                <div className="text-sm text-slate-400">项目数</div>
-                <div className="text-2xl font-bold text-slate-100">{formatInteger(stats?.projectCount)}</div>
+                <div className="text-sm text-[var(--text-secondary)]">项目数</div>
+                <div className="text-2xl font-bold text-[var(--text-primary)]">{formatInteger(stats?.projectCount)}</div>
               </div>
             </CardBody>
           </Card>
 
-          <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm">
+          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
             <CardBody className="p-5 flex flex-row items-center gap-4">
               <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center">
                 <Receipt className="w-6 h-6 text-amber-400" />
               </div>
               <div>
-                <div className="text-sm text-slate-400">剧本数</div>
-                <div className="text-2xl font-bold text-slate-100">{formatInteger(stats?.scriptCount)}</div>
+                <div className="text-sm text-[var(--text-secondary)]">剧本数</div>
+                <div className="text-2xl font-bold text-[var(--text-primary)]">{formatInteger(stats?.scriptCount)}</div>
               </div>
             </CardBody>
           </Card>
 
-          <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm">
+          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
             <CardBody className="p-5 flex flex-row items-center gap-4">
               <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
                 <Clapperboard className="w-6 h-6 text-purple-400" />
               </div>
               <div>
-                <div className="text-sm text-slate-400">视频计费记录</div>
-                <div className="text-2xl font-bold text-slate-100">{formatInteger(stats?.videoCount)}</div>
+                <div className="text-sm text-[var(--text-secondary)]">视频计费记录</div>
+                <div className="text-2xl font-bold text-[var(--text-primary)]">{formatInteger(stats?.videoCount)}</div>
               </div>
             </CardBody>
           </Card>
         </div>
 
-        <Card className="bg-slate-900/80 border border-slate-700/50 shadow-sm">
+        <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm">
           <CardBody className="p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-5">
               <div>

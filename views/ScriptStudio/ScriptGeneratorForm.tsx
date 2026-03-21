@@ -64,21 +64,21 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
   };
   
   return (
-    <Card className="bg-slate-900/80 border border-slate-700/50 shadow-lg shadow-black/20 rounded-2xl">
+    <Card className="pro-card">
       <CardBody className="p-6 space-y-5">
         {/* 标题 + Tab 切换 */}
         <div className="mb-1">
           <div className="flex items-center gap-3 mb-2">
-            <h2 className="text-lg font-bold text-slate-100">
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">
               {isFirstEpisode ? '创作你的故事' : `创作第${nextEpisode}集`}
             </h2>
-            <div className="flex bg-slate-800/80 rounded-lg p-0.5 border border-slate-700/30">
+            <div className="flex bg-[var(--bg-input)] rounded-lg p-0.5 border border-[var(--border-color)]">
               <button
                 onClick={() => setMode('ai')}
                 className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                   mode === 'ai'
-                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-300'
+                    ? 'bg-[var(--accent)]/20 text-[var(--accent-light)] border border-[var(--accent)]/30 shadow-sm'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                 }`}
               >
                 <Sparkles className="w-3 h-3" />
@@ -88,8 +88,8 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
                 onClick={() => setMode('manual')}
                 className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold transition-all ${
                   mode === 'manual'
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-300'
+                    ? 'bg-[var(--success)]/20 text-[var(--success)] border border-[var(--success)]/30 shadow-sm'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                 }`}
               >
                 <PenLine className="w-3 h-3" />
@@ -97,14 +97,14 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
               </button>
             </div>
           </div>
-          <div className={`w-12 h-1 rounded-full ${mode === 'ai' ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-gradient-to-r from-emerald-500 to-emerald-600'}`}></div>
+          <div className={`w-12 h-1 rounded-full ${mode === 'ai' ? 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent-light)]' : 'bg-gradient-to-r from-[var(--success)] to-emerald-400'}`}></div>
           {mode === 'ai' && !isFirstEpisode && (
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-[var(--text-muted)] mt-2">
               AI 将基于前面的剧情继续创作，您的输入会影响剧情走向
             </p>
           )}
           {mode === 'manual' && (
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-[var(--text-muted)] mt-2">
               直接编写剧本内容，保存后即可使用
             </p>
           )}
@@ -126,9 +126,9 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
               value={title}
               onValueChange={onTitleChange}
               classNames={{
-                input: "bg-transparent text-slate-100 font-semibold placeholder:text-slate-500",
-                label: "text-slate-400 font-medium",
-                inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 data-[focus=true]:border-blue-500 shadow-sm"
+                input: "bg-transparent text-[var(--text-primary)] font-semibold placeholder:text-[var(--text-muted)]",
+                label: "text-[var(--text-secondary)] font-medium",
+                inputWrapper: "bg-[var(--bg-input)] border border-[var(--border-color)] hover:border-[var(--accent)]/50 data-[focus=true]:border-[var(--accent)] shadow-sm"
               }}
             />
 
@@ -138,7 +138,7 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
                   <div className="flex items-center gap-2 w-full">
                     <span>故事走向</span>
                     {isDraft && (
-                      <span className="text-xs px-1.5 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded font-normal">
+                      <span className="text-xs px-1.5 py-0.5 bg-[var(--warning)]/20 text-[var(--warning)] border border-[var(--warning)]/30 rounded font-normal">
                         草稿
                       </span>
                     )}
@@ -152,34 +152,34 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
                 onValueChange={onDescriptionChange}
                 minRows={4}
                 classNames={{
-                  input: "bg-transparent text-slate-100 font-medium placeholder:text-slate-500",
-                  label: "text-slate-400 font-medium w-full",
-                  inputWrapper: "bg-slate-800/60 border border-slate-600 hover:border-slate-500 data-[focus=true]:border-slate-400 shadow-sm"
+                  input: "bg-transparent text-[var(--text-primary)] font-medium placeholder:text-[var(--text-muted)]",
+                  label: "text-[var(--text-secondary)] font-medium w-full",
+                  inputWrapper: "bg-[var(--bg-input)] border border-[var(--border-color)] hover:border-[var(--border-color)] data-[focus=true]:border-[var(--accent)]/50 shadow-sm"
                 }}
               />
               {/* 状态/操作栏 - 仅在草稿模式下显示 */}
               {isDraft && (
                 <div className="flex items-center justify-between px-1 mt-1.5">
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-[var(--text-muted)]">
                     {isSaving ? (
                       <span className="flex items-center gap-1.5">
                         <Loader2 className="w-3 h-3 animate-spin" />
                         保存中...
                       </span>
                     ) : hasUnsavedChanges ? (
-                      <span className="text-amber-400/80">未保存的更改</span>
+                      <span className="text-[var(--warning)]">未保存的更改</span>
                     ) : lastSavedAt ? (
                       <span>已自动保存 {formatSavedTime(lastSavedAt)}</span>
                     ) : null}
                   </span>
                   <div className="flex items-center gap-2">
-                    <kbd className="text-xs text-slate-600 bg-slate-800/60 border border-slate-700 rounded px-1.5 py-0.5 font-mono">
+                    <kbd className="text-xs text-[var(--text-muted)] bg-[var(--bg-input)] border border-[var(--border-color)] rounded px-1.5 py-0.5 font-mono">
                       Ctrl+S
                     </kbd>
                     <Button
                       size="sm"
                       variant="light"
-                      className="text-slate-400 hover:text-slate-200 h-6 min-w-0 px-2 text-xs"
+                      className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] h-6 min-w-0 px-2 text-xs"
                       startContent={<Save className="w-3 h-3" />}
                       isLoading={isSaving}
                       onPress={onSaveDraft}
@@ -197,25 +197,25 @@ const ScriptGeneratorForm: React.FC<ScriptGeneratorFormProps> = ({
                 selectedKeys={[length]}
                 onChange={(e) => onLengthChange(e.target.value)}
                 classNames={{
-                  trigger: "bg-slate-800/60 border border-slate-600/50 text-slate-100 font-semibold hover:border-blue-500/50 shadow-sm",
-                  label: "text-slate-400 font-medium",
-                  value: "text-slate-100 font-semibold",
-                  selectorIcon: "text-slate-400"
+                  trigger: "bg-[var(--bg-input)] border border-[var(--border-color)] text-[var(--text-primary)] font-semibold hover:border-[var(--accent)]/50 shadow-sm",
+                  label: "text-[var(--text-secondary)] font-medium",
+                  value: "text-[var(--text-primary)] font-semibold",
+                  selectorIcon: "text-[var(--text-secondary)]"
                 }}
                 popoverProps={{
                   classNames: {
-                    content: "bg-slate-900 border border-slate-700/50 shadow-lg shadow-black/30"
+                    content: "bg-[var(--bg-card)] border border-[var(--border-color)] shadow-lg"
                   }
                 }}
               >
-                <SelectItem key="短篇" className="text-slate-200 data-[hover=true]:bg-slate-800">短篇 (1-3分钟)</SelectItem>
-                <SelectItem key="中篇" className="text-slate-200 data-[hover=true]:bg-slate-800">中篇 (3-5分钟)</SelectItem>
-                <SelectItem key="长篇" className="text-slate-200 data-[hover=true]:bg-slate-800">长篇 (5-10分钟)</SelectItem>
+                <SelectItem key="短篇" className="text-[var(--text-primary)] data-[hover=true]:bg-[var(--bg-input)]">短篇 (1-3分钟)</SelectItem>
+                <SelectItem key="中篇" className="text-[var(--text-primary)] data-[hover=true]:bg-[var(--bg-input)]">中篇 (3-5分钟)</SelectItem>
+                <SelectItem key="长篇" className="text-[var(--text-primary)] data-[hover=true]:bg-[var(--bg-input)]">长篇 (5-10分钟)</SelectItem>
               </Select>
             </div>
 
             <Button
-              className="w-full text-white font-bold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 bg-gradient-to-r from-blue-500 to-violet-600 hover:from-blue-600 hover:to-violet-700 shadow-blue-500/20"
+              className="w-full pro-btn-primary transform hover:-translate-y-0.5 transition-all duration-200"
               size="lg"
               startContent={!loading && <FileText className="w-5 h-5" />}
               isLoading={loading}

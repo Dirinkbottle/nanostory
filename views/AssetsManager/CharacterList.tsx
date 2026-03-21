@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardBody, Button, Chip } from '@heroui/react';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Layers } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Character, TagGroup } from '../../services/assets';
 
 interface CharacterListProps {
@@ -10,6 +11,30 @@ interface CharacterListProps {
   onDelete: (id: number) => void;
 }
 
+// 列表容器动画配置
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+// 列表项动画配置
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  show: { 
+    opacity: 1, 
+    y: 0,
+    transition: {
+      duration: 0.2,
+      ease: [0.4, 0, 0.2, 1] as const,
+    },
+  },
+};
+
 // 根据分组ID获取颜色
 const getGroupColor = (groupId: number, tagGroups: TagGroup[]): string => {
   const group = tagGroups.find(g => g.id === groupId);
@@ -17,82 +42,122 @@ const getGroupColor = (groupId: number, tagGroups: TagGroup[]): string => {
 };
 
 const CharacterList: React.FC<CharacterListProps> = ({ characters, tagGroups, onEdit, onDelete }) => {
+  // 追踪是否是首次加载
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const prevLengthRef = useRef(0);
+
+  useEffect(() => {
+    if (characters.length > 0 && isInitialLoad) {
+      const timer = setTimeout(() => {
+        setIsInitialLoad(false);
+      }, Math.min(characters.length * 50 + 300, 1000));
+      return () => clearTimeout(timer);
+    }
+    // 如果列表被清空再重新加载，重置为首次加载
+    if (characters.length > 0 && prevLengthRef.current === 0) {
+      setIsInitialLoad(true);
+    }
+    prevLengthRef.current = characters.length;
+  }, [characters.length, isInitialLoad]);
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+    <motion.div 
+      variants={isInitialLoad ? containerVariants : undefined}
+      initial={isInitialLoad ? "hidden" : false}
+      animate="show"
+      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6"
+    >
       {characters.map((character) => (
-        <Card key={character.id} className="bg-slate-900/80 border border-slate-700/50 shadow-sm hover:shadow-md hover:shadow-blue-500/5 transition-shadow">
-          <CardBody className="p-4 space-y-3">
-            <div className="flex items-start justify-between">
-              <h3 className="text-lg font-semibold text-slate-100">{character.name}</h3>
-              <div className="flex gap-1">
-                <Button 
-                  size="sm" 
-                  isIconOnly 
-                  variant="light" 
-                  onPress={() => onEdit(character)} 
-                  className="hover:bg-blue-500/10"
-                >
-                  <Edit className="w-4 h-4 text-blue-400" />
-                </Button>
-                <Button 
-                  size="sm" 
-                  isIconOnly 
-                  variant="light" 
-                  onPress={() => onDelete(character.id)} 
-                  className="hover:bg-red-500/10"
-                >
-                  <Trash2 className="w-4 h-4 text-red-500" />
-                </Button>
+        <motion.div
+          key={character.id}
+          variants={isInitialLoad ? itemVariants : undefined}
+          layout={!isInitialLoad}
+        >
+          <Card className="bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm hover:shadow-md hover:shadow-[var(--accent)]/5 transition-shadow">
+            <CardBody className="p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">{character.name}</h3>
+                <div className="flex gap-1">
+                  <Button 
+                    size="sm" 
+                    isIconOnly 
+                    variant="light" 
+                    onPress={() => onEdit(character)} 
+                    className="hover:bg-[var(--accent)]/10"
+                  >
+                    <Edit className="w-4 h-4 text-[var(--accent)]" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    isIconOnly 
+                    variant="light" 
+                    onPress={() => onDelete(character.id)} 
+                    className="hover:bg-red-500/10"
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </Button>
+                </div>
               </div>
-            </div>
-            <p className="text-sm text-slate-400 line-clamp-2">{character.description}</p>
-            <div className="flex flex-wrap gap-2">
-              {character.project_name && (
-                <Chip 
-                  size="sm" 
-                  variant="flat" 
-                  className="bg-emerald-500/10 text-emerald-400 font-medium"
-                >
-                  {character.project_name}
-                </Chip>
-              )}
-              {/* 显示分组标签（彩色） */}
-              {character.tag_groups_json && character.tag_groups_json.map((group) => 
-                group.tags.map((tag, idx) => {
-                  const color = getGroupColor(group.groupId, tagGroups);
-                  return (
-                    <Chip 
-                      key={`${group.groupId}-${idx}`}
-                      size="sm" 
-                      variant="flat" 
-                      style={{
-                        backgroundColor: `${color}15`,
-                        color: color,
-                        borderColor: `${color}30`
-                      }}
-                      className="font-medium border"
-                    >
-                      {tag}
-                    </Chip>
-                  );
-                })
-              )}
-              {/* 显示普通标签（兼容旧数据） */}
-              {character.tags && character.tags.split(',').map((tag, idx) => (
-                <Chip 
-                  key={`plain-${idx}`} 
-                  size="sm" 
-                  variant="flat" 
-                  className="bg-blue-500/10 text-blue-400 font-medium"
-                >
-                  {tag.trim()}
-                </Chip>
-              ))}
-            </div>
-          </CardBody>
-        </Card>
+              <p className="text-sm text-[var(--text-secondary)] line-clamp-2">{character.description}</p>
+              <div className="flex flex-wrap gap-2">
+                {character.project_name && (
+                  <Chip 
+                    size="sm" 
+                    variant="flat" 
+                    className="bg-emerald-500/10 text-emerald-400 font-medium"
+                  >
+                    {character.project_name}
+                  </Chip>
+                )}
+                {/* 显示状态数量 */}
+                {character.states_count && character.states_count > 0 && (
+                  <Chip
+                    size="sm"
+                    variant="flat"
+                    className="bg-purple-500/10 text-purple-400 font-medium"
+                    startContent={<Layers className="w-3 h-3" />}
+                  >
+                    {character.states_count} 状态
+                  </Chip>
+                )}
+                {/* 显示分组标签（彩色） */}
+                {character.tag_groups_json && character.tag_groups_json.map((group) => 
+                  group.tags.map((tag, idx) => {
+                    const color = getGroupColor(group.groupId, tagGroups);
+                    return (
+                      <Chip 
+                        key={`${group.groupId}-${idx}`}
+                        size="sm" 
+                        variant="flat" 
+                        style={{
+                          backgroundColor: `${color}15`,
+                          color: color,
+                          borderColor: `${color}30`
+                        }}
+                        className="font-medium border"
+                      >
+                        {tag}
+                      </Chip>
+                    );
+                  })
+                )}
+                {/* 显示普通标签（兼容旧数据） */}
+                {character.tags && character.tags.split(',').map((tag, idx) => (
+                  <Chip 
+                    key={`plain-${idx}`} 
+                    size="sm" 
+                    variant="flat" 
+                    className="bg-[var(--accent)]/10 text-[var(--accent)] font-medium"
+                  >
+                    {tag.trim()}
+                  </Chip>
+                ))}
+              </div>
+            </CardBody>
+          </Card>
+        </motion.div>
       ))}
-    </div>
+    </motion.div>
   );
 };
 

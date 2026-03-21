@@ -34,6 +34,7 @@ export interface Character {
   tags: string;
   tag_groups_json?: CharacterTagGroupEntry[] | null;
   project_name?: string;
+  states_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -81,6 +82,41 @@ export interface Prop {
   tags: string;
   created_at: string;
   updated_at: string;
+}
+
+// ============================================================
+// 角色状态接口
+// ============================================================
+
+export interface CharacterState {
+  id: number;
+  character_id: number;
+  name: string;
+  description: string;
+  appearance: string;
+  image_url: string;
+  front_view_url: string;
+  side_view_url: string;
+  back_view_url: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================
+// 资产参考图接口
+// ============================================================
+
+export type AssetReferenceType = 'character' | 'character_state' | 'prop';
+
+export interface AssetReferenceImage {
+  id: number;
+  asset_type: AssetReferenceType;
+  asset_id: number;
+  image_url: string;
+  description: string | null;
+  sort_order: number;
+  created_at: string;
 }
 
 // 角色API
@@ -490,4 +526,216 @@ export async function downloadAllCharacterViews(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
+}
+
+// ============================================================
+// 角色状态 API
+// ============================================================
+
+/**
+ * 获取角色的所有状态
+ */
+export async function fetchCharacterStates(characterId: number): Promise<CharacterState[]> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/characters/${characterId}/states`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '获取角色状态失败');
+  }
+  const data = await response.json();
+  return data.states || [];
+}
+
+/**
+ * 创建角色状态
+ */
+export async function createCharacterState(
+  characterId: number,
+  data: Partial<CharacterState>
+): Promise<CharacterState> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/characters/${characterId}/states`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '创建角色状态失败');
+  }
+  const result = await response.json();
+  return result.state;
+}
+
+/**
+ * 更新角色状态
+ */
+export async function updateCharacterState(
+  characterId: number,
+  stateId: number,
+  data: Partial<CharacterState>
+): Promise<CharacterState> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/characters/${characterId}/states/${stateId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '更新角色状态失败');
+  }
+  const result = await response.json();
+  return result.state;
+}
+
+/**
+ * 删除角色状态
+ */
+export async function deleteCharacterState(
+  characterId: number,
+  stateId: number
+): Promise<void> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/characters/${characterId}/states/${stateId}`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '删除角色状态失败');
+  }
+}
+
+// ============================================================
+// 参考图 API
+// ============================================================
+
+/**
+ * 获取资产的参考图
+ */
+export async function fetchReferenceImages(
+  assetType: AssetReferenceType,
+  assetId: number
+): Promise<AssetReferenceImage[]> {
+  const token = getAuthToken();
+  const response = await fetch(
+    `/api/reference-images?asset_type=${assetType}&asset_id=${assetId}`,
+    {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    }
+  );
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '获取参考图失败');
+  }
+  const data = await response.json();
+  return data.images || [];
+}
+
+/**
+ * 上传参考图
+ */
+export async function uploadReferenceImage(
+  assetType: AssetReferenceType,
+  assetId: number,
+  imageUrl: string,
+  description?: string
+): Promise<AssetReferenceImage> {
+  const token = getAuthToken();
+  const response = await fetch('/api/reference-images', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({
+      asset_type: assetType,
+      asset_id: assetId,
+      image_url: imageUrl,
+      description
+    })
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '上传参考图失败');
+  }
+  const result = await response.json();
+  return result.image;
+}
+
+/**
+ * 更新参考图
+ */
+export async function updateReferenceImage(
+  imageId: number,
+  data: { image_url?: string; description?: string; sort_order?: number }
+): Promise<AssetReferenceImage> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/reference-images/${imageId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '更新参考图失败');
+  }
+  const result = await response.json();
+  return result.image;
+}
+
+/**
+ * 删除参考图
+ */
+export async function deleteReferenceImage(imageId: number): Promise<void> {
+  const token = getAuthToken();
+  const response = await fetch(`/api/reference-images/${imageId}`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '删除参考图失败');
+  }
+}
+
+/**
+ * 批量重排序参考图
+ */
+export async function batchReorderReferenceImages(
+  orders: { id: number; sort_order: number }[]
+): Promise<void> {
+  const token = getAuthToken();
+  const response = await fetch('/api/reference-images/batch-reorder', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ orders })
+  });
+  if (!response.ok) {
+    const result = await response.json();
+    throw new Error(result.message || '重排序参考图失败');
+  }
 }

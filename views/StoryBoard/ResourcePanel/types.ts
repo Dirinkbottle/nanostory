@@ -12,6 +12,22 @@ export interface Character {
   characterSheetUrl?: string;  // 角色设计稿
   generationPrompt?: string;  // 三视图生成提示词（JSON字符串）
   generationStatus?: string;  // 生成状态
+  states?: CharacterState[];  // 角色状态列表
+  statesCount?: number;  // 状态数量
+}
+
+// 角色状态接口
+export interface CharacterState {
+  id: number;
+  character_id: number;
+  name: string;
+  description?: string;
+  appearance?: string;
+  image_url?: string;
+  front_view_url?: string;
+  side_view_url?: string;
+  back_view_url?: string;
+  sort_order?: number;
 }
 
 export interface ResourceItem {

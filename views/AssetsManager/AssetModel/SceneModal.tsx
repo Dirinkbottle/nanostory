@@ -54,16 +54,16 @@ const MOVEMENT_OPTIONS = [
 ];
 
 const inputClassNames = {
-  input: "bg-transparent text-slate-100 placeholder:text-slate-500",
-  label: "text-slate-400 font-medium",
-  inputWrapper: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm"
+  input: "bg-transparent text-[var(--text-primary)] placeholder:text-[var(--text-muted)]",
+  label: "text-[var(--text-secondary)] font-medium",
+  inputWrapper: "bg-[var(--bg-input)] border border-[var(--border-color)] hover:border-[var(--accent)]/50 shadow-sm"
 };
 
 const selectClassNames = {
-  trigger: "bg-slate-800/60 border border-slate-600/50 hover:border-blue-500/50 shadow-sm data-[hover=true]:bg-slate-800/80",
-  value: "text-slate-100",
-  label: "text-slate-400 font-medium",
-  popoverContent: "bg-slate-900 border border-slate-700"
+  trigger: "bg-[var(--bg-input)] border border-[var(--border-color)] hover:border-[var(--accent)]/50 shadow-sm data-[hover=true]:bg-[var(--bg-card)]",
+  value: "text-[var(--text-primary)]",
+  label: "text-[var(--text-secondary)] font-medium",
+  popoverContent: "bg-[var(--bg-elevated)] border border-[var(--border-color)]"
 };
 
 const SceneModal: React.FC<SceneModalProps> = ({
@@ -105,15 +105,15 @@ const SceneModal: React.FC<SceneModalProps> = ({
       size="3xl"
       scrollBehavior="inside"
       classNames={{
-        base: "bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-black/40",
-        header: "border-b border-slate-700/50",
+        base: "bg-[var(--bg-elevated)] backdrop-blur-xl border border-[var(--border-color)] shadow-2xl shadow-black/40",
+        header: "border-b border-[var(--border-color)]",
         body: "py-6"
       }}
     >
       <ModalContent>
         {(onClose) => (
           <>
-            <ModalHeader className="text-slate-100 font-bold">
+            <ModalHeader className="text-[var(--text-primary)] font-bold">
               {editMode ? '编辑' : '新建'}场景
             </ModalHeader>
             <ModalBody className="space-y-4">
@@ -180,9 +180,9 @@ const SceneModal: React.FC<SceneModalProps> = ({
                 variant="splitted" 
                 className="px-0"
                 itemClasses={{
-                  base: "bg-slate-800/40 border border-slate-700/50 rounded-lg",
-                  title: "text-slate-300 font-medium",
-                  trigger: "px-4 py-3 data-[hover=true]:bg-slate-800/60",
+                  base: "bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg",
+                  title: "text-[var(--text-secondary)] font-medium",
+                  trigger: "px-4 py-3 data-[hover=true]:bg-[var(--bg-input)]",
                   content: "px-4 pb-4"
                 }}
               >
@@ -193,12 +193,12 @@ const SceneModal: React.FC<SceneModalProps> = ({
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-emerald-400" />
                       <span>空间布局</span>
-                      <span className="text-xs text-slate-500">（可选）</span>
+                      <span className="text-xs text-[var(--text-muted)]">（可选）</span>
                     </div>
                   }
                 >
                   <div className="space-y-3">
-                    <p className="text-xs text-slate-500 mb-3">
+                    <p className="text-xs text-[var(--text-muted)] mb-3">
                       定义场景的前景、中景、背景空间层次，帮助AI理解场景的空间纵深关系
                     </p>
                     <Input
@@ -240,12 +240,12 @@ const SceneModal: React.FC<SceneModalProps> = ({
                     <div className="flex items-center gap-2">
                       <Camera className="w-4 h-4 text-blue-400" />
                       <span>摄像机默认参数</span>
-                      <span className="text-xs text-slate-500">（可选）</span>
+                      <span className="text-xs text-[var(--text-muted)]">（可选）</span>
                     </div>
                   }
                 >
                   <div className="space-y-3">
-                    <p className="text-xs text-slate-500 mb-3">
+                    <p className="text-xs text-[var(--text-muted)] mb-3">
                       设置该场景的默认摄像机参数，在生成图片时会参考这些设置
                     </p>
                     <div className="grid grid-cols-2 gap-3">
@@ -260,7 +260,7 @@ const SceneModal: React.FC<SceneModalProps> = ({
                         classNames={selectClassNames}
                       >
                         {ANGLE_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} className="text-slate-200">
+                          <SelectItem key={opt.value} className="text-[var(--text-primary)]">
                             {opt.label}
                           </SelectItem>
                         ))}
@@ -277,7 +277,7 @@ const SceneModal: React.FC<SceneModalProps> = ({
                         classNames={selectClassNames}
                       >
                         {DISTANCE_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} className="text-slate-200">
+                          <SelectItem key={opt.value} className="text-[var(--text-primary)]">
                             {opt.label}
                           </SelectItem>
                         ))}
@@ -294,7 +294,7 @@ const SceneModal: React.FC<SceneModalProps> = ({
                         classNames={selectClassNames}
                       >
                         {HEIGHT_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} className="text-slate-200">
+                          <SelectItem key={opt.value} className="text-[var(--text-primary)]">
                             {opt.label}
                           </SelectItem>
                         ))}
@@ -311,7 +311,7 @@ const SceneModal: React.FC<SceneModalProps> = ({
                         classNames={selectClassNames}
                       >
                         {MOVEMENT_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} className="text-slate-200">
+                          <SelectItem key={opt.value} className="text-[var(--text-primary)]">
                             {opt.label}
                           </SelectItem>
                         ))}
@@ -322,11 +322,11 @@ const SceneModal: React.FC<SceneModalProps> = ({
               </Accordion>
             </ModalBody>
             <ModalFooter>
-              <Button variant="light" onPress={onClose} className="font-semibold text-slate-400">
+              <Button variant="light" onPress={onClose} className="font-semibold text-[var(--text-secondary)]">
                 取消
               </Button>
               <Button 
-                className="bg-gradient-to-r from-blue-500 to-violet-600 text-white font-semibold shadow-lg shadow-blue-500/20"
+                className="pro-btn-primary"
                 onPress={onSave}
               >
                 保存

@@ -20,6 +20,7 @@ const {
   sendGenerationError
 } = require('../modules/generation');
 const engine = require('./engine/index');
+const { generateWorkflowETag, matchesETag } = require('../utils/etag');
 
 const router = express.Router();
 
@@ -146,6 +147,7 @@ router.post('/:jobId/consume', authMiddleware, async (req, res) => {
 
 /**
  * 获取工作流状态（含所有子任务详情）
+ * 支持 ETag 缓存，减少数据传输
  */
 router.get('/:jobId', authMiddleware, async (req, res) => {
   try {
@@ -157,6 +159,17 @@ router.get('/:jobId', authMiddleware, async (req, res) => {
     // 验证所有权
     if (job.user_id !== userId) {
       return res.status(403).json({ message: '无权访问此工作流' });
+    }
+
+    // 生成 ETag
+    const etag = generateWorkflowETag(job);
+    res.set('ETag', etag);
+    res.set('Cache-Control', 'private, must-revalidate');
+
+    // 检查 If-None-Match，如果匹配则返回 304
+    const ifNoneMatch = req.get('If-None-Match');
+    if (ifNoneMatch && matchesETag(ifNoneMatch, etag)) {
+      return res.status(304).end();
     }
 
     res.json(job);
