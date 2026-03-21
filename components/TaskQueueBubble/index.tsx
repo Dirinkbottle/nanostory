@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, RotateCcw, ListTodo, Minus, GripHorizontal } from 'lucide-react';
 import { getAuthToken } from '../../services/auth';
+import { useToast } from '../../contexts/ToastContext';
 import { useTaskQueue } from './useTaskQueue';
-import TaskItem from './TaskItem';
+import TaskItem, { getTaskName } from './TaskItem';
 import CompletedSection from './CompletedSection';
 
 // 自定义滚动条样式
@@ -61,6 +62,7 @@ const TaskQueueBubble: React.FC = () => {
   const [isResizing, setIsResizing] = useState(false);
   const resizeStartY = useRef(0);
   const resizeStartHeight = useRef(0);
+  const { showToast } = useToast();
 
   const {
     jobs,
@@ -69,7 +71,13 @@ const TaskQueueBubble: React.FC = () => {
     setIsExpanded,
     fetchJobs,
     getJobProgress,
-  } = useTaskQueue();
+  } = useTaskQueue({
+    onJobFailed: (job) => {
+      const name = getTaskName(job);
+      const reason = job.error_message || '未知错误';
+      showToast(`「${name}」执行失败：${reason}`, 'error');
+    }
+  });
 
   // 计算运行中的任务数
   const runningCount = jobs.filter(j => j.status === 'running').length;

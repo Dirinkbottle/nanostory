@@ -60,8 +60,8 @@ const parseInputParams = (job: WorkflowJob): Record<string, any> => {
   return job.input_params;
 };
 
-// 获取任务显示名称
-const getTaskName = (job: WorkflowJob): string => {
+// 获取任务显示名称（导出供其他组件使用）
+export const getTaskName = (job: WorkflowJob): string => {
   if (job.workflowName && job.workflowName !== job.workflow_type) {
     const params = parseInputParams(job);
     const prefix = params.isRegenerate ? '重新' : '';
@@ -274,6 +274,17 @@ const TaskItem: React.FC<TaskItemProps> = ({
           )}
         </div>
       </div>
+
+      {/* 失败错误信息 */}
+      {job.status === 'failed' && job.error_message && (
+        <div 
+          className="mt-1.5 text-xs line-clamp-2"
+          style={{ color: 'var(--danger)' }}
+          title={job.error_message}
+        >
+          {job.error_message}
+        </div>
+      )}
     </motion.div>
   );
 };

@@ -15,6 +15,10 @@ const REFRESH_ON_COMPLETE_TYPES = [
   'character_views_generation',  // 角色三视图生成
 ];
 
+export interface UseTaskQueueOptions {
+  onJobFailed?: (job: WorkflowJob) => void;
+}
+
 export interface UseTaskQueueReturn {
   jobs: WorkflowJob[];
   loading: boolean;
@@ -24,7 +28,8 @@ export interface UseTaskQueueReturn {
   getJobProgress: (job: WorkflowJob) => number;
 }
 
-export function useTaskQueue(): UseTaskQueueReturn {
+export function useTaskQueue(options?: UseTaskQueueOptions): UseTaskQueueReturn {
+  const { onJobFailed } = options || {};
   const [jobs, setJobs] = useState<WorkflowJob[]>([]);
   const [loading, setLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -33,7 +38,12 @@ export function useTaskQueue(): UseTaskQueueReturn {
   // 跟踪上一次的任务ID集合，用于检测任务完成
   const prevJobIdsRef = useRef<Set<number>>(new Set());
   const prevJobTypesRef = useRef<Map<number, string>>(new Map());
+  // 跟踪任务状态，用于检测失败
+  const prevStatusRef = useRef<Map<number, string>>(new Map());
   const currentIntervalRef = useRef<number>(POLLING_IDLE);
+  // 使用 ref 包裹回调，避免依赖变化
+  const onJobFailedRef = useRef(onJobFailed);
+  onJobFailedRef.current = onJobFailed;
 
   const fetchJobs = useCallback(async (showLoading = false) => {
     const token = getAuthToken();
@@ -71,6 +81,24 @@ export function useTaskQueue(): UseTaskQueueReturn {
           }));
         }
       }
+
+      // 检测失败任务并触发回调
+      if (!isFirstLoad.current && onJobFailedRef.current) {
+        // 首次轮询时只记录状态不触发回调，防止页面刷新时已有失败任务重复通知
+        const isFirstPoll = prevStatusRef.current.size === 0;
+        if (!isFirstPoll) {
+          currentJobs.forEach((job: WorkflowJob) => {
+            const prevStatus = prevStatusRef.current.get(job.id);
+            // 如果当前状态是 failed，且之前状态不是 failed（或之前没有记录过）
+            if (job.status === 'failed' && prevStatus !== undefined && prevStatus !== 'failed') {
+              onJobFailedRef.current?.(job);
+            }
+          });
+        }
+      }
+
+      // 更新状态快照
+      prevStatusRef.current = new Map(currentJobs.map((j: WorkflowJob) => [j.id, j.status]));
 
       // 更新跟踪状态
       prevJobIdsRef.current = currentJobIds;
