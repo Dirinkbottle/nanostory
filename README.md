@@ -228,6 +228,7 @@ nanostory/
 ## Documentation
 
 - [Async Engine Guide](ASYNC_ENGINE_GUIDE.md) — Task engine architecture and usage
+- [Docker Deployment](docs/docker-deployment.md) — Nginx + Backend + MinIO deployment
 - [Security Policy](SECURITY.md) — Security guidelines and reporting
 
 ## Contributing

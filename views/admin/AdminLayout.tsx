@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronRight, LogOut, Settings, Users, Cpu, LayoutDashboard } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogOut, Settings, Users, Cpu, LayoutDashboard, Server } from 'lucide-react';
 import { getAuthUser, logout } from '../../services/auth';
 
 interface MenuItem {
@@ -24,6 +24,12 @@ const AdminLayout: React.FC = () => {
       label: '仪表盘',
       icon: <LayoutDashboard className="w-5 h-5" />,
       path: '/admin/dashboard'
+    },
+    {
+      id: 'services',
+      label: '服务仪表盘',
+      icon: <Server className="w-5 h-5" />,
+      path: '/admin/services'
     },
     {
       id: 'system',

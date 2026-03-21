@@ -23,9 +23,9 @@ const SceneCardMetadata: React.FC<SceneCardMetadataProps> = ({ scene, onUpdateSp
       if (onUpdateSpatialDescription) {
         onUpdateSpatialDescription(spatialDesc || undefined);
       }
-      showToast('空间描述已保存', 'success');
     } catch (error: any) {
-      showToast(error.message || '保存失败', 'error');
+      console.error('保存空间描述失败:', error);
+      showToast('保存空间描述失败，请稍后重试', 'error');
     } finally {
       setIsSaving(false);
     }

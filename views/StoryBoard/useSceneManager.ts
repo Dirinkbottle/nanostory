@@ -347,7 +347,8 @@ export const useSceneManager = (scriptId: number | null, projectId?: number | nu
       setScenes(prevScenes => prevScenes.map(s =>
         s.id === id ? { ...s, description: previousScene.description } : s
       ));
-      showToast(error.message || '保存镜头描述失败', 'error');
+      console.error('保存镜头描述失败:', error);
+      showToast('保存镜头描述失败，请稍后重试', 'error');
       return false;
     }
   };

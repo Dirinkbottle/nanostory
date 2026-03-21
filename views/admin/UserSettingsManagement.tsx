@@ -121,13 +121,10 @@ const UserSettingsManagement: React.FC = () => {
       if (res.ok) {
         await fetchUserSettings(selectedUserId);
         handleCloseModal();
-      } else {
-        const data = await res.json();
-        showToast(data.message || '保存失败', 'error');
       }
     } catch (error) {
       console.error('保存设置失败:', error);
-      showToast('保存失败', 'error');
+      showToast('保存设置失败，请稍后重试', 'error');
     }
   };
 
@@ -149,13 +146,10 @@ const UserSettingsManagement: React.FC = () => {
 
       if (res.ok) {
         await fetchUserSettings(selectedUserId);
-      } else {
-        const data = await res.json();
-        showToast(data.message || '删除失败', 'error');
       }
     } catch (error) {
       console.error('删除设置失败:', error);
-      showToast('删除失败', 'error');
+      showToast('删除设置失败，请稍后重试', 'error');
     }
   };
 

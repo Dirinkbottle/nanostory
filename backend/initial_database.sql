@@ -19,11 +19,42 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   role ENUM('user', 'admin') DEFAULT 'user' COMMENT '用户角色：user=普通用户, admin=管理员',
-  balance DECIMAL(18,6) DEFAULT 100.000000,
+  balance DECIMAL(18,6) DEFAULT 0.000000,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_email (email),
   INDEX idx_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 通知表（notification-service 持久化队列）
+CREATE TABLE IF NOT EXISTS notifications (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  scope_type ENUM('user', 'session', 'broadcast') NOT NULL,
+  target_user_id INT DEFAULT NULL,
+  target_session_id VARCHAR(128) DEFAULT NULL,
+  message_type ENUM('info', 'debug', 'success', 'warn', 'error') NOT NULL,
+  title VARCHAR(255) DEFAULT NULL,
+  message TEXT NOT NULL,
+  payload_json JSON DEFAULT NULL,
+  source_service VARCHAR(100) NOT NULL,
+  source_event VARCHAR(255) DEFAULT NULL,
+  status ENUM('pending', 'delivering', 'acked', 'dead') NOT NULL DEFAULT 'pending',
+  attempt_count INT NOT NULL DEFAULT 0,
+  max_attempts INT NOT NULL DEFAULT 6,
+  lease_until DATETIME DEFAULT NULL,
+  available_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  acked_at DATETIME DEFAULT NULL,
+  dedupe_key VARCHAR(255) DEFAULT NULL,
+  broadcast_batch_id VARCHAR(128) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (target_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_notifications_status_available (status, available_at),
+  INDEX idx_notifications_user_status (target_user_id, status, available_at),
+  INDEX idx_notifications_session_status (target_session_id, status, available_at),
+  INDEX idx_notifications_lease_until (lease_until),
+  INDEX idx_notifications_broadcast_batch (broadcast_batch_id),
+  INDEX idx_notifications_dedupe (dedupe_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 项目表（提前创建，因为其他表需要引用）
@@ -373,7 +404,7 @@ CREATE TABLE IF NOT EXISTS generation_tasks (
 -- 初始化默认管理员账户（已移除硬编码凭证，请手动创建）
 -- NOTE: Default admin removed for security. Create admin via:
 --   INSERT INTO users (email, password_hash, role, balance)
---   VALUES ('admin', '<bcrypt_hash>', 'admin', 100.00);
+--   VALUES ('admin', '<bcrypt_hash>', 'admin', 0.000000);
 -- Generate hash: node -e "console.log(require('bcryptjs').hashSync('your-password', 10))"
 
 -- 初始化 DeepSeek 模型配置

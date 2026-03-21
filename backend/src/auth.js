@@ -84,6 +84,27 @@ router.post('/register', async (req, res) => {
   }
 });
 
+router.post('/login-requirements', async (req, res) => {
+  const username = String(req.body?.email || '').trim();
+
+  if (!username) {
+    return res.json({ requiresAdminAccess: false });
+  }
+
+  try {
+    const row = await queryOne('SELECT role FROM users WHERE email = ?', [username]);
+    return res.json({
+      requiresAdminAccess: row?.role === 'admin'
+    });
+  } catch (err) {
+    console.error('DB error in login requirements:', err);
+    return res.status(500).json({
+      message: '获取登录要求失败',
+      reason: 'lookup_failed'
+    });
+  }
+});
+
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -113,7 +134,12 @@ router.post('/login', async (req, res) => {
         const message = adminAccessCheck.reason === 'unconfigured'
           ? adminAccessCheck.message
           : '用户名、密码或后台访问密钥错误';
-        return res.status(status).json({ message });
+
+        return res.status(status).json({
+          message,
+          reason: adminAccessCheck.reason,
+          requiresAdminAccess: true
+        });
       }
     }
 

@@ -1,3 +1,5 @@
+import { setNotificationAuthToken } from '../notifications/client';
+
 export interface AuthUser {
   id: number;
   email: string;
@@ -17,6 +19,16 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+export interface LoginRequirements {
+  requiresAdminAccess: boolean;
+}
+
+export interface AuthRequestError extends Error {
+  status?: number;
+  reason?: string;
+  details?: unknown;
+}
+
 const AUTH_TOKEN_KEY = 'auth_token';
 const AUTH_USER_KEY = 'auth_user';
 const LEGACY_AUTH_TOKEN_KEY = 'authToken';
@@ -33,6 +45,7 @@ function clearAuthStorage() {
   if (typeof window !== 'undefined') {
     window.sessionStorage.removeItem(ADMIN_ACCESS_KEY_STORAGE_KEY);
   }
+  setNotificationAuthToken(null);
 }
 
 function normalizeRole(role: unknown): 'admin' | 'user' {
@@ -78,6 +91,32 @@ function isValidToken(token: string | null): token is string {
   }
 
   return true;
+}
+
+async function parseResponseJson(res: Response): Promise<unknown> {
+  const text = await res.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function buildAuthRequestError(res: Response, data: unknown): AuthRequestError {
+  const error = new Error(
+    typeof data === 'object' && data !== null && 'message' in data && typeof data.message === 'string'
+      ? data.message
+      : 'Request failed'
+  ) as AuthRequestError;
+
+  error.status = res.status;
+  if (typeof data === 'object' && data !== null && 'reason' in data && typeof data.reason === 'string') {
+    error.reason = data.reason;
+  }
+  error.details = data;
+  return error;
 }
 
 export function getAuthToken(): string | null {
@@ -197,6 +236,7 @@ function saveAuth(resp: AuthResponse) {
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
   localStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
   localStorage.setItem(USER_ROLE_KEY, user.role || 'user');
+  setNotificationAuthToken(resp.token);
 
   if (user.role !== 'admin') {
     setAdminAccessKey(null);
@@ -212,12 +252,40 @@ async function request(path: string, body: unknown): Promise<AuthResponse> {
     body: JSON.stringify(body),
   });
 
-  const data = await res.json();
+  const data = await parseResponseJson(res);
   if (!res.ok) {
-    throw new Error(data?.message || 'Request failed');
+    throw buildAuthRequestError(res, data);
   }
   saveAuth(data as AuthResponse);
   return data as AuthResponse;
+}
+
+export async function getLoginRequirements(email: string): Promise<LoginRequirements> {
+  const normalizedEmail = email.trim();
+  if (!normalizedEmail) {
+    return { requiresAdminAccess: false };
+  }
+
+  const res = await fetch('/api/auth/login-requirements', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email: normalizedEmail }),
+  });
+
+  const data = await parseResponseJson(res);
+  if (!res.ok) {
+    throw buildAuthRequestError(res, data);
+  }
+
+  return {
+    requiresAdminAccess:
+      typeof data === 'object' &&
+      data !== null &&
+      'requiresAdminAccess' in data &&
+      Boolean(data.requiresAdminAccess)
+  };
 }
 
 export async function register(email: string, password: string): Promise<AuthUser> {

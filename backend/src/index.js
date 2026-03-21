@@ -21,6 +21,7 @@ const modelRoutes = require('./modelRoutes');
 const adminRoutes = require('./adminRoutes');
 const fileProxyRoutes = require('./scripts/fileProxy');
 const feedbackRoutes = require('./feedback');
+const { notificationResponseMiddleware } = require('./notificationResponseMiddleware');
 
 const app = express();
 
@@ -82,12 +83,15 @@ app.use(cors({
 
 // 限制请求体大小，防止 DoS
 app.use(express.json({ limit: '100kb' }));
+app.use(notificationResponseMiddleware);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', env: process.env.NODE_ENV || 'development' });
 });
 
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth', authRoutes);
 app.use('/api/scripts', scriptRoutes);
 app.use('/api/storyboards', storyboardRoutes);
 app.use('/api/billing', billingRoutes);

@@ -1,0 +1,140 @@
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+      args:
+        BASE_IMAGE: ${DOCKER_IMAGE_PREFIX:-docker.m.daocloud.io/}nginx:1.27-alpine
+    image: nanostory-nginx:local
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+      notification-service:
+        condition: service_started
+    environment:
+      BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://backend:4000}
+      NOTIFICATION_UPSTREAM: ${NOTIFICATION_UPSTREAM:-http://notification-service:4101}
+      FRONTEND_DIST_DIR: /srv/frontend-dist
+      NGINX_SITE_ROOT: /usr/share/nginx/site
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./dist:/srv/frontend-dist:ro
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+      args:
+        BASE_IMAGE: ${DOCKER_IMAGE_PREFIX:-docker.m.daocloud.io/}node:20-bookworm-slim
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
+    image: nanostory-backend:local
+    restart: unless-stopped
+    depends_on:
+      minio:
+        condition: service_started
+      notification-service:
+        condition: service_started
+      core-service-control:
+        condition: service_started
+    env_file:
+      - ./backend/.env
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      PORT: ${BACKEND_INTERNAL_PORT:-4000}
+      BACKEND_SERVICE_ID: ${BACKEND_SERVICE_ID:-backend}
+      CORE_SERVICE_URL: ${CORE_SERVICE_URL:-http://core-service-control:4100}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:4101}
+      SERVICE_SHARED_SECRET: ${SERVICE_SHARED_SECRET:-change-this-shared-secret}
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-this-minio-password}
+      MINIO_BUCKET: ${MINIO_BUCKET:-nanostory}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000/nanostory}
+    ports:
+      - "${BACKEND_PORT:-4000}:${BACKEND_INTERNAL_PORT:-4000}"
+    volumes:
+      - ./backend/logs:/app/backend/logs
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: docker/notification-service/Dockerfile
+      args:
+        BASE_IMAGE: ${DOCKER_IMAGE_PREFIX:-docker.m.daocloud.io/}node:20-bookworm-slim
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
+    image: nanostory-notification-service:local
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      NOTIFICATION_SERVICE_ID: ${NOTIFICATION_SERVICE_ID:-notification-service}
+      NOTIFICATION_SERVICE_PORT: 4101
+      NOTIFICATION_DISPATCH_BATCH_SIZE: ${NOTIFICATION_DISPATCH_BATCH_SIZE:-100}
+      NOTIFICATION_MAX_IN_FLIGHT_PER_SESSION: ${NOTIFICATION_MAX_IN_FLIGHT_PER_SESSION:-3}
+      NOTIFICATION_LEASE_SECONDS: ${NOTIFICATION_LEASE_SECONDS:-15}
+      SERVICE_SHARED_SECRET: ${SERVICE_SHARED_SECRET:-change-this-shared-secret}
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-4101}:4101"
+
+  core-service-control:
+    build:
+      context: .
+      dockerfile: docker/core-service/Dockerfile
+      args:
+        BASE_IMAGE: ${DOCKER_IMAGE_PREFIX:-docker.m.daocloud.io/}node:20-bookworm-slim
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
+    image: nanostory-core-service:local
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      SERVICE_MODE: control-plane
+      SERVICE_SHARED_SECRET: ${SERVICE_SHARED_SECRET:-change-this-shared-secret}
+      CORE_SERVICE_CONTROL_PORT: 4100
+      CORE_SERVICE_PANEL_PUBLIC_URL: ${CORE_SERVICE_PANEL_PUBLIC_URL:-http://localhost:4102}
+      NOTIFICATION_PANEL_PUBLIC_URL: ${NOTIFICATION_PANEL_PUBLIC_URL:-http://localhost:4101}
+      CORE_AGENT_BASE_URL: ${CORE_AGENT_BASE_URL:-http://core-service-agent:4103}
+      NODE_ID: ${NODE_ID:-local-node}
+    ports:
+      - "${CORE_SERVICE_PANEL_PORT:-4102}:4100"
+
+  core-service-agent:
+    image: nanostory-core-service:local
+    restart: unless-stopped
+    depends_on:
+      core-service-control:
+        condition: service_started
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      SERVICE_MODE: agent
+      SERVICE_SHARED_SECRET: ${SERVICE_SHARED_SECRET:-change-this-shared-secret}
+      CORE_SERVICE_AGENT_PORT: 4103
+      CORE_CONTROL_URL: ${CORE_CONTROL_URL:-http://core-service-control:4100}
+      CORE_SERVICE_PANEL_PUBLIC_URL: ${CORE_SERVICE_PANEL_PUBLIC_URL:-http://localhost:4102}
+      NOTIFICATION_PANEL_PUBLIC_URL: ${NOTIFICATION_PANEL_PUBLIC_URL:-http://localhost:4101}
+      NODE_ID: ${NODE_ID:-local-node}
+      DOCKER_COMPOSE_PROJECT: ${DOCKER_COMPOSE_PROJECT:-nanostory}
+      CORE_AGENT_SERVICE_ID: ${CORE_AGENT_SERVICE_ID:-core-service-agent}
+      DOCKER_SOCKET_PATH: /var/run/docker.sock
+    ports:
+      - "${CORE_SERVICE_AGENT_PORT:-4103}:4103"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  minio:
+    image: ${DOCKER_IMAGE_PREFIX:-docker.m.daocloud.io/}minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-this-minio-password}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - ${DOCKER_DATA_ROOT:-./docker-data}/minio:/data

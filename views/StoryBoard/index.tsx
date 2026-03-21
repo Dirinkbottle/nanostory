@@ -322,17 +322,16 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       await characterBatchRecovery.checkAndResume();
       
       // Show summary with failure count if any
-      const total = characters.length;
       if (failedCount > 0) {
-        showToast(
-          `角色批量生成：成功 ${startedCount + recoveredCount}/${total}，失败 ${failedCount} 个`,
-          failedCount === total ? 'error' : 'warning'
-        );
-      } else {
-        showToast(`角色批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
+        console.error('角色批量生成存在失败项:', {
+          total: characters.length,
+          startedCount,
+          recoveredCount,
+          failedCount
+        });
       }
     } catch (error: any) {
-      showToast('角色批量生成失败: ' + error.message, 'error');
+      showToast('角色批量生成失败，请稍后重试', 'error');
       console.error('角色批量生成失败:', error);
     } finally {
       setIsSubmittingCharacterBatch(false);
@@ -412,17 +411,16 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
       await sceneBatchRecovery.checkAndResume();
       
       // Show summary with failure count if any
-      const total = scenesData.length;
       if (failedCount > 0) {
-        showToast(
-          `场景批量生成：成功 ${startedCount + recoveredCount}/${total}，失败 ${failedCount} 个`,
-          failedCount === total ? 'error' : 'warning'
-        );
-      } else {
-        showToast(`场景批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
+        console.error('场景批量生成存在失败项:', {
+          total: scenesData.length,
+          startedCount,
+          recoveredCount,
+          failedCount
+        });
       }
     } catch (error: any) {
-      showToast('场景批量生成失败: ' + error.message, 'error');
+      showToast('场景批量生成失败，请稍后重试', 'error');
       console.error('场景批量生成失败:', error);
     } finally {
       setIsSubmittingSceneBatch(false);
@@ -438,9 +436,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     try {
       showToast('正在启动首尾帧批量生成...', 'info');
       await batchFrameGen.startBatchGeneration(false);
-      showToast('首尾帧批量生成任务已提交', 'success');
     } catch (error: any) {
-      showToast('首尾帧批量生成失败: ' + error.message, 'error');
+      showToast('首尾帧批量生成失败，请稍后重试', 'error');
       console.error('首尾帧批量生成失败:', error);
     }
   };
@@ -453,9 +450,8 @@ const StoryBoard: React.FC<StoryBoardProps> = ({
     try {
       showToast(`正在批量生成 ${scenes.length} 个分镜的视频...`, 'info');
       await batchSceneVideoGen.startBatchVideoGeneration(false);
-      showToast('批量视频生成任务已提交', 'success');
     } catch (error: any) {
-      showToast('视频批量生成失败: ' + error.message, 'error');
+      showToast('视频批量生成失败，请稍后重试', 'error');
       console.error('视频批量生成失败:', error);
     }
   };

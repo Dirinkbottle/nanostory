@@ -6,6 +6,7 @@ import App from './App';
 import { ToastProvider } from './contexts/ToastContext';
 import { ConfirmProvider } from './contexts/ConfirmContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -18,9 +19,11 @@ root.render(
     <ThemeProvider>
       <HeroUIProvider>
         <ToastProvider>
-          <ConfirmProvider>
-            <App />
-          </ConfirmProvider>
+          <NotificationProvider>
+            <ConfirmProvider>
+              <App />
+            </ConfirmProvider>
+          </NotificationProvider>
         </ToastProvider>
       </HeroUIProvider>
     </ThemeProvider>

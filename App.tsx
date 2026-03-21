@@ -5,7 +5,6 @@ import Layout from './components/Layout';
 import Auth from './views/Auth';
 import AdminRoute from './components/AdminRoute';
 import ProtectedRoute from './components/ProtectedRoute';
-import { ToastProvider } from './contexts/ToastContext';
 import { PreviewProvider } from './components/PreviewProvider';
 import TaskQueueBubble from './components/TaskQueueBubble';
 import Skeleton from './components/Skeleton';
@@ -21,6 +20,7 @@ const UserCenter = React.lazy(() => import('./views/UserCenter'));
 const AdminLogin = React.lazy(() => import('./views/AdminLogin'));
 const AdminLayout = React.lazy(() => import('./views/admin/AdminLayout'));
 const Dashboard = React.lazy(() => import('./views/admin/Dashboard'));
+const ServiceDashboard = React.lazy(() => import('./views/admin/ServiceDashboard'));
 const AIModels = React.lazy(() => import('./views/admin/AIModels'));
 const UserManagement = React.lazy(() => import('./views/admin/UserManagement'));
 
@@ -106,6 +106,11 @@ const App: React.FC = () => {
             <Route path="dashboard" element={
               <Suspense fallback={<LoadingFallback />}>
                 <Dashboard />
+              </Suspense>
+            } />
+            <Route path="services" element={
+              <Suspense fallback={<LoadingFallback />}>
+                <ServiceDashboard />
               </Suspense>
             } />
             <Route path="ai-models" element={

@@ -159,12 +159,11 @@ export function useScriptGeneration({
         console.log('[useScriptGeneration] 保存响应:', data);
         
         if (res.status === 402) {
-          onError?.(`余额不足！需要: ¥${data.required.toFixed(4)}, 当前: ¥${data.current.toFixed(2)}`);
           return;
         }
 
         if (!res.ok) {
-          throw new Error(data.message || '保存失败');
+          throw new Error('保存失败');
         }
 
         console.log('[useScriptGeneration] 保存成功，刷新剧本列表...');
@@ -178,13 +177,11 @@ export function useScriptGeneration({
         await consumeWorkflow(completedJob.id);
         
         console.log('[useScriptGeneration] 完成！');
-        onSuccess?.(`第${data.episodeNumber}集生成成功！`);
-        
         // 检查是否还有其他活跃工作流
         console.log('[useScriptGeneration] 检查是否有其他活跃工作流...');
         await checkAndResumeNextWorkflow();
       } catch (error: any) {
-        onError?.('保存剧本失败: ' + error.message);
+        console.error('保存剧本失败:', error);
         // 即使保存失败，也检查下一个工作流
         await checkAndResumeNextWorkflow();
       } finally {
@@ -193,7 +190,6 @@ export function useScriptGeneration({
       }
     },
     onFailed: async (failedJob) => {
-      onError?.('剧本生成失败: ' + (failedJob.error_message || '未知错误'));
       setGenerationProgress(null);
       
       // 失败的工作流也标记为已消费
@@ -253,7 +249,7 @@ export function useScriptGeneration({
         setSelectedProject(newProject);
         localStorage.setItem(LAST_PROJECT_KEY, newProject.id.toString());
       } catch (error: any) {
-        onError?.('自动创建工程失败: ' + error.message);
+        console.error('自动创建工程失败:', error);
         return;
       }
     }
@@ -281,7 +277,7 @@ export function useScriptGeneration({
       console.log('[useScriptGeneration] 生成API响应:', data);
 
       if (!res.ok) {
-        throw new Error(data.message || '生成失败');
+        throw new Error('生成失败');
       }
 
       console.log('[useScriptGeneration] 设置 generatingJobId:', data.jobId);
@@ -295,7 +291,7 @@ export function useScriptGeneration({
       // 刷新剧本列表（显示生成中状态）
       await loadProjectScript(projectToUse.id, data.episodeNumber);
     } catch (error: any) {
-      onError?.(error.message || '生成失败');
+      console.error('生成剧本失败:', error);
       setLoading(false);
     }
   };

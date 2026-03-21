@@ -1,8 +1,8 @@
-import React, { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardBody, Button, Input, Divider } from '@heroui/react';
-import { User, Lock, ArrowRight, Sparkles } from 'lucide-react';
-import { login, register } from '../services/auth';
+import { User, Lock, ArrowRight, Sparkles, KeyRound } from 'lucide-react';
+import { login, register, loginWithAdminAccess, getLoginRequirements } from '../services/auth';
 import { useToast } from '../contexts/ToastContext';
 
 const Auth: React.FC = () => {
@@ -13,10 +13,57 @@ const Auth: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [adminAccessKey, setAdminAccessKey] = useState('');
+  const [requiresAdminAccess, setRequiresAdminAccess] = useState(false);
+  const [checkingLoginRequirements, setCheckingLoginRequirements] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // 获取登录前想访问的页面
   const from = (location.state as any)?.from?.pathname || '/';
+
+  useEffect(() => {
+    if (mode !== 'login') {
+      setRequiresAdminAccess(false);
+      setCheckingLoginRequirements(false);
+      setAdminAccessKey('');
+      return;
+    }
+
+    const normalizedUsername = username.trim();
+    if (!normalizedUsername) {
+      setRequiresAdminAccess(false);
+      setCheckingLoginRequirements(false);
+      setAdminAccessKey('');
+      return;
+    }
+
+    let active = true;
+    setCheckingLoginRequirements(true);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await getLoginRequirements(normalizedUsername);
+        if (!active) return;
+
+        setRequiresAdminAccess(result.requiresAdminAccess);
+        if (!result.requiresAdminAccess) {
+          setAdminAccessKey('');
+        }
+      } catch {
+        if (!active) return;
+        setRequiresAdminAccess(false);
+      } finally {
+        if (active) {
+          setCheckingLoginRequirements(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [mode, username]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -24,20 +71,29 @@ const Auth: React.FC = () => {
       showToast('请填写完整信息', 'error');
       return;
     }
+    if (mode === 'login' && requiresAdminAccess && !adminAccessKey.trim()) {
+      showToast('该管理员账号需要填写后台访问密钥', 'error');
+      return;
+    }
 
     setLoading(true);
     try {
       if (mode === 'register') {
         await register(username, password);
-        showToast('注册成功！', 'success');
       } else {
-        await login(username, password);
-        showToast('登录成功！', 'success');
+        if (requiresAdminAccess) {
+          await loginWithAdminAccess(username, password, adminAccessKey);
+        } else {
+          await login(username, password);
+        }
       }
       // 登录成功后返回之前想访问的页面
       navigate(from, { replace: true });
     } catch (err: any) {
-      showToast(err?.message || '操作失败', 'error');
+      if (err?.reason === 'missing' || err?.reason === 'invalid') {
+        setRequiresAdminAccess(true);
+      }
+      showToast(mode === 'login' ? '登录失败，请稍后重试' : '注册失败，请稍后重试', 'error');
     } finally {
       setLoading(false);
     }
@@ -142,6 +198,33 @@ const Auth: React.FC = () => {
                 inputWrapper: 'bg-[rgba(30,35,60,0.6)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(230,200,122,0.3)] data-[focus=true]:border-[rgba(230,200,122,0.4)] shadow-sm',
               }}
             />
+
+            {mode === 'login' && requiresAdminAccess ? (
+              <div className="space-y-2">
+                <Input
+                  type="password"
+                  placeholder="后台访问密钥"
+                  value={adminAccessKey}
+                  onValueChange={setAdminAccessKey}
+                  startContent={<KeyRound className="w-4 h-4 text-[#6b6561]" />}
+                  variant="flat"
+                  radius="lg"
+                  size="lg"
+                  classNames={{
+                    base: 'bg-transparent',
+                    input: 'bg-transparent text-[#e8e4dc] placeholder:text-[#6b6561]',
+                    inputWrapper: 'bg-[rgba(30,35,60,0.6)] border border-[rgba(255,255,255,0.08)] hover:border-[rgba(230,200,122,0.3)] data-[focus=true]:border-[rgba(230,200,122,0.4)] shadow-sm',
+                  }}
+                />
+                <p className="text-xs text-[#e6c87a]">
+                  检测到管理员账号，登录时需要额外提供后台访问密钥。
+                </p>
+              </div>
+            ) : null}
+
+            {mode === 'login' && checkingLoginRequirements ? (
+              <p className="text-xs text-[#6b6561]">正在检测账号权限...</p>
+            ) : null}
 
             <Button
               type="submit"

@@ -58,7 +58,7 @@ const ScriptStudio: React.FC = () => {
     handleDeleteScript,
     handleCleanOrphans
   } = useScriptManagement({
-    onSuccess: (msg) => showToast(msg, 'success'),
+    onSuccess: () => {},
     onError: (msg) => showToast(msg, 'error')
   });
   
@@ -73,7 +73,7 @@ const ScriptStudio: React.FC = () => {
     selectedProject,
     setSelectedProject,
     loadProjectScript,
-    onSuccess: (msg) => showToast(msg, 'success'),
+    onSuccess: () => {},
     onError: (msg) => showToast(msg, 'error')
   });
   
@@ -163,14 +163,8 @@ const ScriptStudio: React.FC = () => {
       if (result.success) {
         setLastSavedAt(result.savedAt || new Date().toISOString());
         setHasUnsavedChanges(false);
-        if (!silent) {
-          showToast('草稿已保存', 'success');
-        }
         console.log('[saveDraft] Draft saved successfully at', result.savedAt);
       } else {
-        if (!silent) {
-          showToast(result.message || '保存失败', 'error');
-        }
         console.error('[saveDraft] Save failed:', result.message);
       }
     } catch (error) {
@@ -446,7 +440,6 @@ const ScriptStudio: React.FC = () => {
                         autoSaveTimerRef.current = null;
                       }
                       await saveDraft(true); // 静默保存
-                      showToast('草稿已自动保存', 'success');
                     }
                     
                     // 如果点击的是草稿集数，切换到草稿编辑界面
@@ -469,7 +462,6 @@ const ScriptStudio: React.FC = () => {
                     // 创建新集前自动保存当前草稿
                     if (draftScript) {
                       await saveDraft(true);
-                      showToast('草稿已自动保存', 'success');
                     }
                     setShowEpisodeModal(true);
                   }}
@@ -518,7 +510,6 @@ const ScriptStudio: React.FC = () => {
                           autoSaveTimerRef.current = null;
                         }
                         await saveDraft(true);
-                        showToast('草稿已自动保存', 'success');
                       }
                       const episodeToGenerate = draftEpisode || nextEpisode;
                       handleGenerate(episodeToGenerate, title, description, length, nextEpisode, aiModels.selected.text);
@@ -531,11 +522,8 @@ const ScriptStudio: React.FC = () => {
                       }
                       const ep = draftEpisode || nextEpisode;
                       const result = await handleCreateScript(selectedProject.id, manualTitle, manualContent, ep);
-                      if (result.success) {
-                        showToast(result.message, 'success');
-                        // 手动保存后会自动重新加载 scripts，草稿会被替换为完成状态
-                      } else {
-                        showToast(result.message, 'error');
+                      if (!result.success) {
+                        showToast('保存失败，请稍后重试', 'error');
                       }
                     }}
                   />
@@ -614,7 +602,7 @@ const ScriptStudio: React.FC = () => {
               setContent('');
               setIsEditing(false);
             } else {
-              showToast(result.message || '创建草稿失败', 'error');
+              showToast('创建草稿失败，请稍后重试', 'error');
             }
           }
         }}

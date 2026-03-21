@@ -143,7 +143,6 @@ const AIModels: React.FC = () => {
     onFailed: (failedJob) => {
       setParseJobId(null);
       setParsing(false);
-      showToast('解析失败：' + (failedJob.error_message || '未知错误'), 'error');
     }
   });
 
@@ -245,13 +244,12 @@ const AIModels: React.FC = () => {
         fetchModels();
         onClose();
         resetForm();
-        showToast('模型已保存', 'success');
       } else {
-        throw new Error(data.message || '保存失败');
+        throw new Error('保存失败');
       }
     } catch (error) {
       console.error('保存模型失败:', error);
-      showToast(error instanceof Error ? error.message : '保存失败，请检查 JSON 格式是否正确', 'error');
+      showToast('保存失败，请检查配置或稍后重试', 'error');
     }
   };
 
@@ -349,7 +347,7 @@ const AIModels: React.FC = () => {
         setParseJobId(data.jobId);
       } else {
         setParsing(false);
-        showToast(data.message || '启动解析任务失败', 'error');
+        showToast('启动解析任务失败，请稍后重试', 'error');
       }
     } catch (error) {
       console.error('智能解析失败:', error);

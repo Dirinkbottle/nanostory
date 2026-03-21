@@ -271,7 +271,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
     }
     const result = await onGenerateVideo(scene.id);
     if (!result.success) {
-      showToast(result.error || '视频生成失败', 'error');
+      showToast('视频生成失败，请稍后重试', 'error');
     }
   };
 

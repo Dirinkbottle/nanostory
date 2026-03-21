@@ -6,6 +6,7 @@ const { withAIBillingContext } = require('./aiBillingContext');
 const { getPriceSummary } = require('./aiBillingService');
 const { callAIModel, queryAIModel, getTextModels } = require('./aiModelService');
 const { generationStartService, sendGenerationError } = require('./modules/generation');
+const { listServices, runServiceAction } = require('./coreServiceClient');
 
 const router = express.Router();
 
@@ -71,6 +72,58 @@ router.get('/stats', authMiddleware, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('[Admin] Get stats error:', error);
     res.status(500).json({ message: '获取统计数据失败' });
+  }
+});
+
+router.get('/services', authMiddleware, requireAdmin, async (_req, res) => {
+  try {
+    const data = await listServices();
+    res.json(data);
+  } catch (error) {
+    console.error('[Admin] Get services error:', error);
+    const message = error.status === 401
+      ? '服务控制中心鉴权失败，请检查 SERVICE_SHARED_SECRET 并重建 backend/core-service 容器'
+      : error.message || '获取服务列表失败';
+    res.status(error.status === 401 ? 502 : (error.status || 500)).json({ message });
+  }
+});
+
+router.post('/services/:serviceId/start', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const data = await runServiceAction(req.params.serviceId, 'start');
+    res.json({ ...data, message: data?.message || '服务启动命令已发送' });
+  } catch (error) {
+    console.error('[Admin] Start service error:', error);
+    const message = error.status === 401
+      ? '服务控制中心鉴权失败，请检查 SERVICE_SHARED_SECRET 并重建 backend/core-service 容器'
+      : error.message || '启动服务失败';
+    res.status(error.status === 401 ? 502 : (error.status || 500)).json({ message });
+  }
+});
+
+router.post('/services/:serviceId/restart', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const data = await runServiceAction(req.params.serviceId, 'restart');
+    res.json({ ...data, message: data?.message || '服务重启命令已发送' });
+  } catch (error) {
+    console.error('[Admin] Restart service error:', error);
+    const message = error.status === 401
+      ? '服务控制中心鉴权失败，请检查 SERVICE_SHARED_SECRET 并重建 backend/core-service 容器'
+      : error.message || '重启服务失败';
+    res.status(error.status === 401 ? 502 : (error.status || 500)).json({ message });
+  }
+});
+
+router.post('/services/:serviceId/stop', authMiddleware, requireAdmin, async (req, res) => {
+  try {
+    const data = await runServiceAction(req.params.serviceId, 'stop');
+    res.json({ ...data, message: data?.message || '服务停止命令已发送' });
+  } catch (error) {
+    console.error('[Admin] Stop service error:', error);
+    const message = error.status === 401
+      ? '服务控制中心鉴权失败，请检查 SERVICE_SHARED_SECRET 并重建 backend/core-service 容器'
+      : error.message || '停止服务失败';
+    res.status(error.status === 401 ? 502 : (error.status || 500)).json({ message });
   }
 });
 

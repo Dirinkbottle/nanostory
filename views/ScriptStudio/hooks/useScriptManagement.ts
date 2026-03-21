@@ -107,13 +107,12 @@ export function useScriptManagement(options: UseScriptManagementOptions = {}) {
 
       const data = await res.json();
       if (res.ok) {
-        onSuccess?.('剧本保存成功！');
         return true;
       } else {
-        throw new Error(data.message || '保存失败');
+        throw new Error('保存失败');
       }
     } catch (error: any) {
-      onError?.(error.message || '保存失败');
+      console.error('保存剧本失败:', error);
       return false;
     } finally {
       setLoading(false);
@@ -149,15 +148,16 @@ export function useScriptManagement(options: UseScriptManagementOptions = {}) {
         setContent('');
         return {
           success: true,
-          message: data.message || '剧本删除成功！',
+          message: '',
           orphanCharacters: data.orphanCharacters || [],
           orphanScenes: data.orphanScenes || []
         };
       } else {
-        return { success: false, message: data.message || '删除失败' };
+        return { success: false, message: '' };
       }
     } catch (error: any) {
-      return { success: false, message: error.message || '删除失败' };
+      console.error('删除剧本失败:', error);
+      return { success: false, message: '删除剧本失败，请稍后重试' };
     } finally {
       setLoading(false);
     }
@@ -202,12 +202,13 @@ export function useScriptManagement(options: UseScriptManagementOptions = {}) {
       const data = await res.json();
       if (res.ok) {
         await loadProjectScript(projectId, data.episodeNumber);
-        return { success: true, message: data.message || '剧本保存成功' };
+        return { success: true, message: '' };
       } else {
-        return { success: false, message: data.message || '保存失败' };
+        return { success: false, message: '' };
       }
     } catch (error: any) {
-      return { success: false, message: error.message || '保存失败' };
+      console.error('手动创建剧本失败:', error);
+      return { success: false, message: '保存失败，请稍后重试' };
     } finally {
       setLoading(false);
     }
@@ -236,12 +237,13 @@ export function useScriptManagement(options: UseScriptManagementOptions = {}) {
       if (res.ok) {
         // 重新加载剧本列表以显示草稿
         await loadProjectScript(projectId);
-        return { success: true, scriptId: data.scriptId, message: data.message };
+        return { success: true, scriptId: data.scriptId, message: '' };
       } else {
-        return { success: false, message: data.message || '创建草稿失败' };
+        return { success: false, message: '' };
       }
     } catch (error: any) {
-      return { success: false, message: error.message || '创建草稿失败' };
+      console.error('创建草稿失败:', error);
+      return { success: false, message: '创建草稿失败，请稍后重试' };
     }
   };
 
@@ -265,12 +267,13 @@ export function useScriptManagement(options: UseScriptManagementOptions = {}) {
       });
       const data = await res.json();
       if (res.ok) {
-        return { success: true, message: data.message, savedAt: data.savedAt };
+        return { success: true, message: '', savedAt: data.savedAt };
       } else {
-        return { success: false, message: data.message || '保存草稿失败' };
+        return { success: false, message: '' };
       }
     } catch (error: any) {
-      return { success: false, message: error.message || '保存草稿失败' };
+      console.error('保存草稿失败:', error);
+      return { success: false, message: '保存草稿失败，请稍后重试' };
     } finally {
       setLoading(false);
     }
@@ -287,9 +290,10 @@ export function useScriptManagement(options: UseScriptManagementOptions = {}) {
         }
       });
       const data = await res.json();
-      return res.ok ? { success: true, message: data.message } : { success: false, message: data.message };
+      return res.ok ? { success: true, message: '' } : { success: false, message: '' };
     } catch (error: any) {
-      return { success: false, message: error.message || '删除草稿失败' };
+      console.error('删除草稿失败:', error);
+      return { success: false, message: '删除草稿失败，请稍后重试' };
     }
   };
 

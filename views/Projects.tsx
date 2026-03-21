@@ -114,7 +114,8 @@ const Projects: React.FC = () => {
       await loadProjects();
       onOpenChange();
     } catch (error: any) {
-      showToast(error.message, 'error');
+      console.error('保存工程失败:', error);
+      showToast('保存工程失败，请稍后重试', 'error');
     }
   };
 
@@ -169,10 +170,9 @@ const Projects: React.FC = () => {
         storyConstraints: suggestions.storyConstraints || prev.storyConstraints
       }));
 
-      showToast('AI已为您推荐项目设置', 'success');
     } catch (error: any) {
       console.error('AI推荐失败:', error);
-      showToast(error.message || 'AI推荐失败，请稍后重试', 'error');
+      showToast('AI推荐失败，请稍后重试', 'error');
     } finally {
       setAiSuggesting(false);
     }
@@ -191,7 +191,8 @@ const Projects: React.FC = () => {
       await deleteProject(id);
       await loadProjects();
     } catch (error: any) {
-      showToast(error.message, 'error');
+      console.error('删除工程失败:', error);
+      showToast('删除工程失败，请稍后重试', 'error');
     }
   };
 

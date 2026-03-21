@@ -52,9 +52,9 @@ const TagGroupManager: React.FC<TagGroupManagerProps> = ({ isOpen, onOpenChange,
       await updateTagGroup(editingId, { name: editName.trim(), color: editColor });
       setEditingId(null);
       onRefresh();
-      showToast('分组更新成功', 'success');
     } catch (error: any) {
-      showToast(error.message, 'error');
+      console.error('更新标签分组失败:', error);
+      showToast('更新标签分组失败，请稍后重试', 'error');
     }
   };
 
@@ -69,9 +69,9 @@ const TagGroupManager: React.FC<TagGroupManagerProps> = ({ isOpen, onOpenChange,
     try {
       await deleteTagGroup(id);
       onRefresh();
-      showToast('分组删除成功', 'success');
     } catch (error: any) {
-      showToast(error.message, 'error');
+      console.error('删除标签分组失败:', error);
+      showToast('删除标签分组失败，请稍后重试', 'error');
     }
   };
 
@@ -82,9 +82,9 @@ const TagGroupManager: React.FC<TagGroupManagerProps> = ({ isOpen, onOpenChange,
       setNewName('');
       setNewColor(TAG_GROUP_COLORS[0]);
       onRefresh();
-      showToast('分组创建成功', 'success');
     } catch (error: any) {
-      showToast(error.message, 'error');
+      console.error('创建标签分组失败:', error);
+      showToast('创建标签分组失败，请稍后重试', 'error');
     }
   };
 
@@ -463,7 +463,8 @@ const AssetsManager: React.FC = () => {
       await loadData();
       onOpenChange();
     } catch (error: any) {
-      showToast(error.message, 'error');
+      console.error('资源保存失败:', error);
+      showToast('保存失败，请稍后重试', 'error');
     }
   };
 
@@ -486,7 +487,8 @@ const AssetsManager: React.FC = () => {
       }
       await loadData();
     } catch (error: any) {
-      showToast(error.message, 'error');
+      console.error('资源删除失败:', error);
+      showToast('删除失败，请稍后重试', 'error');
     }
   };
 
@@ -513,15 +515,14 @@ const AssetsManager: React.FC = () => {
       });
       
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || '启动生成失败');
+        throw new Error('启动生成失败');
       }
       
       const data = await res.json();
       console.log('[AssetsManager] 场景图片生成已启动:', data.jobId);
     } catch (error: any) {
       console.error('[AssetsManager] 生成场景图片失败:', error);
-      showToast('生成场景图片失败: ' + error.message, 'error');
+      showToast('生成场景图片失败，请稍后重试', 'error');
       throw error;
     }
   };

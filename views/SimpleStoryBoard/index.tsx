@@ -220,16 +220,14 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
 
       const data = await response.json();
       if (response.ok) {
-        showToast('角色三视图生成任务已启动！', 'success');
         // 刷新角色数据
         loadCharacters();
       } else if (response.status === 409 && data.jobId) {
-        showToast('该角色已有三视图生成任务正在执行', 'info');
       } else {
-        showToast(data.message || '生成失败', 'error');
+        console.error('角色三视图生成失败:', data);
       }
     } catch (error) {
-      showToast('生成角色图片时出错', 'error');
+      showToast('生成角色图片失败，请稍后重试', 'error');
       console.error('生成角色图片出错:', error);
     }
   };
@@ -263,16 +261,14 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
 
       const data = await response.json();
       if (response.ok) {
-        showToast('场景图片生成任务已启动！', 'success');
         // 刷新场景数据
         loadScenes();
       } else if (response.status === 409 && data.jobId) {
-        showToast('该场景已有图片生成任务正在执行', 'info');
       } else {
-        showToast(data.message || '生成失败', 'error');
+        console.error('场景图片生成失败:', data);
       }
     } catch (error) {
-      showToast('生成场景图片时出错', 'error');
+      showToast('生成场景图片失败，请稍后重试', 'error');
       console.error('生成场景图片出错:', error);
     }
   };
@@ -329,10 +325,10 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
         }
       }
       await characterBatchRecovery.checkAndResume();
-      showToast(`角色批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
       loadCharacters();
     } catch (error: any) {
-      showToast('角色批量生成失败: ' + error.message, 'error');
+      console.error('角色批量生成失败:', error);
+      showToast('角色批量生成失败，请稍后重试', 'error');
     } finally {
       setIsSubmittingCharacterBatch(false);
     }
@@ -385,10 +381,10 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
         }
       }
       await sceneBatchRecovery.checkAndResume();
-      showToast(`场景批量生成已提交：新启动 ${startedCount} 个，恢复 ${recoveredCount} 个`, 'success');
       loadScenes();
     } catch (error: any) {
-      showToast('场景批量生成失败: ' + error.message, 'error');
+      console.error('场景批量生成失败:', error);
+      showToast('场景批量生成失败，请稍后重试', 'error');
     } finally {
       setIsSubmittingSceneBatch(false);
     }
@@ -406,7 +402,6 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
     }
     showToast(`正在批量生成 ${scenes.length} 个分镜的首尾帧...`, 'info');
     await batchFrameGen.startBatchGeneration(false);
-    showToast('首尾帧批量生成任务已提交', 'success');
   };
 
   // 批量生成视频
@@ -417,7 +412,6 @@ const SimpleStoryBoard: React.FC<SimpleStoryBoardProps> = ({
     }
     showToast(`正在批量生成 ${scenes.length} 个分镜的视频...`, 'info');
     await batchSceneVideoGen.startBatchVideoGeneration(false);
-    showToast('批量视频生成任务已提交', 'success');
   };
 
 

@@ -53,7 +53,8 @@ const ProjectSelector: React.FC<ProjectSelectorProps> = ({ onSelectProject }) =>
       onOpenChange();
       onSelectProject(project);
     } catch (error: any) {
-      showToast(error.message || '创建项目失败', 'error');
+      console.error('创建项目失败:', error);
+      showToast('创建项目失败，请稍后重试', 'error');
     }
   };
 

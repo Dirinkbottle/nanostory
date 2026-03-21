@@ -27,10 +27,9 @@ const AdminLogin: React.FC = () => {
         return;
       }
 
-      showToast('登录成功！', 'success');
       navigate('/admin/dashboard');
     } catch (err: any) {
-      showToast(err?.message || '登录失败', 'error');
+      showToast('登录失败，请检查网络或重试', 'error');
       setLoading(false);
     }
   };

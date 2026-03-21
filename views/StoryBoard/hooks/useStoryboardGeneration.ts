@@ -65,12 +65,9 @@ export function useStoryboardGeneration({
       return Number(job.input_params?.scriptId) === scriptId;
     },
     onCompleted: async () => {
-      showToast('分镜生成完成！', 'success');
       onComplete();
     },
-    onFailed: (failedJob) => {
-      showToast('分镜生成失败: ' + (failedJob.error_message || '未知错误'), 'error');
-    },
+    onFailed: () => {},
     logPrefix: '[useStoryboardGeneration]'
   });
 
@@ -106,7 +103,6 @@ export function useStoryboardGeneration({
       if (!res.ok) {
         if (res.status === 409 && data.jobId) {
           recovery.startJob(data.jobId);
-          showToast('已恢复进行中的分镜生成任务', 'info');
           return;
         }
 
@@ -115,9 +111,9 @@ export function useStoryboardGeneration({
 
       // 启动工作流轮询 - 统一处理，无论哪种模式都返回单个 jobId
       recovery.startJob(data.jobId);
-      showToast(`分镜生成已启动（共 ${data.totalScenes || 1} 个场景），请等待完成...`, 'info');
     } catch (error: any) {
-      showToast(error.message || '自动生成分镜失败', 'error');
+      console.error('自动生成分镜失败:', error);
+      showToast('自动生成分镜失败，请稍后重试', 'error');
     }
   }, [scriptId, showToast, recovery]);
 

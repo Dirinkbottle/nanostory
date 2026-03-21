@@ -86,13 +86,10 @@ const SystemConfigManagement: React.FC = () => {
       if (res.ok) {
         await fetchConfigs();
         handleCloseModal();
-      } else {
-        const data = await res.json();
-        showToast(data.message || '保存失败', 'error');
       }
     } catch (error) {
       console.error('保存配置失败:', error);
-      showToast('保存失败', 'error');
+      showToast('保存配置失败，请稍后重试', 'error');
     }
   };
 
@@ -113,13 +110,10 @@ const SystemConfigManagement: React.FC = () => {
 
       if (res.ok) {
         await fetchConfigs();
-      } else {
-        const data = await res.json();
-        showToast(data.message || '删除失败', 'error');
       }
     } catch (error) {
       console.error('删除配置失败:', error);
-      showToast('删除失败', 'error');
+      showToast('删除配置失败，请稍后重试', 'error');
     }
   };
 
