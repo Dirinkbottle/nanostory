@@ -17,6 +17,7 @@
     "jsonrepair": "^3.13.2",
     "jsonwebtoken": "^9.0.2",
     "minio": "^8.0.6",
+    "multer": "^2.1.1",
     "mysql2": "^3.11.0",
     "node-fetch": "^2.7.0",
     "sharp": "^0.34.5"

@@ -107,6 +107,10 @@ app.use('/api/files', fileProxyRoutes);
 const clientBuildPath = path.join(__dirname, '..', '..', 'dist');
 app.use(express.static(clientBuildPath));
 
+// Serve uploads directory for sketch files
+const uploadsPath = path.join(__dirname, '..', 'uploads');
+app.use('/uploads', express.static(uploadsPath));
+
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) {
     return next();

@@ -7,6 +7,7 @@ import { getAuthToken } from '../../services/auth';
 import { useToast } from '../../contexts/ToastContext';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { validateFrameReadiness, formatValidationMessage } from './utils/validateFrameReadiness';
+import SketchPanel from './SceneCard/SketchPanel';
 
 interface ScenePreviewPanelProps {
   scene: StoryboardScene | null;
@@ -403,6 +404,23 @@ const ScenePreviewPanel: React.FC<ScenePreviewPanelProps> = ({
               {scene.description || '暂无描述'}
             </p>
           )}
+        </div>
+
+        {/* 草图面板 */}
+        <div className="px-4 py-3 border-t border-[var(--border-color)]">
+          <SketchPanel
+            storyboardId={scene.id}
+            sketchUrl={scene.sketchUrl}
+            sketchType={scene.sketchType}
+            sketchData={scene.sketchData}
+            controlStrength={scene.controlStrength}
+            backgroundImage={scene.startFrame}
+            onSketchChange={(updates) => {
+              if (onUpdateScene) {
+                onUpdateScene(updates);
+              }
+            }}
+          />
         </div>
 
         {/* 生成操作 */}

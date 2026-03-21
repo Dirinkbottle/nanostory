@@ -348,5 +348,33 @@ module.exports = {
     defaultValue: null,
     description: '自定义提示词（智能解析用）',
     category: 'admin'
+  },
+
+  // ================================================================
+  //  草图控制 (Sketch)
+  // ================================================================
+  sketchUrl: {
+    from: 'sketchUrl',
+    defaultValue: null,
+    description: '草图文件 URL（用于草图转图片）',
+    category: 'sketch'
+  },
+  sketchType: {
+    from: 'sketchType',
+    defaultValue: 'storyboard_sketch',
+    description: '草图类型（storyboard_sketch | detailed_lineart）',
+    category: 'sketch'
+  },
+  controlStrength: {
+    from: 'controlStrength',
+    defaultValue: 0.8,
+    description: 'ControlNet 控制强度（0.0 ~ 1.0）',
+    category: 'sketch'
+  },
+  processedSketchUrl: {
+    from: 'processedSketchUrl',
+    defaultValue: null,
+    description: '预处理后的草图 URL（由预处理步骤输出）',
+    category: 'sketch'
   }
 };
