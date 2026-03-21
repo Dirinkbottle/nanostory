@@ -68,7 +68,7 @@ export function useFFmpegExport() {
 
   const exportVideo = useCallback(async (
     clips: CompositionClip[],
-    options: ExportOptions = { format: 'mp4', resolution: '1080p', fps: 30 }
+    options: ExportOptions = { format: 'mp4', resolution: '1080p', fps: 30, quality: 'high' }
   ) => {
     if (clips.length === 0) {
       setProgress({ stage: 'error', percent: 0, message: '没有可导出的片段' });
@@ -127,24 +127,65 @@ export function useFFmpegExport() {
       addLog('concat 文件列表已写入');
 
       // ── Step 3: FFmpeg 编码 ──
-      const scaleFilter = options.resolution === '1080p'
-        ? 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2'
-        : 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2';
+      // 根据分辨率设置尺寸
+      const resolutionMap: Record<string, { width: number; height: number }> = {
+        '480p': { width: 854, height: 480 },
+        '720p': { width: 1280, height: 720 },
+        '1080p': { width: 1920, height: 1080 },
+        '1440p': { width: 2560, height: 1440 },
+        '4k': { width: 3840, height: 2160 },
+      };
+      const res = resolutionMap[options.resolution] || resolutionMap['1080p'];
+      const scaleFilter = `scale=${res.width}:${res.height}:force_original_aspect_ratio=decrease,pad=${res.width}:${res.height}:(ow-iw)/2:(oh-ih)/2`;
 
-      const ffmpegArgs = [
+      // 根据质量设置编码参数
+      const qualityPresetMap: Record<string, string> = {
+        'low': 'ultrafast',
+        'medium': 'fast',
+        'high': 'medium',
+      };
+      const crfMap: Record<string, string> = {
+        'low': '28',
+        'medium': '23',
+        'high': '18',
+      };
+
+      const isWebM = options.format === 'webm';
+      const outputFileName = `output.${options.format}`;
+
+      const ffmpegArgs: string[] = [
         '-f', 'concat',
         '-safe', '0',
         '-i', 'filelist.txt',
         '-vf', scaleFilter,
-        '-c:v', 'libx264',
-        '-preset', 'fast',
         '-r', String(options.fps),
         '-pix_fmt', 'yuv420p',
-        '-c:a', 'aac',
-        '-b:a', '128k',
         '-y',
-        'output.mp4'
       ];
+
+      if (isWebM) {
+        // WebM 使用 VP9 编码
+        ffmpegArgs.push(
+          '-c:v', 'libvpx-vp9',
+          '-deadline', options.quality === 'high' ? 'good' : 'realtime',
+          '-cpu-used', options.quality === 'low' ? '5' : '2',
+          '-b:v', '0', // 使用 CRF 模式
+          '-crf', crfMap[options.quality] || '23',
+          '-c:a', 'libopus',
+          '-b:a', '128k',
+          outputFileName
+        );
+      } else {
+        // MP4 使用 H.264 编码
+        ffmpegArgs.push(
+          '-c:v', 'libx264',
+          '-preset', qualityPresetMap[options.quality] || 'fast',
+          '-crf', crfMap[options.quality] || '23',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          outputFileName
+        );
+      }
 
       addLog(`FFmpeg 命令: ffmpeg ${ffmpegArgs.join(' ')}`);
       updateProgress({
@@ -173,18 +214,19 @@ export function useFFmpegExport() {
         startTime: startTimeRef.current
       });
 
-      const outputData = await ffmpeg.readFile('output.mp4');
+      const outputData = await ffmpeg.readFile(outputFileName);
       const outputBytes = (outputData as Uint8Array).byteLength || 0;
       addLog(`输出文件大小: ${formatBytes(outputBytes)}`);
 
-      const blob = new Blob([new Uint8Array(outputData as Uint8Array)], { type: 'video/mp4' });
+      const mimeType = isWebM ? 'video/webm' : 'video/mp4';
+      const blob = new Blob([new Uint8Array(outputData as Uint8Array)], { type: mimeType });
       const url = URL.createObjectURL(blob);
 
       for (let i = 0; i < clips.length; i++) {
         await ffmpeg.deleteFile(`input_${i}.mp4`).catch(() => {});
       }
       await ffmpeg.deleteFile('filelist.txt').catch(() => {});
-      await ffmpeg.deleteFile('output.mp4').catch(() => {});
+      await ffmpeg.deleteFile(outputFileName).catch(() => {});
       addLog('虚拟文件系统已清理');
 
       const totalSec = ((Date.now() - startTimeRef.current) / 1000).toFixed(1);
@@ -216,10 +258,12 @@ export function useFFmpegExport() {
     }
   }, [loadFFmpeg, addLog, updateProgress, formatBytes]);
 
-  const downloadVideo = useCallback((blobUrl: string, filename: string = 'composition.mp4') => {
+  const downloadVideo = useCallback((blobUrl: string, filename: string = 'composition.mp4', format: string = 'mp4') => {
+    // 确保文件名有正确的扩展名
+    const finalFilename = filename.endsWith(`.${format}`) ? filename : `${filename}.${format}`;
     const a = document.createElement('a');
     a.href = blobUrl;
-    a.download = filename;
+    a.download = finalFilename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

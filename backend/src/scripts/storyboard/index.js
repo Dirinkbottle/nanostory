@@ -27,6 +27,7 @@ const cleanBeforeRegenerate = require('./cleanBeforeRegenerate');
 const fixLinks = require('./fixLinks');
 const updateDirectorParams = require('./updateDirectorParams');
 const sketchRoutes = require('./sketch');
+const lockRoutes = require('./lockStoryboard');
 
 // 注册路由（顺序很重要！具体路由在前，通用路由在后）
 
@@ -42,6 +43,7 @@ router.patch('/:storyboardId/media', authMiddleware, updateMedia);
 router.patch('/:storyboardId/content', authMiddleware, updateContent);
 updateDirectorParams(router);  // 导演参数更新
 sketchRoutes(router);          // 草图上传与管理
+lockRoutes(router);            // 分镜锁定/解锁
 
 getTemplates(router);
 autoGenerate(router);

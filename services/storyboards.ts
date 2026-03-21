@@ -280,3 +280,99 @@ export async function generateFromSketch(
 
   return data as { jobId: number; tasks: any[] };
 }
+
+// ============================================================
+// 分镜锁定相关 API
+// ============================================================
+
+export interface LockResult {
+  success: boolean;
+  message: string;
+  storyboardId?: number;
+  locked_by?: string;
+  locked_at?: string;
+}
+
+/**
+ * 锁定分镜
+ * @param storyboardId 分镜ID
+ */
+export async function lockStoryboard(storyboardId: number): Promise<LockResult> {
+  const res = await fetch(`/api/storyboards/${storyboardId}/lock`, {
+    method: 'POST',
+    headers: {
+      ...authHeaders(),
+    },
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || '锁定分镜失败');
+  }
+
+  return data as LockResult;
+}
+
+/**
+ * 解锁分镜
+ * @param storyboardId 分镜ID
+ */
+export async function unlockStoryboard(storyboardId: number): Promise<LockResult> {
+  const res = await fetch(`/api/storyboards/${storyboardId}/unlock`, {
+    method: 'POST',
+    headers: {
+      ...authHeaders(),
+    },
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || '解锁分镜失败');
+  }
+
+  return data as LockResult;
+}
+
+/**
+ * 批量锁定分镜
+ * @param storyboardIds 分镜ID数组
+ */
+export async function batchLockStoryboards(storyboardIds: number[]): Promise<{ success: boolean; message: string; count: number }> {
+  const res = await fetch('/api/storyboards/batch-lock', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ storyboardIds }),
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || '批量锁定失败');
+  }
+
+  return data as { success: boolean; message: string; count: number };
+}
+
+/**
+ * 批量解锁分镜
+ * @param storyboardIds 分镜ID数组
+ */
+export async function batchUnlockStoryboards(storyboardIds: number[]): Promise<{ success: boolean; message: string; count: number }> {
+  const res = await fetch('/api/storyboards/batch-unlock', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ storyboardIds }),
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(data?.message || data?.error || '批量解锁失败');
+  }
+
+  return data as { success: boolean; message: string; count: number };
+}

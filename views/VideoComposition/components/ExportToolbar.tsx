@@ -4,15 +4,18 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Progress } from '@heroui/react';
-import { Download, Trash2, RotateCcw, ChevronUp, ChevronDown, Bug, CheckCircle2, XCircle } from 'lucide-react';
-import type { ExportProgress } from '../types';
+import { Download, Trash2, RotateCcw, ChevronUp, ChevronDown, Bug, CheckCircle2, XCircle, Settings2 } from 'lucide-react';
+import type { ExportProgress, ExportOptions } from '../types';
+import ExportSettingsPanel from './ExportSettingsPanel';
 
 interface ExportToolbarProps {
   clipCount: number;
   totalDuration: number;
   exportProgress: ExportProgress;
+  exportOptions: ExportOptions;
   onExport: () => void;
   onClearTimeline: () => void;
+  onOptionsChange: (options: ExportOptions) => void;
 }
 
 function useElapsed(startTime?: number, running?: boolean) {
@@ -31,12 +34,15 @@ const ExportToolbar: React.FC<ExportToolbarProps> = ({
   clipCount,
   totalDuration,
   exportProgress,
+  exportOptions,
   onExport,
-  onClearTimeline
+  onClearTimeline,
+  onOptionsChange
 }) => {
   const isExporting = exportProgress.stage === 'loading' || exportProgress.stage === 'processing';
   const showProgress = exportProgress.stage !== 'idle';
   const [debugOpen, setDebugOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
   const elapsed = useElapsed(exportProgress.startTime, isExporting);
 
@@ -120,6 +126,20 @@ const ExportToolbar: React.FC<ExportToolbarProps> = ({
 
         {/* 右侧：按钮 */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* 设置按钮 */}
+          {!isExporting && clipCount > 0 && (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="light"
+              className="text-slate-400 hover:text-blue-400"
+              onPress={() => setSettingsOpen(true)}
+              title="导出设置"
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+            </Button>
+          )}
+
           {/* Debug 按钮 */}
           {showProgress && exportProgress.debugLogs && exportProgress.debugLogs.length > 0 && (
             <Button
@@ -158,6 +178,14 @@ const ExportToolbar: React.FC<ExportToolbarProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* 导出设置面板 */}
+      <ExportSettingsPanel
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        options={exportOptions}
+        onChange={onOptionsChange}
+      />
     </div>
   );
 };

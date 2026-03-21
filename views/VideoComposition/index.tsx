@@ -21,7 +21,7 @@ import { useSubtitles } from './hooks/useSubtitles';
 import { useBGM } from './hooks/useBGM';
 import { useFFmpegExport } from './hooks/useFFmpegExport';
 import { useToast } from '../../contexts/ToastContext';
-import type { CompositionClip } from './types';
+import type { CompositionClip, ExportOptions } from './types';
 
 interface VideoCompositionProps {
   projectId: number | null;
@@ -43,6 +43,14 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectN
   // 单个分镜预览弹窗
   const [previewClip, setPreviewClip] = useState<CompositionClip | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+
+  // 导出设置
+  const [exportOptions, setExportOptions] = useState<ExportOptions>({
+    format: 'mp4',
+    resolution: '1080p',
+    fps: 30,
+    quality: 'high',
+  });
 
   // 侧边栏片段点击 → 弹窗预览
   const handlePreviewClip = useCallback((clip: CompositionClip) => {
@@ -69,11 +77,12 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectN
   // 导出
   const handleExport = useCallback(async () => {
     if (timeline.clips.length === 0) return;
-    const url = await ffmpeg.exportVideo(timeline.clips);
+    const url = await ffmpeg.exportVideo(timeline.clips, exportOptions);
     if (url) {
-      ffmpeg.downloadVideo(url, `composition_ep${compositionData.selectedEpisode || 1}.mp4`);
+      const filename = `composition_ep${compositionData.selectedEpisode || 1}`;
+      ffmpeg.downloadVideo(url, filename, exportOptions.format);
     }
-  }, [timeline.clips, ffmpeg, compositionData.selectedEpisode]);
+  }, [timeline.clips, ffmpeg, compositionData.selectedEpisode, exportOptions]);
 
   return (
     <div className="h-full flex flex-col bg-[#0c0e1a] overflow-hidden">
@@ -205,8 +214,10 @@ const VideoComposition: React.FC<VideoCompositionProps> = ({ projectId, projectN
         clipCount={timeline.clips.length}
         totalDuration={timeline.totalDuration}
         exportProgress={ffmpeg.progress}
+        exportOptions={exportOptions}
         onExport={handleExport}
         onClearTimeline={timeline.clearTimeline}
+        onOptionsChange={setExportOptions}
       />
 
       {/* 单个分镜视频预览弹窗 */}

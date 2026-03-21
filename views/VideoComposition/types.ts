@@ -38,9 +38,10 @@ export interface TimelineState {
 }
 
 export interface ExportOptions {
-  format: 'mp4';
-  resolution: '720p' | '1080p';
-  fps: 24 | 30;
+  format: 'mp4' | 'webm';
+  resolution: '480p' | '720p' | '1080p' | '1440p' | '4k';
+  fps: 24 | 30 | 60;
+  quality: 'low' | 'medium' | 'high';
 }
 
 export interface ExportProgress {
